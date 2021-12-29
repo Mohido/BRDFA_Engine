@@ -68,6 +68,8 @@ namespace brdfa {
 
 		}
 
+		void close();
+
 		~BRDFA_Engine();
 
 		bool init();													// Initialize the window and the vulkan api
