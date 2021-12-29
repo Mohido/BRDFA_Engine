@@ -43,11 +43,8 @@ namespace brdfa {
 
 
 
-	/// <summary>
-	/// 
-	/// </summary>
-	BRDFA_Engine::~BRDFA_Engine() {
-		vkDeviceWaitIdle(m_device.device);
+	void BRDFA_Engine::close() {
+
 		cleanup();
 
 		for (auto& mesh : m_meshes) {
@@ -82,6 +79,18 @@ namespace brdfa {
 
 		glfwDestroyWindow(m_window);
 		glfwTerminate();
+		m_active = false;
+	}
+
+
+	/// <summary>
+	/// 
+	/// </summary>
+	BRDFA_Engine::~BRDFA_Engine() {
+		if (m_active) {
+			close();
+			std::cout << "Please, next time make sure to close the engine before forcly shutting the program." << std::endl;
+		}
 	}
 
 
@@ -281,6 +290,7 @@ namespace brdfa {
 		//// Model dependent functions...
 		/*Initializing Mesh Related functionalities.*/
 		m_meshes.push_back(loadMesh(m_commander, m_device, MODEL_PATH, TEXTURE_PATH ));
+		m_meshes.push_back(loadMesh(m_commander, m_device, MODEL_PATH, TEXTURE_PATH));
 		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
 		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes);
 		recordCommandBuffers(m_commander, m_device, m_graphicsPipeline, m_descriptorData, m_swapChain, m_meshes);
@@ -296,7 +306,7 @@ namespace brdfa {
 	/// 
 	/// </summary>
 	void BRDFA_Engine::cleanup() {
-
+		vkDeviceWaitIdle(m_device.device);
 
 		/*Clearing up the swapchain resources.*/
 		/*clearn the depth Image buffer*/
@@ -392,15 +402,18 @@ namespace brdfa {
 
 			size_t ind = i * m_swapChain.images.size() + currentImage;
 			MVPMatrices ubo{};
-			ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+			glm::mat4 modelTr = glm::mat4(1.0f);
+			modelTr[3][0] = 1.0f*i;
+
+			ubo.model = glm::rotate(modelTr, time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 			ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 			ubo.proj = glm::perspective(glm::radians(45.0f), m_swapChain.extent.width / (float)m_swapChain.extent.height, 0.1f, 10.0f);
 			ubo.proj[1][1] *= -1;
 
 			void* data;
-			vkMapMemory(m_device.device, m_uniformBuffers[currentImage].memory, 0, sizeof(ubo), 0, &data);
+			vkMapMemory(m_device.device, m_uniformBuffers[ind].memory, 0, sizeof(ubo), 0, &data);
 			memcpy(data, &ubo, sizeof(ubo));
-			vkUnmapMemory(m_device.device, m_uniformBuffers[currentImage].memory);
+			vkUnmapMemory(m_device.device, m_uniformBuffers[ind].memory);
 		}
 		
 	}
