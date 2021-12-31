@@ -1,13 +1,27 @@
 #pragma once
+
 #include <vulkan/vulkan.h>
 
 #define GLFW_INCLUDE_VULKAN
 #include <glfw/glfw3.h>
 
+#include "brdfa_engine.hpp"
 
 //------------------------------------------------ Callbacks functions -------------------------------------
 
 namespace brdfa {
+    /// <summary>
+    /// Used to enable frame buffer resizing of the window.
+    /// </summary>
+    /// <param name="window"></param>
+    /// <param name="width"></param>
+    /// <param name="height"></param>
+    void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
+        auto app = reinterpret_cast<BRDFA_Engine*>(glfwGetWindowUserPointer(window));
+        app->frameBufferResize();
+    }
+
+
     /// <summary>
     /// 
     /// </summary>

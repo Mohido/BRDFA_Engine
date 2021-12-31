@@ -359,7 +359,7 @@ namespace brdfa {
 
             VkFramebufferCreateInfo framebufferInfo{};
             framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-            framebufferInfo.renderPass = gpipeline.renderPass;
+            framebufferInfo.renderPass = gpipeline.sceneRenderPass;
             framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
             framebufferInfo.pAttachments = attachments.data();
             framebufferInfo.width = swapchain.extent.width;
@@ -440,18 +440,3 @@ namespace brdfa {
     }
 
 }
-
-
-
-
-
-
-
-/*
-brdfa_mesh.cpp.obj : error LNK2019:
-unresolved external symbol "bool __cdecl tinyobj::LoadObj
-(
-struct tinyobj::attrib_t *,class std::vector<struct tinyobj::shape_t,class std::allocator<struct tinyobj::shape_t> > *,class std::vector<struct tinyobj::material_t,class std::allocator<struct tinyobj::material_t> > *,class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> > *,
-class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> > *,char const *,char const *,bool,bool)
-" (?LoadObj@tinyobj@@YA_NPEAUattrib_t@1@PEAV?$vector@Ushape_t@tinyobj@@V?$allocator@Ushape_t@tinyobj@@@std@@@std@@PEAV?$vector@Umaterial_t@tinyobj@@V?$allocator@Umaterial_t@tinyobj@@@std@@@4@PEAV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@4@3PEBD4_N5@Z) referenced in function "private: void __cdecl brdfa::Mesh::loadModel(class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> > const &)" (?loadModel@Mesh@brdfa@@AEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z)
-*/

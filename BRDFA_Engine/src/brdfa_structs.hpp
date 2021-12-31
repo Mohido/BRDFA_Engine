@@ -45,7 +45,8 @@ namespace brdfa {
 
 
     struct GPipeline {
-        VkRenderPass                    renderPass;                     // Render pass to be used in Graphics pipeline.
+        VkRenderPass                    uiRenderpass;                   // Render pass for the UI
+        VkRenderPass                    sceneRenderPass;                // Render pass to be used in Graphics pipeline.
         VkPipelineLayout                layout;                         // Pipeline layout used in the current Graphics pipeline.
         VkPipeline                      pipeline;                       // Graphics pipeline that we can submit commands into.
     };
@@ -53,7 +54,8 @@ namespace brdfa {
 
     struct Commander {
         VkCommandPool                   pool;                           // Handles the memory allocation of the command buffers
-        std::vector<VkCommandBuffer>    buffers;                        // Command buffers allocated from this pool.
+        std::vector<VkCommandBuffer>    sceneBuffers;                   // Command buffers allocated from this pool.
+        std::vector<VkCommandBuffer>    uiBuffers;
     };
 
 

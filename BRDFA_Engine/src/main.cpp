@@ -1,4 +1,7 @@
 ﻿#pragma once
+
+#include <imgui/imgui.h>
+
 #include "brdfa_engine.hpp"
 
 #include <iostream>
@@ -8,8 +11,6 @@
 #define WINDOW_HEIGHT 600
 
 int main() {
-    
-    
     // Configuration struct of the engine...
     brdfa::BRDFAEngineConfiguration conf;
     conf.height = WINDOW_HEIGHT;

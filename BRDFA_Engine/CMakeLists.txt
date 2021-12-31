@@ -6,7 +6,24 @@ set (CMAKE_CXX_STANDARD 17) # C++ 17
 
 # Project name and .o file
 project ("BRDFA_Engine")
-add_executable (BRDFA_Engine "src/main.cpp"  "src/brdfa_functions.hpp" "src/brdfa_mesh_abs.hpp" "src/brdfa_engine.cpp" "src/brdfa_structs.hpp" "src/brdfa_device_abs.hpp" "src/brdfa_cons.hpp" "src/brdfa_callbacks.hpp" "src/brdfa_instance_abs.hpp" "src/brdfa_g_pipeline_abs.hpp" "src/brdfa_swap_image_abs.hpp" "src/brdfa_commander_abs.hpp"   "src/brdfa_descriptor_abs.hpp")
+
+
+
+# IMGUI source files
+file (GLOB IMGUI_SRC 
+			"utils/imgui/*.cpp" 
+			"utils/imgui/*.h"
+			)
+
+
+# Engine Source files
+file ( GLOB BRDFA_ENGINE_SRC 
+			"src/brdfa*.hpp" 
+			"src/brdfa*.cpp"
+			)
+
+# Our built executable.
+add_executable (BRDFA_Engine "src/main.cpp" ${BRDFA_ENGINE_SRC} ${IMGUI_SRC} )
 
 # ---------------------------- C++ "Include" directories
 include_directories(src) 

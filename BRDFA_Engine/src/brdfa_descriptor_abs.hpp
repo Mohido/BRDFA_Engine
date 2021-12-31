@@ -11,7 +11,12 @@ namespace brdfa {
 
 
 
-
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="descriptorObj"></param>
+    /// <param name="device"></param>
+    /// <param name="swapchain"></param>
     static void createDescriptorSetLayout(Descriptor& descriptorObj, const Device& device, const SwapChain& swapchain) {
 
         /*Uniform variables.*/
