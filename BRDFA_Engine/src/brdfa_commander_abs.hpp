@@ -11,9 +11,6 @@
 
 namespace brdfa {
 
-
-
-
     /// <summary>
     /// 
     /// </summary>
