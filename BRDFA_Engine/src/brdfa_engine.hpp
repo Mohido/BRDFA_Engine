@@ -31,11 +31,16 @@ namespace brdfa {
 
 	class BRDFA_Engine {
 	private:
+		/*Imgui stuff*/
+		bool								m_activeImgui = true;
+		VkDescriptorPool					m_imguiPool;
+
 		/*Engine configuration*/
 		const BRDFAEngineConfiguration		m_configuration;				// the engine initial configuration.
 		size_t								m_currentFrame = 0;				// The current frame being rendered.
 		bool								m_active;
 		
+
 		uint32_t m_width_w, m_height_w;	
 
 
@@ -50,13 +55,13 @@ namespace brdfa {
         Descriptor							m_descriptorData;               // Holds Descriptor pool and its relative layout and sets.
 		GPipeline							m_graphicsPipeline;				// Holds the Graphics pipeline data.
 		Commander							m_commander;					// Handles the command pool and its related command buffers.
-
 		std::vector<SyncCollection>			m_sync;							// Fences per swapchain image. CPU/GPU signals, Semaphores per swapchain image. GPU/GPU signals.
 		std::vector<VkFence>				m_imagesInFlight;
 		
 		/*Engine Scene variables*/
 		std::vector<Mesh>					m_meshes;						// Scene meshes.
 		std::vector<Buffer>					m_uniformBuffers;				// Scene Uniform buffers. Camera transformation is a such.
+
 
 		const uint8_t						MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -68,27 +73,29 @@ namespace brdfa {
 
 		}
 
-		void close();
-
-		~BRDFA_Engine();
+		~BRDFA_Engine();					
 
 		bool init();													// Initialize the window and the vulkan api
+
+		bool updateAndRender();											// main loop. It handles engine updates and rendering.
+
+		void close();													// closes the engine. By default the engine will call this funciton when the window is closed
 
 		bool interrupt();												// interrupt execution .. For later usage.
 
 		bool loadObject();												// loading a mesh object into the scene.
-
-		bool updateAndRender();											// main loop. It handles engine updates and rendering.
 
 		bool isClosed();												// if the engine is closed.
 
 		bool frameBufferResize();										// set the frame buffer resized flag to true.
 
 	private:
-		void startWindow();
-		void startVulkan();
-		void update(uint32_t currentImage);
-		void cleanup();
-		void recreate();
+		void startWindow();												// Starts the GLFW window
+		void startVulkan();												// Fully initialize the Vulkan engine.
+		bool startImgui();												// Starts the Imgui for vulkan and glfw
+		void update(uint32_t currentImage);								// Update function. Time dependent function.
+		void render(uint32_t imageIndex);
+		void cleanup();													// Clean up the swapchain and the Vulkan objects. Mostly used during window resizing
+		void recreate();												// Cleans up the vulkan engine and recreate its objects. Called when the window is being resized.
 	};
 }

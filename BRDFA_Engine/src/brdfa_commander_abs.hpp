@@ -10,13 +10,17 @@
 
 
 namespace brdfa {
+
+
+
+
     /// <summary>
     /// 
     /// </summary>
     /// <param name="commander"></param>
     /// <param name="device"></param>
     static void endSingleTimeCommands(Commander& commander, const Device& device) {
-        VkCommandBuffer commandBuffer = commander.buffers.back();
+        VkCommandBuffer commandBuffer = commander.sceneBuffers.back();
         vkEndCommandBuffer(commandBuffer);
 
         VkSubmitInfo submitInfo{};
@@ -28,7 +32,7 @@ namespace brdfa {
         vkQueueWaitIdle(device.graphicsQueue);
 
         vkFreeCommandBuffers(device.device, commander.pool, 1, &commandBuffer);
-        commander.buffers.pop_back();
+        commander.sceneBuffers.pop_back();
     }
 
 
@@ -55,7 +59,7 @@ namespace brdfa {
         beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
         vkBeginCommandBuffer(commandBuffer, &beginInfo);
-        commander.buffers.push_back(commandBuffer);
+        commander.sceneBuffers.push_back(commandBuffer);
         return commandBuffer;
     }
 
@@ -227,7 +231,72 @@ namespace brdfa {
 
 
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="commander"></param>
+    /// <param name="device"></param>
+    /// <param name="gpipeline"></param>
+    /// <param name="swapchain"></param>
+    /// <param name="index"></param>
+    static void updateUICommandBuffers(Commander& commander, const Device& device, const GPipeline& gpipeline, const SwapChain& swapchain, const uint32_t index) {
 
+        if (commander.uiBuffers.size() != swapchain.images.size()) {
+            throw std::runtime_error("ERROR: You must intialize the commander Scene buffer first by calling createCommandBuffers() function.");
+        }
+
+        /*deleting the existing buffer from the pool*/
+        vkFreeCommandBuffers(device.device, commander.pool, 1, &commander.uiBuffers[index]);
+
+        /*Allocate the commandbuffer to the pool*/
+        VkCommandBufferAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.commandPool = commander.pool;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandBufferCount = 1;
+        if (vkAllocateCommandBuffers(device.device, &allocInfo, &commander.uiBuffers[index]) != VK_SUCCESS) {
+            throw std::runtime_error("ERROR: failed to allocate command buffers!");
+        }
+
+
+        /*Begin the command buffer recording.*/
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        if (vkBeginCommandBuffer(commander.uiBuffers[index], &beginInfo) != VK_SUCCESS) {
+            throw std::runtime_error("ERROR: failed to begin recording command buffer!");
+        }
+
+        /*Render pass begins*/
+        std::array<VkClearValue, 2> clearValues{};
+        clearValues[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
+        clearValues[1].depthStencil = { 1.0f, 0 };
+
+        VkRenderPassBeginInfo renderPassInfo{};
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        renderPassInfo.renderPass = gpipeline.uiRenderpass;
+        renderPassInfo.framebuffer = swapchain.framebuffers[index];
+        renderPassInfo.renderArea.offset = { 0, 0 };
+        renderPassInfo.renderArea.extent = swapchain.extent;
+        renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size()); 
+        renderPassInfo.pClearValues = clearValues.data();
+        vkCmdBeginRenderPass(commander.uiBuffers[index], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdBindPipeline(commander.uiBuffers[index], VK_PIPELINE_BIND_POINT_GRAPHICS, gpipeline.pipeline);
+
+        /*Drawing data to the framebuffer*/
+        ImDrawData* drawData = ImGui::GetDrawData();
+        if (drawData)
+        {
+            drawData->DisplayPos = { 0, 0 };
+            ImGui_ImplVulkan_RenderDrawData(drawData, commander.uiBuffers[index]);
+        }
+
+        vkCmdEndRenderPass(commander.uiBuffers[index]);
+        if (vkEndCommandBuffer(commander.uiBuffers[index]) != VK_SUCCESS) {
+            throw std::runtime_error("failed to record command buffer!");
+        }
+    }
 
 
     /// <summary>
@@ -240,29 +309,34 @@ namespace brdfa {
     /// <param name="swapchain"></param>
     /// <param name="meshes"></param>
     static void recordCommandBuffers(Commander& commander, const Device& device, const GPipeline& gpipeline, const Descriptor& descriptorObj ,const SwapChain& swapchain, std::vector<Mesh>& meshes) {
-        commander.buffers.resize(swapchain.framebuffers.size());
+        commander.sceneBuffers.resize(swapchain.framebuffers.size());
+        commander.uiBuffers.resize(swapchain.framebuffers.size());
 
         VkCommandBufferAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         allocInfo.commandPool = commander.pool;
         allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        allocInfo.commandBufferCount = (uint32_t)commander.buffers.size();
+        allocInfo.commandBufferCount = (uint32_t)commander.sceneBuffers.size();
 
-        if (vkAllocateCommandBuffers(device.device, &allocInfo, commander.buffers.data()) != VK_SUCCESS) {
+        if (vkAllocateCommandBuffers(device.device, &allocInfo, commander.sceneBuffers.data()) != VK_SUCCESS) {
             throw std::runtime_error("ERROR: failed to allocate command buffers!");
         }
 
-        for (size_t i = 0; i < commander.buffers.size(); i++) {
+        for (size_t i = 0; i < commander.sceneBuffers.size(); i++) {
             VkCommandBufferBeginInfo beginInfo{};
             beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+           
 
-            if (vkBeginCommandBuffer(commander.buffers[i], &beginInfo) != VK_SUCCESS) {
+            if (vkBeginCommandBuffer(commander.sceneBuffers[i], &beginInfo) != VK_SUCCESS) {
                 throw std::runtime_error("ERROR: failed to begin recording command buffer!");
             }
+            /*IMGUI: */
+            //ImGui_ImplVulkan_CreateFontsTexture(commander.buffers[i]);
+
 
             VkRenderPassBeginInfo renderPassInfo{};
             renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-            renderPassInfo.renderPass = gpipeline.renderPass;
+            renderPassInfo.renderPass = gpipeline.sceneRenderPass;
             renderPassInfo.framebuffer = swapchain.framebuffers[i];
             renderPassInfo.renderArea.offset = { 0, 0 };
             renderPassInfo.renderArea.extent = swapchain.extent;
@@ -274,8 +348,8 @@ namespace brdfa {
             renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
             renderPassInfo.pClearValues = clearValues.data();
 
-            vkCmdBeginRenderPass(commander.buffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-            vkCmdBindPipeline(commander.buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, gpipeline.pipeline);
+            vkCmdBeginRenderPass(commander.sceneBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+            vkCmdBindPipeline(commander.sceneBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, gpipeline.pipeline);
 
             for (size_t j = 0; j < meshes.size(); j++) {
 
@@ -285,19 +359,20 @@ namespace brdfa {
                 VkDeviceSize offsets[] = { 0 };
                 
                 
-                vkCmdBindVertexBuffers(commander.buffers[i], 0, 1, vertexBuffers, offsets);
+                vkCmdBindVertexBuffers(commander.sceneBuffers[i], 0, 1, vertexBuffers, offsets);
 
-                vkCmdBindIndexBuffer(commander.buffers[i], meshes[j].indexBuffer.obj, 0, VK_INDEX_TYPE_UINT32);
+                vkCmdBindIndexBuffer(commander.sceneBuffers[i], meshes[j].indexBuffer.obj, 0, VK_INDEX_TYPE_UINT32);
 
                 int descriptorSetIndex = j * swapchain.images.size() + i;
-                vkCmdBindDescriptorSets(commander.buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, gpipeline.layout, 0, 1, &descriptorObj.sets[descriptorSetIndex], 0, nullptr);
+                vkCmdBindDescriptorSets(commander.sceneBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, gpipeline.layout, 0, 1, &descriptorObj.sets[descriptorSetIndex], 0, nullptr);
 
-                vkCmdDrawIndexed(commander.buffers[i], meshes[j].indices.size(), 1, 0, 0, 0);
+                vkCmdDrawIndexed(commander.sceneBuffers[i], meshes[j].indices.size(), 1, 0, 0, 0);
             }
            
-
-            vkCmdEndRenderPass(commander.buffers[i]);
-            if (vkEndCommandBuffer(commander.buffers[i]) != VK_SUCCESS) {
+            // This can't be implemented in a prerecorded commadn buffer
+            //
+            vkCmdEndRenderPass(commander.sceneBuffers[i]);
+            if (vkEndCommandBuffer(commander.sceneBuffers[i]) != VK_SUCCESS) {
                 throw std::runtime_error("failed to record command buffer!");
             }
         }
