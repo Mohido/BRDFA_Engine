@@ -78,6 +78,7 @@ namespace brdfa {
 		}
 		glfwPollEvents();
 
+
 		/*Waiting for the images in flight*/
 		vkWaitForFences(m_device.device, 1, &m_sync[m_currentFrame].f_inFlight, VK_TRUE, UINT64_MAX);
 		uint32_t imageIndex;
@@ -101,6 +102,7 @@ namespace brdfa {
 		render(imageIndex);
 
 		m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+		
 		return true;
 	}
 
@@ -189,6 +191,20 @@ namespace brdfa {
 
 
 
+
+	void BRDFA_Engine::fireKeyEvent(int key, int action) {
+		/*checking for Shifts*/
+		m_keyboardEvent = {key, action};
+
+		/*if (action != GLFW_RELEASE) {
+			m_keyboardEvent.key_shift = key == GLFW_KEY_LEFT_SHIFT || key == GLFW_KEY_RIGHT_SHIFT;
+			m_keyboardEvent.key_w = key == GLFW_KEY_W;
+			m_keyboardEvent.key_s = key == GLFW_KEY_S;
+			m_keyboardEvent.key_a = key == GLFW_KEY_A;
+			m_keyboardEvent.key_d = key == GLFW_KEY_D;
+		}*/
+	}
+
 // ------------------------------------------------ MEMBER FUNCTIONS ---------------------------------------
 
 	/// <summary>
@@ -206,6 +222,7 @@ namespace brdfa {
 
 		glfwSetWindowUserPointer(m_window, this);
 		glfwSetFramebufferSizeCallback(m_window, framebufferResizeCallback);
+		glfwSetKeyCallback(m_window, keyCallback);
 
 		glfwGetFramebufferSize(m_window, reinterpret_cast<int*>(&m_width_w), reinterpret_cast<int*>(&m_height_w));
 	}
@@ -235,6 +252,8 @@ namespace brdfa {
 
 		/*Initializing Mesh Related functionalities.*/
 		m_meshes.push_back(loadMesh(m_commander, m_device, MODEL_PATH, TEXTURE_PATH ));
+		m_camera = Camera(m_swapChain.extent.width, m_swapChain.extent.height, 0.1f, 10.0f, 45.0f);
+
 
 		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
 		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes);
@@ -315,8 +334,16 @@ namespace brdfa {
 	/// <param name="currentImage">The image Index currently being processed. (Inflag image)</param>
 	void BRDFA_Engine::update(uint32_t currentImage) {
 		static auto startTime = std::chrono::high_resolution_clock::now();
+		static auto lastTime = startTime;
+		//static auto upsTime = startTime;
+
 		auto currentTime = std::chrono::high_resolution_clock::now();
+		
 		float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+		float timeDelta = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - lastTime).count();
+		//float timeUps = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - upsTime).count();
+
+		m_camera.update(m_keyboardEvent, timeDelta, 1.0f, 90.0f);
 
 		for (size_t i = 0; i < m_meshes.size(); i++) {
 
@@ -324,17 +351,23 @@ namespace brdfa {
 			MVPMatrices ubo{};
 			glm::mat4 modelTr = glm::mat4(1.0f);
 			modelTr[3][0] = 1.0f*i;
+			time = 1;
 
+			/*Vulkan: z is up/down. And y is depth*/
 			ubo.model = glm::rotate(modelTr, time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-			ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-			ubo.proj = glm::perspective(glm::radians(45.0f), m_swapChain.extent.width / (float)m_swapChain.extent.height, 0.1f, 10.0f);
-			ubo.proj[1][1] *= -1;
+			ubo.view = m_camera.transformation;				//glm::lookAt(glm::vec3(0.0f, 3.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+			ubo.proj = m_camera.projection;					//glm::perspective(glm::radians(45.0f), m_swapChain.extent.width / (float)m_swapChain.extent.height, 0.1f, 10.0f);
 
 			void* data;
 			vkMapMemory(m_device.device, m_uniformBuffers[ind].memory, 0, sizeof(ubo), 0, &data);
 			memcpy(data, &ubo, sizeof(ubo));
 			vkUnmapMemory(m_device.device, m_uniformBuffers[ind].memory);
 		}
+		//if (timeUps >= 0.033f) {
+		//	upsTime = currentTime;
+		//}
+		
+		lastTime = currentTime;
 	}
 
 
