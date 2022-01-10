@@ -22,6 +22,14 @@ namespace brdfa {
     }
 
 
+
+    void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+        auto app = reinterpret_cast<BRDFA_Engine*>(glfwGetWindowUserPointer(window));
+       //if(action == GLFW_REPEAT || action == GLFW_PRESS)
+
+        app->fireKeyEvent(key, action);
+    }
+
     /// <summary>
     /// 
     /// </summary>

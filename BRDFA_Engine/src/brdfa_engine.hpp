@@ -7,6 +7,7 @@
 
 #include <string>
 #include <array>
+#include <queue>
 #include <vector>
 
 #include "brdfa_structs.hpp"
@@ -59,8 +60,12 @@ namespace brdfa {
 		std::vector<VkFence>				m_imagesInFlight;
 		
 		/*Engine Scene variables*/
+		Camera								m_camera;
 		std::vector<Mesh>					m_meshes;						// Scene meshes.
 		std::vector<Buffer>					m_uniformBuffers;				// Scene Uniform buffers. Camera transformation is a such.
+
+		/*Event System.*/
+		KeyEvent							m_keyboardEvent;				// Events per updates.
 
 
 		const uint8_t						MAX_FRAMES_IN_FLIGHT = 2;
@@ -88,6 +93,8 @@ namespace brdfa {
 		bool isClosed();												// if the engine is closed.
 
 		bool frameBufferResize();										// set the frame buffer resized flag to true.
+		
+		void fireKeyEvent(int key, int action);							// adds an event.
 
 	private:
 		void startWindow();												// Starts the GLFW window
