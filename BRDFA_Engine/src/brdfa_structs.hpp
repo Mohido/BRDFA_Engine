@@ -1,9 +1,22 @@
 #pragma once
 #include <vulkan/vulkan.h>
 #include <vector>
-#include <glm/glm.hpp>
+
 #include <optional>
 #include <array>
+
+
+// GLM Dependencies
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/hash.hpp>
+#include <cmath>
+
+#include <iostream>
+
 
 namespace brdfa {
     struct Device {
@@ -152,7 +165,159 @@ namespace brdfa {
         std::vector<Vertex>				vertices;					// Vertices of the Mesh. Vertices can hold more than a position.
         std::vector<uint32_t>			indices;					// Indices refering to the loaded vertices of the object.
 
+        glm::mat4                       transformation;             // Holds the object transformation. Object to World transformation.
         Buffer							vertexBuffer;				// Vulkan buffer of the vertices
         Buffer							indexBuffer;				// Vulkan buffer of the Indices
     };
+
+
+
+
+
+    struct KeyEvent {
+        int key;
+        int action;
+        /*bool            key_w;
+        bool            key_s;
+        bool            key_a;
+        bool            key_d;
+        bool            key_shift;
+
+        void clear() {
+           key_w = false;
+           key_s = false;
+           key_a = false;
+           key_d = false;
+           key_shift = false;
+        }*/
+    };
+
+
+    struct Camera {
+        uint32_t                        uid;                        // For future implementation.
+        glm::mat4                       transformation;             // Camera to world space transformation matrix.
+        glm::mat4                       projection;                 // Projection matrix.
+        float                           aspectRatio;                // Camera aspect ratio: W/H
+        float                           nPlane, fPlane;             // Near and Far clipping plane
+        float                           angle;                      // Angle of the camera y-axis (Height)
+
+        Camera(){}
+
+        /// <summary>
+        /// Creates a prespective camera entity. 
+        /// </summary>
+        /// <param name="width"></param>
+        /// <param name="height"></param>
+        /// <param name="nPlane"></param>
+        /// <param name="fPlane"></param>
+        /// <param name="yAngle">Angle in degrees of the y-axis (height)</param>
+        Camera(uint32_t width, uint32_t height, float nPlane, float fPlane, float yAngle)
+        : uid(1)
+        {
+            aspectRatio = width / (float)height;
+            nPlane = nPlane;
+            fPlane = fPlane;
+            angle = yAngle;
+
+            transformation = glm::lookAt(glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+            projection = glm::perspective(glm::radians(angle), aspectRatio, nPlane, fPlane);
+            projection[1][1] *= -1;
+        }
+
+        
+        void update(const KeyEvent& ke, float time, float translationSpeed, float rotationSpeed) {
+
+            /*Translation*/
+            /*Y Axis*/
+            if (ke.key == GLFW_KEY_W && ke.action != GLFW_RELEASE)
+                transformation[3][1] += -translationSpeed * time;
+            if (ke.key == GLFW_KEY_S && ke.action != GLFW_RELEASE)
+                transformation[3][1] += translationSpeed * time;
+            /*X Axis*/
+            if (ke.key == GLFW_KEY_D && ke.action != GLFW_RELEASE)
+                transformation[3][0] += -translationSpeed * time;
+            if (ke.key == GLFW_KEY_A && ke.action != GLFW_RELEASE)
+                transformation[3][0] += translationSpeed * time;
+            /*Z-axis*/
+            if(ke.key == GLFW_KEY_E && ke.action != GLFW_RELEASE)
+                transformation[3][2] += -translationSpeed * time;
+            if (ke.key == GLFW_KEY_Q && ke.action != GLFW_RELEASE)
+                transformation[3][2] += translationSpeed * time;
+
+            /*Rotation*/
+            /*Initial rotation states.*/
+
+            float phi   = 0.0f;
+            /*Y Axis*/
+            if (ke.key == GLFW_KEY_I && ke.action != GLFW_RELEASE)
+                phi += -rotationSpeed;
+            if (ke.key == GLFW_KEY_K && ke.action != GLFW_RELEASE)
+                phi += rotationSpeed;
+            transformation = glm::rotate(transformation, time * glm::radians(phi), glm::vec3(1.0f, 0.0f, 0.0f));
+
+            /*X Axis*/
+            float theta = 0.0f;
+            if (ke.key == GLFW_KEY_J && ke.action != GLFW_RELEASE)
+                theta += -rotationSpeed;
+            if (ke.key == GLFW_KEY_L && ke.action != GLFW_RELEASE)
+                theta += rotationSpeed;
+            transformation = glm::rotate(transformation, time * glm::radians(theta), glm::vec3(0.0f, 0.0f, 1.0f));
+
+            /*Z Axis*/
+            float delta = 0.0f;
+            if (ke.key == GLFW_KEY_U && ke.action != GLFW_RELEASE)
+                delta += -rotationSpeed;
+            if (ke.key == GLFW_KEY_O && ke.action != GLFW_RELEASE)
+                delta += rotationSpeed;
+            transformation = glm::rotate(transformation, time * glm::radians(delta), glm::vec3(0.0f, 1.0f, 0.0f));
+            
+            /*Forming rotation matrices*/
+      /*      glm::mat4 R_y = glm::mat4(0.0f);
+            if (theta != 0.0f) {
+                R_y[0][0] = std::cos(theta);
+                R_y[2][0] = std::sin(theta);
+                R_y[1][1] = 1;
+                R_y[0][2] = -std::sin(theta);
+                R_y[2][2] = std::cos(theta);
+            }
+            glm::mat4 R_x = glm::mat4(0.0f);
+            if (phi != 0.0f) {
+                R_x[1][1] = std::cos(phi);
+                R_x[1][2] = -std::sin(phi);
+                R_x[0][0] = 1;
+                R_x[2][1] = std::sin(phi);
+                R_x[2][2] = std::cos(phi);
+            }*/
+
+           
+        }
+    };
+
+
+
 }
+
+///*Y Axis*/
+//if (ke.key_w && !ke.key_shift)
+//    transformation[3][1] += -speed * time;
+//if (ke.key_s && !ke.key_shift)
+//    transformation[3][1] += speed * time;
+
+///*X Axis*/
+//if (ke.key_a)
+//    transformation[3][0] += -speed * time;
+//if (ke.key_d)
+//    transformation[3][0] += speed * time;
+
+///*Z-axis*/
+//
+//if (ke.key_shift) {
+//    std::cout << ke.key_w << " : " << ke.key_shift << " keyshift working" << std::endl;
+//    transformation[3][2] += -speed * time;
+//   
+//}
+//    
+//if (ke.key_s && ke.key_shift) {
+//    std::cout << ke.key_w << " : " << ke.key_shift << " keyshift working" << std::endl;
+//    transformation[3][2] += speed * time;
+//}
