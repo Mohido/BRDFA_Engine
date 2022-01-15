@@ -170,6 +170,127 @@ namespace brdfa {
 	}
 
 
+
+	/// <summary>
+	/// 
+	/// </summary>
+	/// <returns></returns>
+	bool BRDFA_Engine::loadEnvironmentMap(const std::array<std::string, 6>& skyboxSides) {
+		/*Loading Image data from file.*/
+		int texWidth, texHeight, texChannels;
+		stbi_uc* textureData[6];
+		for (int i = 0; i < 6; i++) {
+			textureData[i] = stbi_load(skyboxSides[i].c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+			if (!textureData[i]) {
+				throw std::runtime_error("ERROR: failed to load Environment Map image!: " + skyboxSides[i] + " Does not exist!");
+			}
+		}
+		
+		VkDeviceSize imageSize = texWidth * texHeight * 4 * 6;				// Full buffer size (The size of all the images.)
+		VkDeviceSize layerSize = imageSize / 6;								// Size per layer
+
+		/*Populating the staging buffer in the RAM*/
+		Buffer staging;
+		createBuffer(
+			m_commander, m_device,
+			imageSize,
+			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			staging);
+
+
+		/*Copying into the Staging buffer.*/
+		void* data;
+		vkMapMemory(m_device.device, staging.memory, 0, imageSize, 0, &data);
+		for (int i = 0; i < 6; i++) {
+			memcpy(static_cast<char*>(data) + (layerSize*i), textureData[i], static_cast<size_t>(layerSize));
+		}
+		vkUnmapMemory(m_device.device, staging.memory);
+		
+		/*Freeing the Loaded data in the RAM*/
+		for (int i = 0; i < 6; i++) {
+			stbi_image_free(textureData[i]);
+		}
+		
+
+		/*Creating an empty buffer in the GPU RAM*/
+		createImage(
+			m_commander, m_device,
+			texWidth, texHeight,
+			1, VK_SAMPLE_COUNT_1_BIT,
+			VK_FORMAT_R8G8B8A8_SRGB,
+			VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			m_skymap, true);
+
+
+		/*Transforming the created Image layout to receive data.*/
+		transitionImageLayout(
+			m_skymap,
+			m_commander, m_device,
+			VK_FORMAT_R8G8B8A8_SRGB,
+			VK_IMAGE_LAYOUT_UNDEFINED,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+
+		/*  Filling the Image Buffer in that we just created in the GPU ram.
+			Transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps*/
+		copyBufferToImage(
+			m_commander, m_device,
+			staging, m_skymap,
+			static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+
+		//
+		/*Cleaning up the staging from the RAM*/
+		vkDestroyBuffer(m_device.device, staging.obj, nullptr);
+		vkFreeMemory(m_device.device, staging.memory, nullptr);
+
+		/*Transforming the image layout to shader read bit*/
+		transitionImageLayout(
+			m_skymap,
+			m_commander, m_device,
+			VK_FORMAT_R8G8B8A8_SRGB,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+
+		/*Creating sky map image view for the skymap.*/
+		m_skymap.view = createImageView(
+			m_skymap.obj, m_device.device,
+			VK_FORMAT_R8G8B8A8_SRGB,
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			m_skymap.mipLevels, true);
+
+
+		/*Create Texture sampler:*/
+		VkPhysicalDeviceProperties properties{};
+		vkGetPhysicalDeviceProperties(m_device.physicalDevice, &properties);
+
+		VkSamplerCreateInfo samplerInfo{};
+		samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+		samplerInfo.magFilter = VK_FILTER_LINEAR;
+		samplerInfo.minFilter = VK_FILTER_LINEAR;
+		samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		samplerInfo.anisotropyEnable = VK_TRUE;
+		samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+		samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+		samplerInfo.unnormalizedCoordinates = VK_FALSE;
+		samplerInfo.compareEnable = VK_FALSE;
+		samplerInfo.compareOp = VK_COMPARE_OP_NEVER;
+		samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		samplerInfo.minLod = 0.0f;
+		samplerInfo.maxLod = static_cast<float>(m_skymap.mipLevels);
+		samplerInfo.mipLodBias = 0.0f;
+
+		if (vkCreateSampler(m_device.device, &samplerInfo, nullptr, &m_skymap.sampler) != VK_SUCCESS) {
+			throw std::runtime_error("ERROR: failed to create texture sampler!");
+		}
+	}
+
+
 	/// <summary>
 	/// checks if the engine is still active or closed.
 	/// </summary>
@@ -253,10 +374,11 @@ namespace brdfa {
 		/*Initializing Mesh Related functionalities.*/
 		m_meshes.push_back(loadMesh(m_commander, m_device, MODEL_PATH, TEXTURE_PATH ));
 		m_camera = Camera(m_swapChain.extent.width, m_swapChain.extent.height, 0.1f, 10.0f, 45.0f);
+		loadEnvironmentMap(SKYMAP_PATHS);
 
 
 		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
-		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes);
+		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
 		
 		/*Recording the command buffers.*/
 		recordCommandBuffers(m_commander, m_device, m_graphicsPipeline, m_descriptorData, m_swapChain, m_meshes);
@@ -342,8 +464,8 @@ namespace brdfa {
 		float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 		float timeDelta = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - lastTime).count();
 		//float timeUps = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - upsTime).count();
-
-		m_camera.update(m_keyboardEvent, timeDelta, 1.0f, 90.0f);
+		if (m_keyboardEvent.action == GLFW_REPEAT || m_keyboardEvent.action == GLFW_PRESS)
+			m_camera.update(m_keyboardEvent, timeDelta, 1.0f, 90.0f);
 
 		for (size_t i = 0; i < m_meshes.size(); i++) {
 
@@ -445,6 +567,7 @@ namespace brdfa {
 		vkDestroyImageView(m_device.device, m_swapChain.depthImage.view, nullptr);
 		vkDestroyImage(m_device.device, m_swapChain.depthImage.obj, nullptr);
 		vkFreeMemory(m_device.device, m_swapChain.depthImage.memory, nullptr);
+
 		/*clearn the color Image buffer*/
 		vkDestroyImageView(m_device.device, m_swapChain.colorImage.view, nullptr);
 		vkDestroyImage(m_device.device, m_swapChain.colorImage.obj, nullptr);
@@ -453,6 +576,7 @@ namespace brdfa {
 		for (auto framebuffer : m_swapChain.framebuffers) {
 			vkDestroyFramebuffer(m_device.device, framebuffer, nullptr);
 		}
+
 
 		/*Deleting all the current allocated command buffers*/
 		vkFreeCommandBuffers(m_device.device, m_commander.pool, static_cast<uint32_t>(m_commander.sceneBuffers.size()), m_commander.sceneBuffers.data());
@@ -474,6 +598,14 @@ namespace brdfa {
 			vkDestroyBuffer(m_device.device, m_uniformBuffers[i].obj, nullptr);
 			vkFreeMemory(m_device.device, m_uniformBuffers[i].memory, nullptr);
 		}
+
+		/*Cleaning the skymap image*/
+		vkDestroyImageView(m_device.device, m_skymap.view, nullptr);
+		vkDestroyImage(m_device.device, m_skymap.obj, nullptr);
+		vkFreeMemory(m_device.device, m_skymap.memory, nullptr);
+		vkDestroySampler(m_device.device, m_skymap.sampler, nullptr);
+
+
 		vkDestroyDescriptorPool(m_device.device, m_descriptorData.pool, nullptr);
 	}
 
@@ -500,8 +632,9 @@ namespace brdfa {
 		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipeline);
 
 		/*Meshes dependent*/
+		loadEnvironmentMap(SKYMAP_PATHS);
 		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
-		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes);
+		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
 		recordCommandBuffers(m_commander, m_device, m_graphicsPipeline, m_descriptorData, m_swapChain, m_meshes);
 
 		/*Syncronization objects re-initialization.*/

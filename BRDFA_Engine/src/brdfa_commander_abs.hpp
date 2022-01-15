@@ -75,7 +75,7 @@ namespace brdfa {
     /// <param name="properties"></param>
     /// <param name="image"></param>
     /// <param name="imageMemory"></param>
-    static void createImage(const Commander& commander, const Device& device, uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, Image& image) {
+    static void createImage(const Commander& commander, const Device& device, uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, Image& image, bool cubemap = false) {
         
         VkImageCreateInfo imageInfo{};
         imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -84,13 +84,17 @@ namespace brdfa {
         imageInfo.extent.height = height;
         imageInfo.extent.depth = 1;
         imageInfo.mipLevels = mipLevels;
-        imageInfo.arrayLayers = 1;
+        imageInfo.arrayLayers = (cubemap)? 6 : 1;
         imageInfo.format = format;
         imageInfo.tiling = tiling;
         imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         imageInfo.usage = usage;
         imageInfo.samples = numSamples;
         imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        if (cubemap)
+            imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+
+
 
         if (vkCreateImage(device.device, &imageInfo, nullptr, &image.obj) != VK_SUCCESS) {
             throw std::runtime_error("failed to create image!");
@@ -111,7 +115,9 @@ namespace brdfa {
         image.width = width;
         image.height = height;
         image.mipLevels = mipLevels;
+        image.cubemap = cubemap;
         vkBindImageMemory(device.device, image.obj, image.memory, 0);
+
     }
 
 
@@ -194,8 +200,8 @@ namespace brdfa {
         region.bufferImageHeight = 0;
         region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         region.imageSubresource.mipLevel = 0;
-        region.imageSubresource.baseArrayLayer = 0;
-        region.imageSubresource.layerCount = 1;
+        region.imageSubresource.baseArrayLayer = 0 ;
+        region.imageSubresource.layerCount = (image.cubemap) ? 6: 1;
         region.imageOffset = { 0, 0, 0 };
         region.imageExtent = {
             width,

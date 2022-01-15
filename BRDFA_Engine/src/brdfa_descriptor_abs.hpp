@@ -34,7 +34,16 @@ namespace brdfa {
         samplerLayoutBinding.pImmutableSamplers = nullptr;
         samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-        std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
+        /*Sky map binding*/
+        VkDescriptorSetLayoutBinding skymapLayoutBinding{};
+        skymapLayoutBinding.binding = 2;
+        skymapLayoutBinding.descriptorCount = 1;
+        skymapLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        skymapLayoutBinding.pImmutableSamplers = nullptr;
+        skymapLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+
+        std::array<VkDescriptorSetLayoutBinding, 3> bindings = { uboLayoutBinding, samplerLayoutBinding, skymapLayoutBinding };
 
         VkDescriptorSetLayoutCreateInfo layoutInfo{};
         layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -57,15 +66,18 @@ namespace brdfa {
    /// <param name="device">BRDFA Device object</param>
    /// <param name="swapchain">BRDFA SwapChain object</param>
    /// <param name="meshCount">Number of meshes needed to be rendered</param>
-    static void initDescriptors(Descriptor& descriptorObj, const Device& device, const SwapChain& swapchain, const std::vector<Buffer>& uniformBuffers, std::vector<Mesh>& meshes) {
+    static void initDescriptors(Descriptor& descriptorObj, const Device& device, const SwapChain& swapchain, const std::vector<Buffer>& uniformBuffers, std::vector<Mesh>& meshes, Image& skymap) {
 
         /*Descriptor Pool creation*/
         size_t descriptorCount = swapchain.images.size() * meshes.size(); // How many descriptors of this kind can be allocated through the whole sets
-        std::array<VkDescriptorPoolSize, 2> poolSizes{};
-        poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        std::array<VkDescriptorPoolSize, 3> poolSizes{};
+        poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;          // ubov
         poolSizes[0].descriptorCount = descriptorCount;
-        poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;  // texture
         poolSizes[1].descriptorCount = descriptorCount;
+        poolSizes[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;  // environment map
+        poolSizes[2].descriptorCount = descriptorCount;
+
 
         VkDescriptorPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -79,7 +91,7 @@ namespace brdfa {
 
 
         ///*Allocating descriptor sets*/
-        size_t setCount = descriptorCount;// swapchain.images.size() * meshCount;
+        size_t setCount = descriptorCount;          // swapchain.images.size() * meshCount;
         std::vector<VkDescriptorSetLayout> layouts(setCount, descriptorObj.layout);
         VkDescriptorSetAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -87,6 +99,7 @@ namespace brdfa {
         allocInfo.descriptorSetCount = static_cast<uint32_t>(setCount);
         allocInfo.pSetLayouts = layouts.data();
 
+        // Every 2 consecutive sets are for an individual object in that frame.
         descriptorObj.sets.resize(setCount);
         if (vkAllocateDescriptorSets(device.device, &allocInfo, descriptorObj.sets.data()) != VK_SUCCESS) {
             throw std::runtime_error("ERROR: failed to allocate descriptor sets!");
@@ -106,8 +119,13 @@ namespace brdfa {
             imageInfo.imageView = texture.view;
             imageInfo.sampler = texture.sampler;
 
+            VkDescriptorImageInfo skymapInfo{};
+            skymapInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            skymapInfo.imageView = skymap.view;
+            skymapInfo.sampler = skymap.sampler;
 
-            std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+            std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
+            /*Mesh UBO uniform*/
             descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             descriptorWrites[0].dstSet = descriptorObj.sets[i];
             descriptorWrites[0].dstBinding = 0;
@@ -115,7 +133,8 @@ namespace brdfa {
             descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
             descriptorWrites[0].descriptorCount = 1;
             descriptorWrites[0].pBufferInfo = &bufferInfo;
-
+            
+            /*Mesh Texture uniform*/
             descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             descriptorWrites[1].dstSet = descriptorObj.sets[i];
             descriptorWrites[1].dstBinding = 1;
@@ -123,6 +142,15 @@ namespace brdfa {
             descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             descriptorWrites[1].descriptorCount = 1;
             descriptorWrites[1].pImageInfo = &imageInfo;
+
+            /*Mesh Skymap uniform*/
+            descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrites[2].dstSet = descriptorObj.sets[i];
+            descriptorWrites[2].dstBinding = 2;
+            descriptorWrites[2].dstArrayElement = 0;
+            descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            descriptorWrites[2].descriptorCount = 1;
+            descriptorWrites[2].pImageInfo = &skymapInfo;
 
             vkUpdateDescriptorSets(device.device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, VK_NULL_HANDLE);
         }

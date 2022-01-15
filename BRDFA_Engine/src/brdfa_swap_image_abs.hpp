@@ -54,7 +54,7 @@ namespace brdfa {
         barrier.subresourceRange.baseMipLevel = 0;
         barrier.subresourceRange.levelCount = image.mipLevels;
         barrier.subresourceRange.baseArrayLayer = 0;
-        barrier.subresourceRange.layerCount = 1;
+        barrier.subresourceRange.layerCount = (image.cubemap)? 6 : 1 ;
 
 
         VkPipelineStageFlags sourceStage;
@@ -240,7 +240,7 @@ namespace brdfa {
     /// <param name="aspectFlags"></param>
     /// <param name="mipLevels"></param>
     /// <returns></returns>
-    static VkImageView createImageView(VkImage image, const VkDevice& device, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels) {
+    static VkImageView createImageView(VkImage image, const VkDevice& device, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels, bool cubemap = false) {
         VkImageViewCreateInfo viewInfo{};
         viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         viewInfo.image = image;
@@ -250,7 +250,9 @@ namespace brdfa {
         viewInfo.subresourceRange.baseMipLevel = 0;
         viewInfo.subresourceRange.levelCount = mipLevels;
         viewInfo.subresourceRange.baseArrayLayer = 0;
-        viewInfo.subresourceRange.layerCount = 1;
+        viewInfo.subresourceRange.layerCount = (cubemap)? 6 : 1;
+        if(cubemap)
+            viewInfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
 
         VkImageView imageView;
         if (vkCreateImageView(device, &viewInfo, nullptr, &imageView) != VK_SUCCESS) {

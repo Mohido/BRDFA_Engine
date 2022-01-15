@@ -59,10 +59,15 @@ namespace brdfa {
 		std::vector<SyncCollection>			m_sync;							// Fences per swapchain image. CPU/GPU signals, Semaphores per swapchain image. GPU/GPU signals.
 		std::vector<VkFence>				m_imagesInFlight;
 		
+
+
 		/*Engine Scene variables*/
 		Camera								m_camera;
 		std::vector<Mesh>					m_meshes;						// Scene meshes.
 		std::vector<Buffer>					m_uniformBuffers;				// Scene Uniform buffers. Camera transformation is a such.
+		Mesh								m_skymap_mesh;					// Mesh that defines the skymap to be rendered. It is rendered on a seperate pipeline
+		Image								m_skymap;						// Skybox image
+
 
 		/*Event System.*/
 		KeyEvent							m_keyboardEvent;				// Events per updates.
@@ -89,6 +94,8 @@ namespace brdfa {
 		bool interrupt();												// interrupt execution .. For later usage.
 
 		bool loadObject();												// loading a mesh object into the scene.
+
+		bool loadEnvironmentMap(const std::array<std::string,6>& skyboxSides);										// Loading an environment map into the scene.
 
 		bool isClosed();												// if the engine is closed.
 
