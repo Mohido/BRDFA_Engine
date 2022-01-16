@@ -14,6 +14,6 @@ layout(binding = 2) uniform samplerCube map;
 
 void main() {
     //outColor = texture(texSampler, fragTexCoord);
-    //outColor = vec4(outNormal, 1.0f);
-    outColor = texture(map, outNormal);
+    outColor = vec4(outNormal, 1.0f);
+    //outColor = texture(texSampler, fragTexCoord);
 }

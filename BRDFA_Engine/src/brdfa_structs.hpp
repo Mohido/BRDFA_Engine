@@ -276,6 +276,7 @@ namespace brdfa {
                 phi += rotationSpeed;
             transformation = glm::rotate(transformation, time * glm::radians(phi), glm::vec3(1.0f, 0.0f, 0.0f));
 
+
             /*X Axis*/
             float theta = 0.0f;
             if (ke.key == GLFW_KEY_J && ke.action != GLFW_RELEASE)

@@ -311,7 +311,7 @@ namespace brdfa {
     /// <param name="descriptorObj"></param>
     /// <param name="swapchain"></param>
     /// <param name="meshes"></param>
-    static void recordCommandBuffers(Commander& commander, const Device& device, const GPipeline& gpipeline, const Descriptor& descriptorObj ,const SwapChain& swapchain, std::vector<Mesh>& meshes) {
+    static void recordCommandBuffers(Commander& commander, const Device& device, const GPipeline& gpipeline, const Descriptor& descriptorObj ,const SwapChain& swapchain, std::vector<Mesh>& meshes, Mesh& skymap, VkPipeline& skymap_pipeline) {
         commander.sceneBuffers.resize(swapchain.framebuffers.size());
         commander.uiBuffers.resize(swapchain.framebuffers.size());
 
@@ -352,28 +352,28 @@ namespace brdfa {
             renderPassInfo.pClearValues = clearValues.data();
 
             vkCmdBeginRenderPass(commander.sceneBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+            // Skybox Rendering
+            VkDeviceSize offsets[] = { 0 };
+            VkBuffer skymap_vertexBuffer[] = { skymap.vertexBuffer.obj };
+            vkCmdBindDescriptorSets(commander.sceneBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, gpipeline.layout, 0, 1, &descriptorObj.sets[i], 0, NULL);
+            vkCmdBindPipeline(commander.sceneBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, skymap_pipeline);
+            vkCmdBindVertexBuffers(commander.sceneBuffers[i], 0, 1, skymap_vertexBuffer, offsets);
+            vkCmdBindIndexBuffer(commander.sceneBuffers[i], skymap.indexBuffer.obj, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdDrawIndexed(commander.sceneBuffers[i], skymap.indices.size(), 1, 0, 0, 0);
+            
+            // Meshes rendering
             vkCmdBindPipeline(commander.sceneBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, gpipeline.pipeline);
-
             for (size_t j = 0; j < meshes.size(); j++) {
-
                 /*Get buffer address from the device:*/
-
-                VkBuffer vertexBuffers[] = { meshes[j].vertexBuffer.obj };
-                VkDeviceSize offsets[] = { 0 };
-                
-                
-                vkCmdBindVertexBuffers(commander.sceneBuffers[i], 0, 1, vertexBuffers, offsets);
-
-                vkCmdBindIndexBuffer(commander.sceneBuffers[i], meshes[j].indexBuffer.obj, 0, VK_INDEX_TYPE_UINT32);
-
                 int descriptorSetIndex = j * swapchain.images.size() + i;
+                VkBuffer vertexBuffers[] = { meshes[j].vertexBuffer.obj };
+                vkCmdBindVertexBuffers(commander.sceneBuffers[i], 0, 1, vertexBuffers, offsets);
+                vkCmdBindIndexBuffer(commander.sceneBuffers[i], meshes[j].indexBuffer.obj, 0, VK_INDEX_TYPE_UINT32);
                 vkCmdBindDescriptorSets(commander.sceneBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, gpipeline.layout, 0, 1, &descriptorObj.sets[descriptorSetIndex], 0, nullptr);
-
                 vkCmdDrawIndexed(commander.sceneBuffers[i], meshes[j].indices.size(), 1, 0, 0, 0);
             }
            
-            // This can't be implemented in a prerecorded commadn buffer
-            //
             vkCmdEndRenderPass(commander.sceneBuffers[i]);
             if (vkEndCommandBuffer(commander.sceneBuffers[i]) != VK_SUCCESS) {
                 throw std::runtime_error("failed to record command buffer!");

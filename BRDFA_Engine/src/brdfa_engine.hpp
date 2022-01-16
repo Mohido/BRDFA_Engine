@@ -67,7 +67,7 @@ namespace brdfa {
 		std::vector<Buffer>					m_uniformBuffers;				// Scene Uniform buffers. Camera transformation is a such.
 		Mesh								m_skymap_mesh;					// Mesh that defines the skymap to be rendered. It is rendered on a seperate pipeline
 		Image								m_skymap;						// Skybox image
-
+		VkPipeline							m_skymap_pipeline;				// Pipeline that holds the Skymap Shaders info.
 
 		/*Event System.*/
 		KeyEvent							m_keyboardEvent;				// Events per updates.

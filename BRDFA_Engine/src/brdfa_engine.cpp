@@ -366,22 +366,22 @@ namespace brdfa {
 		createSwapChain(m_swapChain, m_device, m_width_w, m_height_w);
 		createRenderPass(m_graphicsPipeline, m_device, m_swapChain);
 		createDescriptorSetLayout(m_descriptorData, m_device, m_swapChain);
-		createGraphicsPipeline(m_graphicsPipeline, m_device, m_swapChain, m_descriptorData);
+		createGraphicsPipeline(m_graphicsPipeline,m_skymap_pipeline,  m_device, m_swapChain, m_descriptorData);
 		createCommandPool(m_commander.pool, m_device);
 		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipeline);
 		createSyncObjects(m_sync, m_imagesInFlight, m_device, m_swapChain, MAX_FRAMES_IN_FLIGHT);
 
-		/*Initializing Mesh Related functionalities.*/
-		m_meshes.push_back(loadMesh(m_commander, m_device, MODEL_PATH, TEXTURE_PATH ));
-		m_camera = Camera(m_swapChain.extent.width, m_swapChain.extent.height, 0.1f, 10.0f, 45.0f);
+		/*SCENE Initalization. Related functionalities.*/
+		m_meshes.push_back(loadMesh(m_commander, m_device, MODEL_PATH, TEXTURE_PATH ));		// Loading veriaty of objects
+		loadVertices(m_skymap_mesh, m_commander, m_device, CUBE_MODEL_PATH);				// Loading skymap vertices (CUBE)
 		loadEnvironmentMap(SKYMAP_PATHS);
-
+		m_camera = Camera(m_swapChain.extent.width, m_swapChain.extent.height, 0.1f, 10.0f, 45.0f);
 
 		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
 		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
 		
 		/*Recording the command buffers.*/
-		recordCommandBuffers(m_commander, m_device, m_graphicsPipeline, m_descriptorData, m_swapChain, m_meshes);
+		recordCommandBuffers(m_commander, m_device, m_graphicsPipeline, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
 
 		/*Engine is ready!*/
 		m_active = true;
@@ -628,14 +628,14 @@ namespace brdfa {
 		createSwapChain(m_swapChain, m_device, m_width_w, m_height_w);
 		createRenderPass(m_graphicsPipeline, m_device, m_swapChain);
 		createDescriptorSetLayout(m_descriptorData, m_device, m_swapChain);
-		createGraphicsPipeline(m_graphicsPipeline, m_device, m_swapChain, m_descriptorData);
+		createGraphicsPipeline(m_graphicsPipeline, m_skymap_pipeline, m_device, m_swapChain, m_descriptorData);
 		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipeline);
 
 		/*Meshes dependent*/
 		loadEnvironmentMap(SKYMAP_PATHS);
 		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
 		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
-		recordCommandBuffers(m_commander, m_device, m_graphicsPipeline, m_descriptorData, m_swapChain, m_meshes);
+		recordCommandBuffers(m_commander, m_device, m_graphicsPipeline, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
 
 		/*Syncronization objects re-initialization.*/
 		m_imagesInFlight.resize(m_swapChain.images.size(), VK_NULL_HANDLE);
