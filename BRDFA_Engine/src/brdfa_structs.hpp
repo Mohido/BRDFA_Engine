@@ -17,7 +17,6 @@
 
 #include <iostream>
 
-
 namespace brdfa {
     struct Device {
         VkSampleCountFlagBits			msaaSamples = VK_SAMPLE_COUNT_1_BIT;
@@ -30,6 +29,7 @@ namespace brdfa {
 
 
     struct Image {
+        bool                            cubemap = false;                // If the image represents a cube map or not.
         VkImage                         obj;                            // Image object handled by Vulkan.
         VkDeviceMemory                  memory;                         // Memory ID of the allocated Image on the device. Vulkan handles these kind of IDs
         VkImageView                     view;                           // The Image view attached to the Image object.
@@ -121,6 +121,8 @@ namespace brdfa {
         glm::vec3 pos;
         glm::vec3 color;
         glm::vec2 texCoord;
+        glm::vec3 normal;
+
 
         static VkVertexInputBindingDescription getBindingDescription() {
             VkVertexInputBindingDescription bindingDescription{};
@@ -131,8 +133,8 @@ namespace brdfa {
             return bindingDescription;
         }
 
-        static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
-            std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
+        static std::array<VkVertexInputAttributeDescription, 4> getAttributeDescriptions() {
+            std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions{};
 
             attributeDescriptions[0].binding = 0;
             attributeDescriptions[0].location = 0;
@@ -149,11 +151,16 @@ namespace brdfa {
             attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
             attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
 
+            attributeDescriptions[3].binding = 0;
+            attributeDescriptions[3].location = 3;
+            attributeDescriptions[3].format = VK_FORMAT_R32G32B32_SFLOAT;
+            attributeDescriptions[3].offset = offsetof(Vertex, normal);
+
             return attributeDescriptions;
         }
 
         bool operator==(const Vertex& other) const {
-            return pos == other.pos && color == other.color && texCoord == other.texCoord;
+            return pos == other.pos && color == other.color && texCoord == other.texCoord && normal == other.normal;
         }
     };
 
@@ -224,6 +231,20 @@ namespace brdfa {
             projection[1][1] *= -1;
         }
 
+        /// <summary>
+        /// Used to print a matrix to the standard output.
+        /// </summary>
+        /// <param name="M"></param>
+        void printTransformation() {
+            for (int i = 0; i < 4; i++) {
+                std::cout << "[";
+                for (int j = 0; j < 4; j++) {
+                    std::string space = (j == 3) ? "" : ", ";
+                    std::cout << transformation[i][j] << space;
+                }
+                std::cout << "]" << std::endl;
+            }
+        }
         
         void update(const KeyEvent& ke, float time, float translationSpeed, float rotationSpeed) {
 
@@ -255,6 +276,7 @@ namespace brdfa {
                 phi += rotationSpeed;
             transformation = glm::rotate(transformation, time * glm::radians(phi), glm::vec3(1.0f, 0.0f, 0.0f));
 
+
             /*X Axis*/
             float theta = 0.0f;
             if (ke.key == GLFW_KEY_J && ke.action != GLFW_RELEASE)
@@ -271,6 +293,11 @@ namespace brdfa {
                 delta += rotationSpeed;
             transformation = glm::rotate(transformation, time * glm::radians(delta), glm::vec3(0.0f, 1.0f, 0.0f));
             
+            std::cout << "New Matrix transformation of the Camera is: " << std::endl;
+            printTransformation();
+            std::cout << std::endl;
+
+
             /*Forming rotation matrices*/
       /*      glm::mat4 R_y = glm::mat4(0.0f);
             if (theta != 0.0f) {
