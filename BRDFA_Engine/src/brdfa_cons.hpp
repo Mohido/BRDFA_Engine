@@ -1,6 +1,6 @@
 #pragma once
 #include <vulkan/vulkan.h>
-
+#include <array>
 
 //------------------------------------------------ CONSTANTS ------------------------------------------------
 static const std::vector<const char*> validationLayers = {
@@ -15,3 +15,66 @@ static const std::vector<const char*> deviceExtensions = {
 
 const std::string TEXTURE_PATH = "res/textures/viking_room.png";
 const std::string MODEL_PATH = "res/objects/viking_room.obj";
+const std::string CUBE_MODEL_PATH = "res/objects/cube.obj";
+
+
+
+
+// Order of the skybox...
+//  front, back, up, down, right and left
+const std::array<std::string, 6> SKYMAP_PATHS = { 
+    "res/textures/skybox/right.jpg",
+    "res/textures/skybox/left.jpg",
+    "res/textures/skybox/top.jpg",
+    "res/textures/skybox/bottom.jpg",
+    "res/textures/skybox/front.jpg",
+    "res/textures/skybox/back.jpg"
+};
+
+
+
+// Skybox vertices.
+const float skyboxVertices[] = {
+    // positions          
+    -1.0f,  1.0f, -1.0f,
+    -1.0f, -1.0f, -1.0f,
+     1.0f, -1.0f, -1.0f,
+     1.0f, -1.0f, -1.0f,
+     1.0f,  1.0f, -1.0f,
+    -1.0f,  1.0f, -1.0f,
+
+    -1.0f, -1.0f,  1.0f,
+    -1.0f, -1.0f, -1.0f,
+    -1.0f,  1.0f, -1.0f,
+    -1.0f,  1.0f, -1.0f,
+    -1.0f,  1.0f,  1.0f,
+    -1.0f, -1.0f,  1.0f,
+
+     1.0f, -1.0f, -1.0f,
+     1.0f, -1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f, -1.0f,
+     1.0f, -1.0f, -1.0f,
+
+    -1.0f, -1.0f,  1.0f,
+    -1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f, -1.0f,  1.0f,
+    -1.0f, -1.0f,  1.0f,
+
+    -1.0f,  1.0f, -1.0f,
+     1.0f,  1.0f, -1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+    -1.0f,  1.0f,  1.0f,
+    -1.0f,  1.0f, -1.0f,
+
+    -1.0f, -1.0f, -1.0f,
+    -1.0f, -1.0f,  1.0f,
+     1.0f, -1.0f, -1.0f,
+     1.0f, -1.0f, -1.0f,
+    -1.0f, -1.0f,  1.0f,
+     1.0f, -1.0f,  1.0f
+};

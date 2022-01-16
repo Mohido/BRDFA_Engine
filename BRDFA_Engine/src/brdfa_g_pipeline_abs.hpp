@@ -243,12 +243,21 @@ namespace brdfa {
     /// <param name="device"></param>
     /// <param name="swapchain"></param>
     /// <param name="descriptor"></param>
-    static void createGraphicsPipeline(GPipeline& gpipeline, const Device& device ,const SwapChain& swapchain, const Descriptor& descriptor) {
+    static void createGraphicsPipeline(GPipeline& gpipeline, VkPipeline& sky_map_pipeline,  const Device& device ,const SwapChain& swapchain, const Descriptor& descriptor) {
         auto vertShaderCode = readFile("shaders/vert.spv");
         auto fragShaderCode = readFile("shaders/frag.spv");
 
+        auto skymapVertShaderCode = readFile("shaders/skybox.vert.spv");
+        auto skymapFragShaderCode = readFile("shaders/skybox.frag.spv");
+
+
         VkShaderModule vertShaderModule = createShaderModule(device, vertShaderCode);
         VkShaderModule fragShaderModule = createShaderModule(device, fragShaderCode);
+
+        VkShaderModule skymapVertShaderModule = createShaderModule(device, skymapVertShaderCode);
+        VkShaderModule skymapFragShaderModule = createShaderModule(device, skymapFragShaderCode);
+
+
 
         VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
         vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -264,12 +273,14 @@ namespace brdfa {
 
         VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
 
-        VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-        vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+
 
         auto bindingDescription = Vertex::getBindingDescription();
         auto attributeDescriptions = Vertex::getAttributeDescriptions();
 
+
+        VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+        vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
         vertexInputInfo.vertexBindingDescriptionCount = 1;
         vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
         vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
@@ -365,9 +376,27 @@ namespace brdfa {
         if (vkCreateGraphicsPipelines(device.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &gpipeline.pipeline) != VK_SUCCESS) {
             throw std::runtime_error("failed to create graphics pipeline!");
         }
+        
+
+        /*Pipeline for Skymap*/
+        depthStencil.depthWriteEnable = VK_FALSE;
+        depthStencil.depthTestEnable = VK_FALSE;
+        rasterizer.cullMode = VK_CULL_MODE_FRONT_BIT;
+
+        vertShaderStageInfo.module = skymapVertShaderModule;
+        fragShaderStageInfo.module = skymapFragShaderModule;
+        shaderStages[0] = vertShaderStageInfo;
+        shaderStages[1] = fragShaderStageInfo;
+
+        if (vkCreateGraphicsPipelines(device.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &sky_map_pipeline) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create graphics pipeline!");
+        }
+
 
         vkDestroyShaderModule(device.device, fragShaderModule, nullptr);
         vkDestroyShaderModule(device.device, vertShaderModule, nullptr);
+        vkDestroyShaderModule(device.device, skymapVertShaderModule, nullptr);
+        vkDestroyShaderModule(device.device, skymapFragShaderModule, nullptr);
     }
 
 
