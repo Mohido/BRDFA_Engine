@@ -71,7 +71,7 @@ namespace brdfa {
 
 		/*Event System.*/
 		KeyEvent							m_keyboardEvent;				// Events per updates.
-
+		MouseEvent							m_mouseEvent;					// Holds the values require by the mouse event.
 
 		const uint8_t						MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -102,6 +102,8 @@ namespace brdfa {
 		bool frameBufferResize();										// set the frame buffer resized flag to true.
 		
 		void fireKeyEvent(int key, int action);							// adds an event.
+
+		void fireMouseButtonEvent(int button, int action);				// adds the event to the mouse buttons
 
 	private:
 		void startWindow();												// Starts the GLFW window

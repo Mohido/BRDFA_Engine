@@ -326,6 +326,24 @@ namespace brdfa {
 		}*/
 	}
 
+
+	void BRDFA_Engine::fireMouseButtonEvent(int button, int action) {
+		if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+			double xpos, ypos;
+			glfwGetCursorPos(m_window, &xpos, &ypos);
+			m_mouseEvent.init_cords = glm::vec2(float(xpos), float(ypos));
+			m_mouseEvent.update = true;
+		}
+		if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
+			m_mouseEvent.init_cords = glm::vec2(0.0f, 0.0f);
+			m_mouseEvent.delta_cords = glm::vec2(0.0f, 0.0f);
+			m_mouseEvent.update = false;
+		}
+
+	}
+
+
+
 // ------------------------------------------------ MEMBER FUNCTIONS ---------------------------------------
 
 	/// <summary>
@@ -344,6 +362,7 @@ namespace brdfa {
 		glfwSetWindowUserPointer(m_window, this);
 		glfwSetFramebufferSizeCallback(m_window, framebufferResizeCallback);
 		glfwSetKeyCallback(m_window, keyCallback);
+		glfwSetMouseButtonCallback(m_window, mouseButtonCallback);
 
 		glfwGetFramebufferSize(m_window, reinterpret_cast<int*>(&m_width_w), reinterpret_cast<int*>(&m_height_w));
 	}
@@ -464,8 +483,25 @@ namespace brdfa {
 		float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 		float timeDelta = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - lastTime).count();
 		//float timeUps = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - upsTime).count();
-		if (m_keyboardEvent.action == GLFW_REPEAT || m_keyboardEvent.action == GLFW_PRESS)
-			m_camera.update(m_keyboardEvent, timeDelta, 1.0f, 90.0f);
+		//if (m_keyboardEvent.action == GLFW_REPEAT || m_keyboardEvent.action == GLFW_PRESS)
+
+
+		double xpos, ypos;
+		glfwGetCursorPos(m_window, &xpos, &ypos);
+
+		glm::vec2 temp = glm::vec2(float(xpos), float(ypos)) - m_mouseEvent.init_cords;
+		if (temp.x - m_mouseEvent.delta_cords.x == 0.0f && temp.y - m_mouseEvent.delta_cords.y == 0.0f) {
+			MouseEvent dull = m_mouseEvent;
+			dull.update = false;
+			m_camera.update(m_keyboardEvent, dull, timeDelta, 0.75f, 1.0f);
+		}
+		else {
+			m_mouseEvent.delta_cords = temp;
+			m_camera.update(m_keyboardEvent, m_mouseEvent, timeDelta, 0.75f, 1.0f);
+		}
+		
+		
+		
 
 		for (size_t i = 0; i < m_meshes.size(); i++) {
 
