@@ -223,7 +223,7 @@ namespace brdfa {
 
 
         glm::vec3                       rotation = glm::vec3(0.0f);     // Holdes the accumalated rotation of the camera.
-        glm::vec3                       position = glm::vec3(0.0f, -1.0f, 0.0f);     // Holds the current position of the camera. 
+        glm::vec3                       position = glm::vec3(0.0f);     // Holds the current position of the camera. 
 
 
 
@@ -244,8 +244,22 @@ namespace brdfa {
             nPlane = nPlane;
             fPlane = fPlane;
             angle = yAngle;
+            position = glm::vec3(0.0f, 0.0f, -2.0f);
+            rotation = glm::vec3( 0.0f, 0.0f, 0.0f );
 
-            transformation = glm::lookAt(glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+            glm::mat4 rotM = glm::mat4(1.0f);
+            glm::mat4 transM;
+
+            rotM = glm::rotate(rotM, glm::radians(rotation.y), glm::vec3(1.0f, 0.0f, 0.0f));
+            rotM = glm::rotate(rotM, glm::radians(rotation.x), glm::vec3(0.0f, 1.0f, 0.0f));
+
+            glm::vec3 translation = position;
+
+
+            transM = glm::translate(glm::mat4(1.0f), translation);
+            transformation = transM * rotM;
+
+            
             projection = glm::perspective(glm::radians(angle), aspectRatio, nPlane, fPlane);
             projection[1][1] *= -1;
         }
@@ -289,9 +303,9 @@ namespace brdfa {
             glm::mat4 rotM = glm::mat4(1.0f);
             glm::mat4 transM;
 
-            rotM = glm::rotate(rotM, glm::radians(rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
-            rotM = glm::rotate(rotM, glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
-            rotM = glm::rotate(rotM, glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+            rotM = glm::rotate(rotM, glm::radians(rotation.y), glm::vec3(1.0f, 0.0f, 0.0f));
+            rotM = glm::rotate(rotM, glm::radians(rotation.x), glm::vec3(0.0f, 1.0f, 0.0f));
+            //rotM = glm::rotate(rotM, glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
             glm::vec3 translation = position;
 
 
@@ -344,7 +358,7 @@ namespace brdfa {
             glm::mat4 transM;
 
             rotM = glm::rotate(rotM, glm::radians(rotation.y), glm::vec3(1.0f, 0.0f, 0.0f));
-            rotM = glm::rotate(rotM, glm::radians(rotation.x), glm::vec3(0.0f, 0.0f, 1.0f));
+            rotM = glm::rotate(rotM, glm::radians(rotation.x), glm::vec3(0.0f, 1.0f, 0.0f));
             //rotM = glm::rotate(rotM, glm::radians(rotation.z), glm::vec3(0.0f, 1.0f, 0.0f));
 
             glm::vec3 translation = position;

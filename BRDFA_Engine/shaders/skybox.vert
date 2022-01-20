@@ -18,7 +18,7 @@ layout(location = 2) out vec3 outNormal;
 // layout(location = 3) out vec3 eyeDirection;
 
 void main() {
-    outUVW = inPos.xzy;
+    outUVW = inPos.xyz;
     vec3 final = mat3(ubo.view) * inPos;
 	gl_Position = ubo.proj * vec4(final.xyz, 1.0f);
 }
