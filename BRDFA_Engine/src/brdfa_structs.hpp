@@ -224,7 +224,7 @@ namespace brdfa {
 
         glm::vec3                       rotation = glm::vec3(0.0f);     // Holdes the accumalated rotation of the camera.
         glm::vec3                       position = glm::vec3(0.0f);     // Holds the current position of the camera. 
-
+        glm::vec3                       direction = glm::vec3(0.0f, 0.0f, 1.0f);    // Look direction.
 
 
         Camera(){}
@@ -245,21 +245,9 @@ namespace brdfa {
             fPlane = fPlane;
             angle = yAngle;
             position = glm::vec3(0.0f, 0.0f, -2.0f);
-            rotation = glm::vec3( 0.0f, 0.0f, 0.0f );
 
-            glm::mat4 rotM = glm::mat4(1.0f);
-            glm::mat4 transM;
+            updateViewMatrix();
 
-            rotM = glm::rotate(rotM, glm::radians(rotation.y), glm::vec3(1.0f, 0.0f, 0.0f));
-            rotM = glm::rotate(rotM, glm::radians(rotation.x), glm::vec3(0.0f, 1.0f, 0.0f));
-
-            glm::vec3 translation = position;
-
-
-            transM = glm::translate(glm::mat4(1.0f), translation);
-            transformation = transM * rotM;
-
-            
             projection = glm::perspective(glm::radians(angle), aspectRatio, nPlane, fPlane);
             projection[1][1] *= -1;
         }
@@ -281,36 +269,20 @@ namespace brdfa {
         
 
 
+        void updateViewMatrix() {
+            transformation = glm::lookAt(this->position, this->position + this->direction, glm::vec3(0.0f, 1.0f, 0.0f));
+        }
+
+
 
         void update(const KeyEvent& ke, float time, float translationSpeed, float rotationSpeed) {
-
-            /*Updating rotation:*/
-            if (ke.key == GLFW_KEY_W && ke.action != GLFW_RELEASE) 
-                this->rotation.y += time * rotationSpeed;
-            if (ke.key == GLFW_KEY_S && ke.action != GLFW_RELEASE)
-                this->rotation.y -= time * rotationSpeed;
-            if (ke.key == GLFW_KEY_A && ke.action != GLFW_RELEASE)
-                this->rotation.x += time * rotationSpeed;
-            if (ke.key == GLFW_KEY_D && ke.action != GLFW_RELEASE)
-                this->rotation.x -= time * rotationSpeed;
-
             /*Zooming:*/
             if (ke.key == GLFW_KEY_E && ke.action != GLFW_RELEASE)
-                this->position.z += time * translationSpeed;
+                this->position += this->direction * time * translationSpeed;
             if (ke.key == GLFW_KEY_Q && ke.action != GLFW_RELEASE)
-                this->position.z -= time * translationSpeed;
+                this->position -= this->direction * time * translationSpeed;
 
-            glm::mat4 rotM = glm::mat4(1.0f);
-            glm::mat4 transM;
-
-            rotM = glm::rotate(rotM, glm::radians(rotation.y), glm::vec3(1.0f, 0.0f, 0.0f));
-            rotM = glm::rotate(rotM, glm::radians(rotation.x), glm::vec3(0.0f, 1.0f, 0.0f));
-            //rotM = glm::rotate(rotM, glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
-            glm::vec3 translation = position;
-
-
-            transM = glm::translate(glm::mat4(1.0f), translation);
-            transformation = transM * rotM;
+            updateViewMatrix();
 
             std::cout << "New Matrix transformation of the Camera is: " << std::endl;
             printTransformation();
@@ -328,49 +300,46 @@ namespace brdfa {
         /// <param name="translationSpeed"></param>
         /// <param name="rotationSpeed"></param>
         void update(const KeyEvent& ke, MouseEvent& me, float time, float translationSpeed, float rotationSpeed) {
-            
-            /*translation:*/
-            if (ke.key == GLFW_KEY_D && ke.action != GLFW_RELEASE)
-                this->position.x -= time * translationSpeed;
-            if (ke.key == GLFW_KEY_A && ke.action != GLFW_RELEASE)
-                this->position.x += time * translationSpeed;
-            if (ke.key == GLFW_KEY_W && ke.action != GLFW_RELEASE)
-                this->position.y -= time * translationSpeed;
-            if (ke.key == GLFW_KEY_S && ke.action != GLFW_RELEASE)
-                this->position.y += time * translationSpeed;
-
 
             /*Zooming:*/
+            if (ke.key == GLFW_KEY_E && ke.action != GLFW_RELEASE)
+                this->position += this->direction * time * translationSpeed;
             if (ke.key == GLFW_KEY_Q && ke.action != GLFW_RELEASE)
-                this->position.z += time * translationSpeed;
-            if (ke.key == GLFW_KEY_E  && ke.action != GLFW_RELEASE)
-                this->position.z -= time * translationSpeed;
+                this->position -= this->direction * time * translationSpeed;
+
 
             if (me.update) {
                 glm::vec2 temp = me.delta_cords * time * rotationSpeed;
-                //temp.y *= -1.0f;
-                rotation += glm::vec3 (temp, 0.0f);
+                temp.y *= -1.0f;    // For flipping the movement.
+                rotation += glm::vec3(temp, 0.0f);
+
+
+                /*Restricting the angle of horizontal movement.*/
+                if (rotation.y > 89.0f) 
+                    rotation.y = 89.0f;
+                if(rotation.y < -89.0f)
+                    rotation.y = -89.0f;
+
+                /*Recalculation of the matrices. */
+                /* glm::mat4 rotM = glm::mat4(1.0f);
+                rotM = glm::rotate(rotM, glm::radians(temp.y), glm::vec3(1.0f, 0.0f, 0.0f));
+                rotM = glm::rotate(rotM, glm::radians(temp.x), glm::vec3(0.0f, 1.0f, 0.0f));*/
+                direction.x = cos(glm::radians(rotation.x)) * cos(glm::radians(rotation.y));
+                direction.y = sin(glm::radians(rotation.y));
+                direction.z = sin(glm::radians(rotation.x)) * cos(glm::radians(rotation.y));
+                direction = glm::normalize(direction);
+
+
+                /*Rotating the direction vector.*/
+                //this->direction = glm::normalize(glm::vec3(rotM * glm::vec4(this->direction, 1.0f))); 
             }
-            
 
-            /*Recalculation of the matrices. */
-            glm::mat4 rotM = glm::mat4(1.0f);
-            glm::mat4 transM;
-
-            rotM = glm::rotate(rotM, glm::radians(rotation.y), glm::vec3(1.0f, 0.0f, 0.0f));
-            rotM = glm::rotate(rotM, glm::radians(rotation.x), glm::vec3(0.0f, 1.0f, 0.0f));
-            //rotM = glm::rotate(rotM, glm::radians(rotation.z), glm::vec3(0.0f, 1.0f, 0.0f));
-
-            glm::vec3 translation = position;
-
-            transM = glm::translate(glm::mat4(1.0f), translation);
-            transformation = transM * rotM;
-
+            updateViewMatrix();
 
             if (me.update) {
-
                 std::cout << "New Matrix transformation of the Camera is: " << std::endl;
                 printTransformation();
+                printf("Camera position: (%f, %f, %f)\n\n", position.x, position.y, position.z );
                 std::cout << std::endl;
             }
         }

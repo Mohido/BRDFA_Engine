@@ -493,14 +493,12 @@ namespace brdfa {
 		if (temp.x - m_mouseEvent.delta_cords.x == 0.0f && temp.y - m_mouseEvent.delta_cords.y == 0.0f) {
 			MouseEvent dull = m_mouseEvent;
 			dull.update = false;
-			m_camera.update(m_keyboardEvent, dull, timeDelta, 0.75f, 1.0f);
+			m_camera.update(m_keyboardEvent, dull, timeDelta, 0.75f, 0.75f);
 		}
 		else {
 			m_mouseEvent.delta_cords = temp;
-			m_camera.update(m_keyboardEvent, m_mouseEvent, timeDelta, 0.75f, 1.0f);
+			m_camera.update(m_keyboardEvent, m_mouseEvent, timeDelta, 0.75f, 0.75f);
 		}
-		
-		
 		
 
 		for (size_t i = 0; i < m_meshes.size(); i++) {
@@ -512,7 +510,7 @@ namespace brdfa {
 			time = 1;
 
 			/*Vulkan: z is up/down. And y is depth*/
-			ubo.model = modelTr; //glm::rotate(modelTr, time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+			ubo.model = modelTr;							//glm::rotate(modelTr, time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 			ubo.view = m_camera.transformation;				//glm::lookAt(glm::vec3(0.0f, 3.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 			ubo.proj = m_camera.projection;					//glm::perspective(glm::radians(45.0f), m_swapChain.extent.width / (float)m_swapChain.extent.height, 0.1f, 10.0f);
 
@@ -521,6 +519,7 @@ namespace brdfa {
 			memcpy(data, &ubo, sizeof(ubo));
 			vkUnmapMemory(m_device.device, m_uniformBuffers[ind].memory);
 		}
+
 		//if (timeUps >= 0.033f) {
 		//	upsTime = currentTime;
 		//}
