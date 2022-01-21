@@ -5,6 +5,7 @@ layout(binding = 0) uniform UniformBufferObject {
     mat4 view;
     mat4 proj;
     vec3 pos_c; // camera position in space.
+    vec3 render_opt;		//rendering option, decides what method of rendering we want to use.
 } ubo;
 
 layout(location = 0) in vec3 inPos;

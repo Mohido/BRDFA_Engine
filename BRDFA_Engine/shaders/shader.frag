@@ -6,7 +6,7 @@
 
 layout(location = 0) in vec3 fragColor;
 layout(location = 1) in vec2 fragTexCoord;
-layout(location = 2) in vec3 outNormal;
+layout(location = 2) in vec3 inNormal;
 layout(location = 3) in vec3 vertPosition;
 
 /*
@@ -24,6 +24,7 @@ layout(binding = 0) uniform UniformBufferObject {
     mat4 view;
     mat4 proj;
 	vec3 pos_c; // camera position in space.
+	vec3 render_opt;		//rendering option, decides what method of rendering we want to use.
 } ubo;
 layout(binding = 1) uniform sampler2D texSampler;
 layout(binding = 2) uniform samplerCube map;
@@ -51,11 +52,18 @@ void main() {
 	vec3 specular = pow(max(dot(R, V), 0.0), 16.0) * vec3(0.5);
 	//outColor = vec4(normalize(ubo.pos_c), 1.0f); //vec4(ambient + diffuse * color.rgb + specular, 1.0);
 	*/
+	//outColor = vec4(normalize(ubo.pos_c), 1.0f);
+	outColor = vec4(0.0f,0.0f,0.0f, 1.0f);
+
+	/*textures view*/
+	if(ubo.render_opt.x == 0.0f){
+		outColor = texture(texSampler, fragTexCoord);
+	}
+	
+	/*Normals view*/
+	if(ubo.render_opt.x == 1.0f){
+		outColor = vec4(normalize(inNormal), 1.0f);
+	}
 
 
-
-    //vec3 camPosition = normalize(vec3(ubo.view[3]));
-    //outColor = vec4(camPosition, 1.0f);
-    outColor = texture(texSampler, fragTexCoord);
-    //outColor = texture(texSampler, fragTexCoord);
 }

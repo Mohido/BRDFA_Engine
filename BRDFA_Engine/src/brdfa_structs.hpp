@@ -136,6 +136,7 @@ namespace brdfa {
         alignas(16) glm::mat4           view;                           // View matrix: Maps object to camera space
         alignas(16) glm::mat4           proj;                           // Projection matrix 
         alignas(16) glm::vec3           pos_c;                          // Camera position in the world
+        alignas(16) glm::vec3           render_opt;                     // This holds the rendering option, roughness, specularity and other data that are sent to the gpu.
     };
 
 
