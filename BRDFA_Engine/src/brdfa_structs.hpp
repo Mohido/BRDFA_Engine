@@ -84,6 +84,7 @@ namespace brdfa {
         alignas(16) glm::mat4           model;                          // Model matrix: Maps model to world space.
         alignas(16) glm::mat4           view;                           // View matrix: Maps object to camera space
         alignas(16) glm::mat4           proj;                           // Projection matrix 
+        alignas(16) glm::vec3           pos_c;                          // Camera position in the world
     };
 
 
@@ -224,7 +225,7 @@ namespace brdfa {
 
         glm::vec3                       rotation = glm::vec3(0.0f);     // Holdes the accumalated rotation of the camera.
         glm::vec3                       position = glm::vec3(0.0f);     // Holds the current position of the camera. 
-        glm::vec3                       direction = glm::vec3(0.0f, 0.0f, 1.0f);    // Look direction.
+        glm::vec3                       direction = glm::vec3(0.0f, 0.0f, -1.0f);    // Look direction.
 
 
         Camera(){}
@@ -244,7 +245,14 @@ namespace brdfa {
             nPlane = nPlane;
             fPlane = fPlane;
             angle = yAngle;
-            position = glm::vec3(0.0f, 0.0f, -2.0f);
+            rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
+            position = glm::vec3(0.0f, 0.0f, 2.0f);
+
+
+            direction.x = cos(glm::radians(rotation.x)) * cos(glm::radians(rotation.y));
+            direction.y = sin(glm::radians(rotation.y));
+            direction.z = sin(glm::radians(rotation.x)) * cos(glm::radians(rotation.y));
+            direction = glm::normalize(direction);
 
             updateViewMatrix();
 
@@ -340,6 +348,7 @@ namespace brdfa {
                 std::cout << "New Matrix transformation of the Camera is: " << std::endl;
                 printTransformation();
                 printf("Camera position: (%f, %f, %f)\n\n", position.x, position.y, position.z );
+                printf("Camera direction: (%f, %f, %f)\n\n", direction.x, direction.y, direction.z);
                 std::cout << std::endl;
             }
         }
