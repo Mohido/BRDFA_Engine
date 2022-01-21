@@ -18,6 +18,50 @@
 #include <iostream>
 
 namespace brdfa {
+
+    /// <summary>
+    /// Describe the rendering options that the engine provides. It holds all the variaty of BRDFs that we going to analyze.
+    /// </summary>
+    enum RenderOption {
+        BRDFA_TEXTURE               = 0,            // Texture rendering
+        BRDFA_NORMALS               = 1,            // Normals of the mesh
+        BRDFA_VIEW_ANGLE            = 2,            // dot(Normal, View angle)
+        BRDFA_REFLECTION_ANGLE      = 3,            // dot(Normal, Reflection Direction)
+        BRDFA_DIFFUSE               = 4,            // 100% diffuse
+        BRDFA_REFECTION             = 5,            // 100% reflection
+        BRDFA_COOKTORRANCE          = 6,            // Naive cooktorrance model
+        BRDFA_PHONG                 = 7,            // basic phong model
+        BRDFA_MAX_OPTIONS           = 8,            // Indecates the maximum length of the options
+    };
+
+
+    
+
+    /// <summary>
+    /// Holds the states of the UI buttons and options. For now we only have the rendering option.
+    /// </summary>
+    struct UIState {
+        uint8_t renderOption = RenderOption::BRDFA_TEXTURE; // render with textures
+        bool    running = true;
+        bool    focused = true;
+
+
+        const char optionLabels[RenderOption::BRDFA_MAX_OPTIONS][30] = {
+                "RENDER TEXTURE"                ,
+                "RENDER NORMALS"                ,
+                "RENDER VIEW_ANGLE"             ,
+                "RENDER REFLECTION_ANGLE"       ,
+                "RENDER DIFFUSE"                ,
+                "RENDER REFECTION"              ,
+                "RENDER COOKTORRANCE"           ,
+                "RENDER PHONG"
+        };
+    };
+
+
+    /// <summary>
+    /// Holds the device stuff and its specific vulkan objects.
+    /// </summary>
     struct Device {
         VkSampleCountFlagBits			msaaSamples = VK_SAMPLE_COUNT_1_BIT;
         VkPhysicalDevice                physicalDevice;                 // GPU Vulkan object (Id to gpu device)
@@ -27,7 +71,10 @@ namespace brdfa {
         VkQueue                         presentQueue;
     };
 
-
+    
+    /// <summary>
+    /// Image holds all the data needed to create an image or sampler.
+    /// </summary>
     struct Image {
         bool                            cubemap = false;                // If the image represents a cube map or not.
         VkImage                         obj;                            // Image object handled by Vulkan.
@@ -38,6 +85,10 @@ namespace brdfa {
         uint32_t                        width, height;
     };
 
+
+    /// <summary>
+    /// 
+    /// </summary>
     struct SwapChain {
         VkSwapchainKHR                  swapChain;                      // Swapchain vulkan object (ID to a swapchain)
         std::vector<VkImage>            images;                         // Swapchain Image objects.
@@ -275,7 +326,6 @@ namespace brdfa {
             }
         }
         
-
 
         void updateViewMatrix() {
             transformation = glm::lookAt(this->position, this->position + this->direction, glm::vec3(0.0f, 1.0f, 0.0f));

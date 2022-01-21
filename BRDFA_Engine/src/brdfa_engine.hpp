@@ -73,6 +73,9 @@ namespace brdfa {
 		KeyEvent							m_keyboardEvent;				// Events per updates.
 		MouseEvent							m_mouseEvent;					// Holds the values require by the mouse event.
 
+		/*UI state system*/
+		UIState								m_uistate;
+
 		const uint8_t						MAX_FRAMES_IN_FLIGHT = 2;
 
 
@@ -105,12 +108,14 @@ namespace brdfa {
 
 		void fireMouseButtonEvent(int button, int action);				// adds the event to the mouse buttons
 
+
 	private:
 		void startWindow();												// Starts the GLFW window
 		void startVulkan();												// Fully initialize the Vulkan engine.
 		bool startImgui();												// Starts the Imgui for vulkan and glfw
 		void update(uint32_t currentImage);								// Update function. Time dependent function.
 		void render(uint32_t imageIndex);
+		void drawUI(uint32_t imageIndex);
 		void cleanup();													// Clean up the swapchain and the Vulkan objects. Mostly used during window resizing
 		void recreate();												// Cleans up the vulkan engine and recreate its objects. Called when the window is being resized.
 	};
