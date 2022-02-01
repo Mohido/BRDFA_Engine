@@ -2,6 +2,7 @@
 A 3D rendering engine powered by Vulkan for the purposes of analyzing different "Bidirectional Reflectance Distribution Function"s over environment maps. 
 
 <h1>Images</h1>
-<img width=500 height=300 src="https://user-images.githubusercontent.com/48254077/147834450-de139dfb-e4a8-4cae-9b9a-df6cada2a358.png" />
-<h3>Environment maps and Normal vectors visualization</h3>
-<img width=500 height=300 src="https://user-images.githubusercontent.com/48254077/149663130-9d2ca4de-cc49-4749-a96c-a59889c10e71.png" />
+<h3>Raw Texture Rendering</h3>
+<img width=500 height=300 src="https://user-images.githubusercontent.com/48254077/150596842-5bc0e9b1-532a-492f-b2dc-d8ef7af485bd.png" />
+<h3>Mesh Normals Representation</h3>
+<img width=500 height=300 src="https://user-images.githubusercontent.com/48254077/150596882-71bdf4f4-3b90-4253-b24a-85b8e20194b2.png" />
