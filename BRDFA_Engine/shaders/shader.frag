@@ -23,7 +23,7 @@ layout(binding = 0) uniform UniformBufferObject {
     mat4 model;
     mat4 view;
     mat4 proj;
-	vec3 pos_c; // camera position in space.
+	vec3 pos_c;				// camera position in space.
 	vec3 render_opt;		//rendering option, decides what method of rendering we want to use.
 } ubo;
 layout(binding = 1) uniform sampler2D texSampler;
@@ -65,5 +65,13 @@ void main() {
 		outColor = vec4(normalize(inNormal), 1.0f);
 	}
 
+	/*Reflection view*/
+	if(ubo.render_opt.x == 2.0f){
+		vec3 N = normalize(inNormal);
+		vec3 V = normalize(ubo.pos_c - vertPosition);
+		vec3 L = -normalize(reflect(V, N));
+		//outColor = vec4(L, 1.0f);
+		outColor = texture(map, L);
+	}
 
 }
