@@ -326,6 +326,24 @@ namespace brdfa {
 		}*/
 	}
 
+
+	void BRDFA_Engine::fireMouseButtonEvent(int button, int action) {
+		if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+			double xpos, ypos;
+			glfwGetCursorPos(m_window, &xpos, &ypos);
+			m_mouseEvent.init_cords = glm::vec2(float(xpos), float(ypos));
+			m_mouseEvent.update = true;
+		}
+		if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
+			m_mouseEvent.init_cords = glm::vec2(0.0f, 0.0f);
+			m_mouseEvent.delta_cords = glm::vec2(0.0f, 0.0f);
+			m_mouseEvent.update = false;
+		}
+
+	}
+
+
+
 // ------------------------------------------------ MEMBER FUNCTIONS ---------------------------------------
 
 	/// <summary>
@@ -344,6 +362,7 @@ namespace brdfa {
 		glfwSetWindowUserPointer(m_window, this);
 		glfwSetFramebufferSizeCallback(m_window, framebufferResizeCallback);
 		glfwSetKeyCallback(m_window, keyCallback);
+		glfwSetMouseButtonCallback(m_window, mouseButtonCallback);
 
 		glfwGetFramebufferSize(m_window, reinterpret_cast<int*>(&m_width_w), reinterpret_cast<int*>(&m_height_w));
 	}
@@ -457,18 +476,32 @@ namespace brdfa {
 	void BRDFA_Engine::update(uint32_t currentImage) {
 		static auto startTime = std::chrono::high_resolution_clock::now();
 		static auto lastTime = startTime;
-		//static auto upsTime = startTime;
-
 		auto currentTime = std::chrono::high_resolution_clock::now();
-		
 		float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 		float timeDelta = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - lastTime).count();
-		//float timeUps = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - upsTime).count();
-		if (m_keyboardEvent.action == GLFW_REPEAT || m_keyboardEvent.action == GLFW_PRESS)
-			m_camera.update(m_keyboardEvent, timeDelta, 1.0f, 90.0f);
 
-		for (size_t i = 0; i < m_meshes.size(); i++) {
 
+		/*Update the camera iff none of the imgui windows are focused.*/
+		if (!m_uistate.focused) { // update camera
+			double xpos, ypos;
+			glfwGetCursorPos(m_window, &xpos, &ypos);
+
+			glm::vec2 temp = glm::vec2(float(xpos), float(ypos)) - m_mouseEvent.init_cords;
+			bool updateKeysOnly = (temp.x - m_mouseEvent.delta_cords.x == 0.0f && temp.y - m_mouseEvent.delta_cords.y == 0.0f);
+
+			if (updateKeysOnly) {
+				MouseEvent dull = m_mouseEvent;
+				dull.update = false;
+				m_camera.update(m_keyboardEvent, dull, timeDelta, 0.75f, 0.75f);
+			}
+			else {
+				m_mouseEvent.delta_cords = temp;
+				m_camera.update(m_keyboardEvent, m_mouseEvent, timeDelta, 0.75f, 0.75f);
+			}
+		} // end update camera system
+		
+
+		for (size_t i = 0; i < m_meshes.size(); i++) { // setup ubos for meshes
 			size_t ind = i * m_swapChain.images.size() + currentImage;
 			MVPMatrices ubo{};
 			glm::mat4 modelTr = glm::mat4(1.0f);
@@ -476,21 +509,25 @@ namespace brdfa {
 			time = 1;
 
 			/*Vulkan: z is up/down. And y is depth*/
-			ubo.model = glm::rotate(modelTr, time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+			ubo.model = modelTr;							//glm::rotate(modelTr, time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 			ubo.view = m_camera.transformation;				//glm::lookAt(glm::vec3(0.0f, 3.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 			ubo.proj = m_camera.projection;					//glm::perspective(glm::radians(45.0f), m_swapChain.extent.width / (float)m_swapChain.extent.height, 0.1f, 10.0f);
+			ubo.pos_c = m_camera.position;
+			ubo.render_opt = glm::vec3(m_uistate.renderOption, 0.0f, 0.0f);
 
 			void* data;
 			vkMapMemory(m_device.device, m_uniformBuffers[ind].memory, 0, sizeof(ubo), 0, &data);
 			memcpy(data, &ubo, sizeof(ubo));
 			vkUnmapMemory(m_device.device, m_uniformBuffers[ind].memory);
-		}
-		//if (timeUps >= 0.033f) {
-		//	upsTime = currentTime;
-		//}
+		}// end setup ubos 
 		
 		lastTime = currentTime;
 	}
+
+
+
+
+
 
 
 	/// <summary>
@@ -498,16 +535,8 @@ namespace brdfa {
 	/// </summary>
 	/// <param name="imageIndex">The image Index currently being processed. (Inflag image)</param>
 	void BRDFA_Engine::render(uint32_t imageIndex) {
-		ImGui_ImplVulkan_NewFrame();
-		ImGui_ImplGlfw_NewFrame();
-		ImGui::NewFrame();
-
-		//imgui commands
-		ImGui::ShowDemoWindow();
-		ImGui::Render();
-		updateUICommandBuffers(m_commander, m_device, m_graphicsPipeline, m_swapChain, imageIndex);
-
-
+		this->drawUI(imageIndex);
+		
 		if (m_imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
 			vkWaitForFences(m_device.device, 1, &m_imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
 		}
@@ -554,6 +583,81 @@ namespace brdfa {
 			throw std::runtime_error("failed to present swap chain image!");
 		}
 	}
+
+
+
+	void BRDFA_Engine::drawUI(uint32_t imageIndex) {
+		ImGui_ImplVulkan_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+
+		/*Create the engine menu window*/
+		ImGui::SetNextWindowSize(ImVec2(400, 100), ImGuiCond_FirstUseEver);
+		ImGui::Begin("BRDFA Engine Menu", &m_uistate.running, ImGuiWindowFlags_MenuBar);
+
+
+		// Rendering the Menu bar
+		if (ImGui::BeginMenuBar())
+		{
+			if (ImGui::BeginMenu("File"))
+			{
+				if (ImGui::MenuItem("Open..", "Ctrl+O")) { /* Do stuff */ }
+				if (ImGui::MenuItem("Save", "Ctrl+S")) { /* Do stuff */ }
+				if (ImGui::MenuItem("Close", "Ctrl+W")) { m_uistate.running = false; }
+				ImGui::EndMenu();
+			}
+			ImGui::EndMenuBar();
+		}
+
+
+		// Rendering the combo options:
+		ImGuiStyle& style = ImGui::GetStyle();
+		float w = ImGui::CalcItemWidth();
+		float spacing = style.ItemInnerSpacing.x;
+		float button_sz = ImGui::GetFrameHeight();
+		ImGui::PushItemWidth(w - spacing * 2.0f - button_sz * 2.0f);
+
+		ImGui::Text("Render Option:");
+		ImGui::SameLine(0);
+		const char* current_item = m_uistate.optionLabels[m_uistate.renderOption];
+		if (ImGui::BeginCombo("##combo", current_item)) // The second parameter is the label previewed before opening the combo.
+		{
+			for (uint8_t n = 0; n < RenderOption::BRDFA_MAX_OPTIONS; n++)
+			{
+				bool is_selected = strcmp(current_item, m_uistate.optionLabels[n]); // You can store your selection however you want, outside or inside your objects
+				if (ImGui::Selectable(m_uistate.optionLabels[n], is_selected)) {
+					//current_item = m_uistate.optionLabels[n];
+					if (is_selected) {
+						m_uistate.renderOption = n;
+						ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+					}
+				}
+			}
+			ImGui::EndCombo();
+		}
+		ImGui::SameLine(0, 1.0f);
+		if (ImGui::ArrowButton("##l", ImGuiDir_Left) && m_uistate.renderOption > 0) 
+			m_uistate.renderOption--;
+		ImGui::SameLine(0, 1.0f);
+		if (ImGui::ArrowButton("##r", ImGuiDir_Right) && m_uistate.renderOption < RenderOption::BRDFA_MAX_OPTIONS - 1) {
+			m_uistate.renderOption++;
+			std::cout << "rendering option: " << (int)m_uistate.renderOption  << std::endl;
+		}
+		
+		// Drawing into the IMGUI internal state.
+		ImGui::End();// "BRDFA engine menu" end()
+		ImGui::Render();
+
+		// Update the m_uistate and checks if any of the imgui windows are focused.
+		m_uistate.focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow);
+		updateUICommandBuffers(m_commander, m_device, m_graphicsPipeline, m_swapChain, imageIndex);
+	}
+
+
+
+
+
+
 
 
 	/// <summary>

@@ -18,6 +18,50 @@
 #include <iostream>
 
 namespace brdfa {
+
+    /// <summary>
+    /// Describe the rendering options that the engine provides. It holds all the variaty of BRDFs that we going to analyze.
+    /// </summary>
+    enum RenderOption {
+        BRDFA_TEXTURE               = 0,            // Texture rendering
+        BRDFA_NORMALS               = 1,            // Normals of the mesh
+        BRDFA_VIEW_ANGLE            = 2,            // dot(Normal, View angle)
+        BRDFA_REFLECTION_ANGLE      = 3,            // dot(Normal, Reflection Direction)
+        BRDFA_DIFFUSE               = 4,            // 100% diffuse
+        BRDFA_REFECTION             = 5,            // 100% reflection
+        BRDFA_COOKTORRANCE          = 6,            // Naive cooktorrance model
+        BRDFA_PHONG                 = 7,            // basic phong model
+        BRDFA_MAX_OPTIONS           = 8,            // Indecates the maximum length of the options
+    };
+
+
+    
+
+    /// <summary>
+    /// Holds the states of the UI buttons and options. For now we only have the rendering option.
+    /// </summary>
+    struct UIState {
+        uint8_t renderOption = RenderOption::BRDFA_TEXTURE; // render with textures
+        bool    running = true;
+        bool    focused = true;
+
+
+        const char optionLabels[RenderOption::BRDFA_MAX_OPTIONS][30] = {
+                "RENDER TEXTURE"                ,
+                "RENDER NORMALS"                ,
+                "RENDER VIEW_ANGLE"             ,
+                "RENDER REFLECTION_ANGLE"       ,
+                "RENDER DIFFUSE"                ,
+                "RENDER REFECTION"              ,
+                "RENDER COOKTORRANCE"           ,
+                "RENDER PHONG"
+        };
+    };
+
+
+    /// <summary>
+    /// Holds the device stuff and its specific vulkan objects.
+    /// </summary>
     struct Device {
         VkSampleCountFlagBits			msaaSamples = VK_SAMPLE_COUNT_1_BIT;
         VkPhysicalDevice                physicalDevice;                 // GPU Vulkan object (Id to gpu device)
@@ -27,7 +71,10 @@ namespace brdfa {
         VkQueue                         presentQueue;
     };
 
-
+    
+    /// <summary>
+    /// Image holds all the data needed to create an image or sampler.
+    /// </summary>
     struct Image {
         bool                            cubemap = false;                // If the image represents a cube map or not.
         VkImage                         obj;                            // Image object handled by Vulkan.
@@ -38,6 +85,10 @@ namespace brdfa {
         uint32_t                        width, height;
     };
 
+
+    /// <summary>
+    /// 
+    /// </summary>
     struct SwapChain {
         VkSwapchainKHR                  swapChain;                      // Swapchain vulkan object (ID to a swapchain)
         std::vector<VkImage>            images;                         // Swapchain Image objects.
@@ -84,6 +135,8 @@ namespace brdfa {
         alignas(16) glm::mat4           model;                          // Model matrix: Maps model to world space.
         alignas(16) glm::mat4           view;                           // View matrix: Maps object to camera space
         alignas(16) glm::mat4           proj;                           // Projection matrix 
+        alignas(16) glm::vec3           pos_c;                          // Camera position in the world
+        alignas(16) glm::vec3           render_opt;                     // This holds the rendering option, roughness, specularity and other data that are sent to the gpu.
     };
 
 
@@ -200,6 +253,19 @@ namespace brdfa {
     };
 
 
+
+    /// <summary>
+    /// 
+    /// </summary>
+    struct MouseEvent {
+        glm::vec2 init_cords = glm::vec2(0.0f, 0.0f);
+        glm::vec2 delta_cords = glm::vec2(0.0f, 0.0f);
+        bool update = false;
+    };
+
+
+
+
     struct Camera {
         uint32_t                        uid;                        // For future implementation.
         glm::mat4                       transformation;             // Camera to world space transformation matrix.
@@ -207,6 +273,12 @@ namespace brdfa {
         float                           aspectRatio;                // Camera aspect ratio: W/H
         float                           nPlane, fPlane;             // Near and Far clipping plane
         float                           angle;                      // Angle of the camera y-axis (Height)
+
+
+        glm::vec3                       rotation = glm::vec3(0.0f);     // Holdes the accumalated rotation of the camera.
+        glm::vec3                       position = glm::vec3(0.0f);     // Holds the current position of the camera. 
+        glm::vec3                       direction = glm::vec3(0.0f, 0.0f, -1.0f);    // Look direction.
+
 
         Camera(){}
 
@@ -225,8 +297,17 @@ namespace brdfa {
             nPlane = nPlane;
             fPlane = fPlane;
             angle = yAngle;
+            rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
+            position = glm::vec3(0.0f, 0.0f, 2.0f);
 
-            transformation = glm::lookAt(glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+
+            direction.x = cos(glm::radians(rotation.x)) * cos(glm::radians(rotation.y));
+            direction.y = sin(glm::radians(rotation.y));
+            direction.z = sin(glm::radians(rotation.x)) * cos(glm::radians(rotation.y));
+            direction = glm::normalize(direction);
+
+            updateViewMatrix();
+
             projection = glm::perspective(glm::radians(angle), aspectRatio, nPlane, fPlane);
             projection[1][1] *= -1;
         }
@@ -246,105 +327,85 @@ namespace brdfa {
             }
         }
         
+
+        void updateViewMatrix() {
+            transformation = glm::lookAt(this->position, this->position + this->direction, glm::vec3(0.0f, 1.0f, 0.0f));
+        }
+
+
+
         void update(const KeyEvent& ke, float time, float translationSpeed, float rotationSpeed) {
-
-            /*Translation*/
-            /*Y Axis*/
-            if (ke.key == GLFW_KEY_W && ke.action != GLFW_RELEASE)
-                transformation[3][1] += -translationSpeed * time;
-            if (ke.key == GLFW_KEY_S && ke.action != GLFW_RELEASE)
-                transformation[3][1] += translationSpeed * time;
-            /*X Axis*/
-            if (ke.key == GLFW_KEY_D && ke.action != GLFW_RELEASE)
-                transformation[3][0] += -translationSpeed * time;
-            if (ke.key == GLFW_KEY_A && ke.action != GLFW_RELEASE)
-                transformation[3][0] += translationSpeed * time;
-            /*Z-axis*/
-            if(ke.key == GLFW_KEY_E && ke.action != GLFW_RELEASE)
-                transformation[3][2] += -translationSpeed * time;
+            /*Zooming:*/
+            if (ke.key == GLFW_KEY_E && ke.action != GLFW_RELEASE)
+                this->position += this->direction * time * translationSpeed;
             if (ke.key == GLFW_KEY_Q && ke.action != GLFW_RELEASE)
-                transformation[3][2] += translationSpeed * time;
+                this->position -= this->direction * time * translationSpeed;
 
-            /*Rotation*/
-            /*Initial rotation states.*/
+            updateViewMatrix();
 
-            float phi   = 0.0f;
-            /*Y Axis*/
-            if (ke.key == GLFW_KEY_I && ke.action != GLFW_RELEASE)
-                phi += -rotationSpeed;
-            if (ke.key == GLFW_KEY_K && ke.action != GLFW_RELEASE)
-                phi += rotationSpeed;
-            transformation = glm::rotate(transformation, time * glm::radians(phi), glm::vec3(1.0f, 0.0f, 0.0f));
-
-
-            /*X Axis*/
-            float theta = 0.0f;
-            if (ke.key == GLFW_KEY_J && ke.action != GLFW_RELEASE)
-                theta += -rotationSpeed;
-            if (ke.key == GLFW_KEY_L && ke.action != GLFW_RELEASE)
-                theta += rotationSpeed;
-            transformation = glm::rotate(transformation, time * glm::radians(theta), glm::vec3(0.0f, 0.0f, 1.0f));
-
-            /*Z Axis*/
-            float delta = 0.0f;
-            if (ke.key == GLFW_KEY_U && ke.action != GLFW_RELEASE)
-                delta += -rotationSpeed;
-            if (ke.key == GLFW_KEY_O && ke.action != GLFW_RELEASE)
-                delta += rotationSpeed;
-            transformation = glm::rotate(transformation, time * glm::radians(delta), glm::vec3(0.0f, 1.0f, 0.0f));
-            
             std::cout << "New Matrix transformation of the Camera is: " << std::endl;
             printTransformation();
             std::cout << std::endl;
 
-
-            /*Forming rotation matrices*/
-      /*      glm::mat4 R_y = glm::mat4(0.0f);
-            if (theta != 0.0f) {
-                R_y[0][0] = std::cos(theta);
-                R_y[2][0] = std::sin(theta);
-                R_y[1][1] = 1;
-                R_y[0][2] = -std::sin(theta);
-                R_y[2][2] = std::cos(theta);
-            }
-            glm::mat4 R_x = glm::mat4(0.0f);
-            if (phi != 0.0f) {
-                R_x[1][1] = std::cos(phi);
-                R_x[1][2] = -std::sin(phi);
-                R_x[0][0] = 1;
-                R_x[2][1] = std::sin(phi);
-                R_x[2][2] = std::cos(phi);
-            }*/
-
-           
         }
+
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="me"></param>
+        /// <param name="time"></param>
+        /// <param name="translationSpeed"></param>
+        /// <param name="rotationSpeed"></param>
+        void update(const KeyEvent& ke, MouseEvent& me, float time, float translationSpeed, float rotationSpeed) {
+
+            /*Zooming:*/
+            if (ke.key == GLFW_KEY_E && ke.action != GLFW_RELEASE)
+                this->position += this->direction * time * translationSpeed;
+            if (ke.key == GLFW_KEY_Q && ke.action != GLFW_RELEASE)
+                this->position -= this->direction * time * translationSpeed;
+
+
+            if (me.update) {
+                glm::vec2 temp = me.delta_cords * time * rotationSpeed;
+                temp.y *= -1.0f;    // For flipping the movement.
+                rotation += glm::vec3(temp, 0.0f);
+
+
+                /*Restricting the angle of horizontal movement.*/
+                if (rotation.y > 89.0f) 
+                    rotation.y = 89.0f;
+                if(rotation.y < -89.0f)
+                    rotation.y = -89.0f;
+
+                /*Recalculation of the matrices. */
+                /* glm::mat4 rotM = glm::mat4(1.0f);
+                rotM = glm::rotate(rotM, glm::radians(temp.y), glm::vec3(1.0f, 0.0f, 0.0f));
+                rotM = glm::rotate(rotM, glm::radians(temp.x), glm::vec3(0.0f, 1.0f, 0.0f));*/
+                direction.x = cos(glm::radians(rotation.x)) * cos(glm::radians(rotation.y));
+                direction.y = sin(glm::radians(rotation.y));
+                direction.z = sin(glm::radians(rotation.x)) * cos(glm::radians(rotation.y));
+                direction = glm::normalize(direction);
+
+
+                /*Rotating the direction vector.*/
+                //this->direction = glm::normalize(glm::vec3(rotM * glm::vec4(this->direction, 1.0f))); 
+            }
+
+            updateViewMatrix();
+
+            if (me.update) {
+                std::cout << "New Matrix transformation of the Camera is: " << std::endl;
+                printTransformation();
+                printf("Camera position: (%f, %f, %f)\n\n", position.x, position.y, position.z );
+                printf("Camera direction: (%f, %f, %f)\n\n", direction.x, direction.y, direction.z);
+                std::cout << std::endl;
+            }
+        }
+
     };
 
 
-
+    
 }
-
-///*Y Axis*/
-//if (ke.key_w && !ke.key_shift)
-//    transformation[3][1] += -speed * time;
-//if (ke.key_s && !ke.key_shift)
-//    transformation[3][1] += speed * time;
-
-///*X Axis*/
-//if (ke.key_a)
-//    transformation[3][0] += -speed * time;
-//if (ke.key_d)
-//    transformation[3][0] += speed * time;
-
-///*Z-axis*/
-//
-//if (ke.key_shift) {
-//    std::cout << ke.key_w << " : " << ke.key_shift << " keyshift working" << std::endl;
-//    transformation[3][2] += -speed * time;
-//   
-//}
-//    
-//if (ke.key_s && ke.key_shift) {
-//    std::cout << ke.key_w << " : " << ke.key_shift << " keyshift working" << std::endl;
-//    transformation[3][2] += speed * time;
-//}

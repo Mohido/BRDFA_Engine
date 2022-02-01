@@ -29,6 +29,13 @@ namespace brdfa {
 
         app->fireKeyEvent(key, action);
     }
+    
+
+
+    void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
+        auto app = reinterpret_cast<BRDFA_Engine*>(glfwGetWindowUserPointer(window));
+        app->fireMouseButtonEvent(button, action);
+    }
 
     /// <summary>
     /// 
