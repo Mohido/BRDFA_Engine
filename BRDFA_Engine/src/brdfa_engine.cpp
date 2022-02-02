@@ -166,10 +166,28 @@ namespace brdfa {
 	/// </summary>
 	/// <returns>If object is loaded successfully</returns>
 	bool BRDFA_Engine::loadObject(const std::string& object_path, const std::string& texture_path) {
-		std::cout << "Loaded object: " << std::endl;
-		std::cout << object_path << " with size: " <<  object_path.size() << std::endl;
-		std::cout << texture_path << " with size: " << texture_path.size() << std::endl;
-		std::cout << std::endl;
+		if (object_path.size() == 0 || texture_path.size() == 0) {
+			std::cout << "INFO: Object and texture paths must be given to load the model. We don't support texture-less models yet." << std::endl;
+			return false;
+		}
+
+		vkDeviceWaitIdle(m_device.device);
+		cleanup();
+
+		m_meshes.push_back(loadMesh(m_commander, m_device, object_path, texture_path));		// Loading veriaty of objects
+		
+		/*Vulkan Re-initialization.*/
+		createSwapChain(m_swapChain, m_device, m_width_w, m_height_w);
+		createRenderPass(m_graphicsPipeline, m_device, m_swapChain);
+		createDescriptorSetLayout(m_descriptorData, m_device, m_swapChain);
+		createGraphicsPipeline(m_graphicsPipeline, m_skymap_pipeline, m_device, m_swapChain, m_descriptorData);
+		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipeline);
+
+		/*Meshes dependent*/
+		loadEnvironmentMap(SKYMAP_PATHS);
+		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
+		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
+		recordCommandBuffers(m_commander, m_device, m_graphicsPipeline, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
 		return true;
 	}
 
