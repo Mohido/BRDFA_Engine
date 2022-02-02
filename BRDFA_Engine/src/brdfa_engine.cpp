@@ -165,7 +165,11 @@ namespace brdfa {
 	/// Used to load objects dynamically into the engine. 
 	/// </summary>
 	/// <returns>If object is loaded successfully</returns>
-	bool BRDFA_Engine::loadObject() {
+	bool BRDFA_Engine::loadObject(const std::string& object_path, const std::string& texture_path) {
+		std::cout << "Loaded object: " << std::endl;
+		std::cout << object_path << " with size: " <<  object_path.size() << std::endl;
+		std::cout << texture_path << " with size: " << texture_path.size() << std::endl;
+		std::cout << std::endl;
 		return true;
 	}
 
@@ -587,6 +591,10 @@ namespace brdfa {
 
 
 	void BRDFA_Engine::drawUI(uint32_t imageIndex) {
+		static char obj_path[100];				// Mesh path
+		static char tex_path[100];				// Texture path
+
+
 		ImGui_ImplVulkan_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
@@ -601,7 +609,11 @@ namespace brdfa {
 		{
 			if (ImGui::BeginMenu("File"))
 			{
-				if (ImGui::MenuItem("Open..", "Ctrl+O")) { /* Do stuff */ }
+				if (ImGui::MenuItem("Open..", "Ctrl+O")) { 
+					m_uistate.readFileWindowActive = true;
+					memset(obj_path, '\0', 100);
+					memset(tex_path, '\0', 100);
+				}
 				if (ImGui::MenuItem("Save", "Ctrl+S")) { /* Do stuff */ }
 				if (ImGui::MenuItem("Close", "Ctrl+W")) { m_uistate.running = false; }
 				ImGui::EndMenu();
@@ -616,7 +628,6 @@ namespace brdfa {
 		float spacing = style.ItemInnerSpacing.x;
 		float button_sz = ImGui::GetFrameHeight();
 		ImGui::PushItemWidth(w - spacing * 2.0f - button_sz * 2.0f);
-
 		ImGui::Text("Render Option:");
 		ImGui::SameLine(0);
 		const char* current_item = m_uistate.optionLabels[m_uistate.renderOption];
@@ -644,6 +655,22 @@ namespace brdfa {
 			std::cout << "rendering option: " << (int)m_uistate.renderOption  << std::endl;
 		}
 		
+
+		// Rendering loading files window.
+		if (m_uistate.readFileWindowActive) {
+			ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
+			ImGui::Begin("File Reader", &m_uistate.readFileWindowActive, file_reader_flags);
+			ImGui::InputText("Object path", obj_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
+			ImGui::InputText("Texture path", tex_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
+			if (ImGui::Button("Load File", ImVec2(100, 30))) {
+				this->loadObject(std::string(obj_path), std::string(tex_path));
+				m_uistate.readFileWindowActive = false;
+			}
+			ImGui::End();
+		}
+
+
+
 		// Drawing into the IMGUI internal state.
 		ImGui::End();// "BRDFA engine menu" end()
 		ImGui::Render();

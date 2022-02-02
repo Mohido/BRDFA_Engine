@@ -44,7 +44,7 @@ namespace brdfa {
         uint8_t renderOption = RenderOption::BRDFA_TEXTURE; // render with textures
         bool    running = true;
         bool    focused = true;
-
+        bool    readFileWindowActive = false;
 
         const char optionLabels[RenderOption::BRDFA_MAX_OPTIONS][30] = {
                 "RENDER TEXTURE"                ,

@@ -96,7 +96,7 @@ namespace brdfa {
 
 		bool interrupt();												// interrupt execution .. For later usage.
 
-		bool loadObject();												// loading a mesh object into the scene.
+		bool loadObject(const std::string& object_path, const std::string& texture_path);												// loading a mesh object into the scene.
 
 		bool loadEnvironmentMap(const std::array<std::string,6>& skyboxSides);										// Loading an environment map into the scene.
 
