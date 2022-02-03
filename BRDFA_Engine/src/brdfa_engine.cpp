@@ -165,7 +165,29 @@ namespace brdfa {
 	/// Used to load objects dynamically into the engine. 
 	/// </summary>
 	/// <returns>If object is loaded successfully</returns>
-	bool BRDFA_Engine::loadObject() {
+	bool BRDFA_Engine::loadObject(const std::string& object_path, const std::string& texture_path) {
+		if (object_path.size() == 0 || texture_path.size() == 0) {
+			std::cout << "INFO: Object and texture paths must be given to load the model. We don't support texture-less models yet." << std::endl;
+			return false;
+		}
+
+		vkDeviceWaitIdle(m_device.device);
+		cleanup();
+
+		m_meshes.push_back(loadMesh(m_commander, m_device, object_path, texture_path));		// Loading veriaty of objects
+		
+		/*Vulkan Re-initialization.*/
+		createSwapChain(m_swapChain, m_device, m_width_w, m_height_w);
+		createRenderPass(m_graphicsPipeline, m_device, m_swapChain);
+		createDescriptorSetLayout(m_descriptorData, m_device, m_swapChain);
+		createGraphicsPipeline(m_graphicsPipeline, m_skymap_pipeline, m_device, m_swapChain, m_descriptorData);
+		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipeline);
+
+		/*Meshes dependent*/
+		loadEnvironmentMap(SKYMAP_PATHS);
+		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
+		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
+		recordCommandBuffers(m_commander, m_device, m_graphicsPipeline, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
 		return true;
 	}
 
@@ -503,17 +525,13 @@ namespace brdfa {
 
 		for (size_t i = 0; i < m_meshes.size(); i++) { // setup ubos for meshes
 			size_t ind = i * m_swapChain.images.size() + currentImage;
+			
 			MVPMatrices ubo{};
-			glm::mat4 modelTr = glm::mat4(1.0f);
-			modelTr[3][0] = 1.0f*i;
-			time = 1;
-
-			/*Vulkan: z is up/down. And y is depth*/
-			ubo.model = modelTr;							//glm::rotate(modelTr, time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+			ubo.model = m_meshes[i].transformation;			//glm::rotate(modelTr, time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 			ubo.view = m_camera.transformation;				//glm::lookAt(glm::vec3(0.0f, 3.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 			ubo.proj = m_camera.projection;					//glm::perspective(glm::radians(45.0f), m_swapChain.extent.width / (float)m_swapChain.extent.height, 0.1f, 10.0f);
 			ubo.pos_c = m_camera.position;
-			ubo.render_opt = glm::vec3(m_uistate.renderOption, 0.0f, 0.0f);
+			ubo.render_opt = glm::vec3(m_meshes[i].renderOption, 0.0f, 0.0f);
 
 			void* data;
 			vkMapMemory(m_device.device, m_uniformBuffers[ind].memory, 0, sizeof(ubo), 0, &data);
@@ -587,6 +605,10 @@ namespace brdfa {
 
 
 	void BRDFA_Engine::drawUI(uint32_t imageIndex) {
+		static char obj_path[100];				// Mesh path
+		static char tex_path[100];				// Texture path
+
+
 		ImGui_ImplVulkan_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
@@ -595,13 +617,16 @@ namespace brdfa {
 		ImGui::SetNextWindowSize(ImVec2(400, 100), ImGuiCond_FirstUseEver);
 		ImGui::Begin("BRDFA Engine Menu", &m_uistate.running, ImGuiWindowFlags_MenuBar);
 
-
 		// Rendering the Menu bar
 		if (ImGui::BeginMenuBar())
 		{
 			if (ImGui::BeginMenu("File"))
 			{
-				if (ImGui::MenuItem("Open..", "Ctrl+O")) { /* Do stuff */ }
+				if (ImGui::MenuItem("Open..", "Ctrl+O")) { 
+					m_uistate.readFileWindowActive = true;
+					memset(obj_path, '\0', 100);
+					memset(tex_path, '\0', 100);
+				}
 				if (ImGui::MenuItem("Save", "Ctrl+S")) { /* Do stuff */ }
 				if (ImGui::MenuItem("Close", "Ctrl+W")) { m_uistate.running = false; }
 				ImGui::EndMenu();
@@ -609,43 +634,85 @@ namespace brdfa {
 			ImGui::EndMenuBar();
 		}
 
-
-		// Rendering the combo options:
-		ImGuiStyle& style = ImGui::GetStyle();
-		float w = ImGui::CalcItemWidth();
-		float spacing = style.ItemInnerSpacing.x;
-		float button_sz = ImGui::GetFrameHeight();
-		ImGui::PushItemWidth(w - spacing * 2.0f - button_sz * 2.0f);
-
-		ImGui::Text("Render Option:");
-		ImGui::SameLine(0);
-		const char* current_item = m_uistate.optionLabels[m_uistate.renderOption];
-		if (ImGui::BeginCombo("##combo", current_item)) // The second parameter is the label previewed before opening the combo.
-		{
-			for (uint8_t n = 0; n < RenderOption::BRDFA_MAX_OPTIONS; n++)
-			{
-				bool is_selected = strcmp(current_item, m_uistate.optionLabels[n]); // You can store your selection however you want, outside or inside your objects
-				if (ImGui::Selectable(m_uistate.optionLabels[n], is_selected)) {
-					//current_item = m_uistate.optionLabels[n];
-					if (is_selected) {
-						m_uistate.renderOption = n;
-						ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
-					}
-				}
+		// Rendering loading files window.
+		if (m_uistate.readFileWindowActive) {
+			ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
+			ImGui::Begin("File Reader", &m_uistate.readFileWindowActive, file_reader_flags);
+			ImGui::InputText("Object path", obj_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
+			ImGui::InputText("Texture path", tex_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
+			if (ImGui::Button("Load File", ImVec2(100, 30))) {
+				this->loadObject(std::string(obj_path), std::string(tex_path));
+				m_uistate.readFileWindowActive = false;
 			}
-			ImGui::EndCombo();
-		}
-		ImGui::SameLine(0, 1.0f);
-		if (ImGui::ArrowButton("##l", ImGuiDir_Left) && m_uistate.renderOption > 0) 
-			m_uistate.renderOption--;
-		ImGui::SameLine(0, 1.0f);
-		if (ImGui::ArrowButton("##r", ImGuiDir_Right) && m_uistate.renderOption < RenderOption::BRDFA_MAX_OPTIONS - 1) {
-			m_uistate.renderOption++;
-			std::cout << "rendering option: " << (int)m_uistate.renderOption  << std::endl;
+			ImGui::End();
 		}
 		
+
+		ImGuiStyle & style = ImGui::GetStyle();		
+		float spacing = style.ItemInnerSpacing.x;
+		float button_sz = ImGui::GetFrameHeight();
+		
+		// Rendering Meshes data. (Per mesh.)
+		for (int i = 0; i < m_meshes.size(); i++) {
+			std::string curObj = "Object_" + std::to_string(i+1);
+			const char* current_item = m_uistate.optionLabels[m_meshes[i].renderOption];
+			
+			// Starting the section of the object
+			ImGui::BeginChild(curObj.data(), ImVec2(0.0f, button_sz*6.0f), true);
+
+			{// Tab menu of the object
+				ImGui::BeginTabBar(curObj.data());
+				ImGui::BeginTabItem(curObj.data());
+				ImGui::EndTabItem();
+				ImGui::EndTabBar();
+			} // Tab menu of the object
+			{ // Rendering the Rendering options.
+				float w = ImGui::CalcItemWidth();
+				ImGui::PushItemWidth(w - spacing * 5.0f - button_sz * 2.0f);
+				if (ImGui::ArrowButton("##l", ImGuiDir_Left) && m_meshes[i].renderOption > 0)
+					m_meshes[i].renderOption--;
+				ImGui::SameLine(0, 1.0f);
+				if (ImGui::ArrowButton("##r", ImGuiDir_Right) && m_uistate.renderOption < RenderOption::BRDFA_MAX_OPTIONS - 1) {
+					m_meshes[i].renderOption++;
+					std::cout << "rendering option: " << (int)m_meshes[i].renderOption << std::endl;
+				}
+				ImGui::SameLine(0, 1.0f);
+				if (ImGui::BeginCombo("Rendering Obtions", current_item)) // The second parameter is the label previewed before opening the combo.
+				{
+					for (uint8_t n = 0; n < RenderOption::BRDFA_MAX_OPTIONS; n++)
+					{
+						bool is_selected = strcmp(current_item, m_uistate.optionLabels[n]); // You can store your selection however you want, outside or inside your objects
+						if (ImGui::Selectable(m_uistate.optionLabels[n], is_selected)) {
+							//current_item = m_uistate.optionLabels[n];
+							if (is_selected) {
+								m_meshes[i].renderOption = n;
+								ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+							}
+						}
+					}
+					ImGui::EndCombo();
+				}
+			} // Rendering_options rendered
+			{ // Object Translation option
+				float trans[3] = { m_meshes[i].transformation[3][0] , m_meshes[i].transformation[3][1], m_meshes[i].transformation[3][2] };
+				ImGui::InputFloat3("Translation", trans);
+				m_meshes[i].transformation[3][0] = trans[0];
+				m_meshes[i].transformation[3][1] = trans[1];
+				m_meshes[i].transformation[3][2] = trans[2];
+			} // Object Translation option
+			{ // Object Scale option
+				float trans[3] = { m_meshes[i].transformation[0][0] , m_meshes[i].transformation[1][1], m_meshes[i].transformation[2][2] };
+				ImGui::InputFloat3("Scale", trans);
+				m_meshes[i].transformation[0][0] = trans[0];
+				m_meshes[i].transformation[1][1] = trans[1];
+				m_meshes[i].transformation[2][2] = trans[2];
+			} // Object scale option
+
+			ImGui::EndChild();
+		} // For loop over objects
+
 		// Drawing into the IMGUI internal state.
-		ImGui::End();// "BRDFA engine menu" end()
+		ImGui::End();		// "BRDFA engine menu" end()
 		ImGui::Render();
 
 		// Update the m_uistate and checks if any of the imgui windows are focused.
