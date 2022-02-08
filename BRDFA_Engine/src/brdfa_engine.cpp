@@ -192,6 +192,36 @@ namespace brdfa {
 	}
 
 
+	bool BRDFA_Engine::deleteObject(const int& idx) {
+		if (this->m_meshes.size() == 1) {
+			std::cout << "You can NOT delete all the meshes!! At least 1 need to be used for the engine to continue running." << std::endl;
+			return true;
+		}
+
+		vkDeviceWaitIdle(m_device.device);
+		cleanup();
+
+		/*Deleting the mesh vulkan objects.*/
+		destroyMesh(this->m_meshes.at(idx), m_device);
+		this->m_meshes.erase(this->m_meshes.begin() + idx);
+
+
+		/*Vulkan Re-initialization.*/
+		createSwapChain(m_swapChain, m_device, m_width_w, m_height_w);
+		createRenderPass(m_graphicsPipeline, m_device, m_swapChain);
+		createDescriptorSetLayout(m_descriptorData, m_device, m_swapChain);
+		createGraphicsPipeline(m_graphicsPipeline, m_skymap_pipeline, m_device, m_swapChain, m_descriptorData);
+		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipeline);
+
+		/*Meshes dependent*/
+		loadEnvironmentMap(SKYMAP_PATHS);
+		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
+		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
+		recordCommandBuffers(m_commander, m_device, m_graphicsPipeline, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
+		return true;
+	}
+
+
 
 	/// <summary>
 	/// 
@@ -604,6 +634,7 @@ namespace brdfa {
 
 
 
+
 	void BRDFA_Engine::drawUI(uint32_t imageIndex) {
 		static char obj_path[100];				// Mesh path
 		static char tex_path[100];				// Texture path
@@ -658,7 +689,7 @@ namespace brdfa {
 			const char* current_item = m_uistate.optionLabels[m_meshes[i].renderOption];
 			
 			// Starting the section of the object
-			ImGui::BeginChild(curObj.data(), ImVec2(0.0f, button_sz*6.0f), false);
+			ImGui::BeginChild(curObj.data(), ImVec2(0.0f, button_sz*8.0f), false);
 
 			{// Tab menu of the object
 				ImGui::BeginTabBar(curObj.data());
@@ -707,6 +738,15 @@ namespace brdfa {
 				m_meshes[i].transformation[1][1] = trans[1];
 				m_meshes[i].transformation[2][2] = trans[2];
 			} // Object scale option
+
+			{ // Object deletion button
+				ImGui::NewLine();
+				if (ImGui::Button("Delete")) {
+					this->deleteObject(i);
+					std::cout << "Deleting: " << curObj << std::endl;
+				}
+				
+			} // Object deletion button
 
 			ImGui::EndChild();
 		} // For loop over objects
@@ -779,6 +819,7 @@ namespace brdfa {
 
 		vkDestroyDescriptorPool(m_device.device, m_descriptorData.pool, nullptr);
 	}
+
 
 
 	/// <summary>

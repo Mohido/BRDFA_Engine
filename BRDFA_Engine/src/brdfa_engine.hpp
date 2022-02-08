@@ -88,35 +88,37 @@ namespace brdfa {
 
 		~BRDFA_Engine();					
 
-		bool init();													// Initialize the window and the vulkan api
+		bool init();														// Initialize the window and the vulkan api
 
-		bool updateAndRender();											// main loop. It handles engine updates and rendering.
+		bool updateAndRender();												// main loop. It handles engine updates and rendering.
 
-		void close();													// closes the engine. By default the engine will call this funciton when the window is closed
+		void close();														// closes the engine. By default the engine will call this funciton when the window is closed
 
-		bool interrupt();												// interrupt execution .. For later usage.
+		bool interrupt();													// interrupt execution .. For later usage.
 
 		bool loadObject(const std::string& object_path, const std::string& texture_path);												// loading a mesh object into the scene.
 
+		bool deleteObject(const int& idx);									// Deletes the object corresponding to that index.
+
 		bool loadEnvironmentMap(const std::array<std::string,6>& skyboxSides);										// Loading an environment map into the scene.
 
-		bool isClosed();												// if the engine is closed.
+		bool isClosed();													// if the engine is closed.
 
-		bool frameBufferResize();										// set the frame buffer resized flag to true.
+		bool frameBufferResize();											// set the frame buffer resized flag to true.
 		
-		void fireKeyEvent(int key, int action);							// adds an event.
+		void fireKeyEvent(int key, int action);								// adds an event.
 
-		void fireMouseButtonEvent(int button, int action);				// adds the event to the mouse buttons
+		void fireMouseButtonEvent(int button, int action);					// adds the event to the mouse buttons
 
 
 	private:
-		void startWindow();												// Starts the GLFW window
-		void startVulkan();												// Fully initialize the Vulkan engine.
-		bool startImgui();												// Starts the Imgui for vulkan and glfw
-		void update(uint32_t currentImage);								// Update function. Time dependent function.
+		void startWindow();													// Starts the GLFW window
+		void startVulkan();													// Fully initialize the Vulkan engine.
+		bool startImgui();													// Starts the Imgui for vulkan and glfw
+		void update(uint32_t currentImage);									// Update function. Time dependent function.
 		void render(uint32_t imageIndex);
 		void drawUI(uint32_t imageIndex);
-		void cleanup();													// Clean up the swapchain and the Vulkan objects. Mostly used during window resizing
-		void recreate();												// Cleans up the vulkan engine and recreate its objects. Called when the window is being resized.
+		void cleanup();														// Clean up the swapchain and the Vulkan objects. Mostly used during window resizing
+		void recreate();													// Cleans up the vulkan engine and recreate its objects. Called when the window is being resized.
 	};
 }
