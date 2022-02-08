@@ -658,7 +658,7 @@ namespace brdfa {
 			const char* current_item = m_uistate.optionLabels[m_meshes[i].renderOption];
 			
 			// Starting the section of the object
-			ImGui::BeginChild(curObj.data(), ImVec2(0.0f, button_sz*6.0f), true);
+			ImGui::BeginChild(curObj.data(), ImVec2(0.0f, button_sz*6.0f), false);
 
 			{// Tab menu of the object
 				ImGui::BeginTabBar(curObj.data());

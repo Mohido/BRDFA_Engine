@@ -362,11 +362,35 @@ namespace brdfa {
         /// <param name="rotationSpeed"></param>
         void update(const KeyEvent& ke, MouseEvent& me, float time, float translationSpeed, float rotationSpeed) {
 
-            /*Zooming:*/
-            if (ke.key == GLFW_KEY_E && ke.action != GLFW_RELEASE)
+            /*Forward, backward*/
+            if (ke.key == GLFW_KEY_W && ke.action != GLFW_RELEASE)
                 this->position += this->direction * time * translationSpeed;
-            if (ke.key == GLFW_KEY_Q && ke.action != GLFW_RELEASE)
+            if (ke.key == GLFW_KEY_S && ke.action != GLFW_RELEASE)
                 this->position -= this->direction * time * translationSpeed;
+
+            /*right, left*/
+            if (ke.key == GLFW_KEY_D && ke.action != GLFW_RELEASE) {
+                glm::vec3 rightDir = glm::cross(this->direction, glm::vec3(0,1,0));
+                this->position += rightDir * time * translationSpeed;
+                //this->position += glm::vec3(this->transformation[0][0], this->transformation[0][1], this->transformation[0][2]) * time * translationSpeed;
+            }    
+            if (ke.key == GLFW_KEY_A && ke.action != GLFW_RELEASE) {
+                glm::vec3 rightDir = glm::cross(this->direction, glm::vec3(0, 1, 0));
+                this->position -= rightDir * time * translationSpeed;
+            }
+
+            /*up, down*/
+            if (ke.key == GLFW_KEY_Q && ke.action != GLFW_RELEASE) {
+                glm::vec3 rightDir = glm::cross(this->direction, glm::vec3(0, 1, 0));
+                glm::vec3 upDir = glm::cross(rightDir, this->direction);
+                this->position += upDir * time * translationSpeed;
+            }
+            if (ke.key == GLFW_KEY_E && ke.action != GLFW_RELEASE) {
+                glm::vec3 rightDir = glm::cross(this->direction, glm::vec3(0, 1, 0));
+                glm::vec3 upDir = glm::cross(rightDir, this->direction);
+                this->position -= upDir * time * translationSpeed;
+            }
+
 
 
             if (me.update) {
