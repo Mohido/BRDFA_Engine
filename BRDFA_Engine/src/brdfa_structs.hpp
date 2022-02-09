@@ -44,7 +44,8 @@ namespace brdfa {
         uint8_t renderOption = RenderOption::BRDFA_TEXTURE; // render with textures
         bool    running = true;
         bool    focused = true;
-
+        bool    readFileWindowActive = false;
+        bool    readSkymapWindowActive = false;
 
         const char optionLabels[RenderOption::BRDFA_MAX_OPTIONS][30] = {
                 "RENDER TEXTURE"                ,
@@ -219,15 +220,17 @@ namespace brdfa {
 
 
     struct Mesh {
-        uint32_t						uid;
-        Image							textureImage;				// Holds the texture Image data.
+        uint32_t					uid;
+        Image						textureImage;				        // Holds the texture Image data.
 
-        std::vector<Vertex>				vertices;					// Vertices of the Mesh. Vertices can hold more than a position.
-        std::vector<uint32_t>			indices;					// Indices refering to the loaded vertices of the object.
+        std::vector<Vertex>			vertices;					        // Vertices of the Mesh. Vertices can hold more than a position.
+        std::vector<uint32_t>		indices;					        // Indices refering to the loaded vertices of the object.
 
-        glm::mat4                       transformation;             // Holds the object transformation. Object to World transformation.
-        Buffer							vertexBuffer;				// Vulkan buffer of the vertices
-        Buffer							indexBuffer;				// Vulkan buffer of the Indices
+        glm::mat4                   transformation = glm::mat4(1.0f);   // Holds the object transformation. Object to World transformation.
+        uint8_t                     renderOption = BRDFA_TEXTURE;                       // Defines what rendering option this object will be rendered by.
+
+        Buffer						vertexBuffer;				        // Vulkan buffer of the vertices
+        Buffer						indexBuffer;				        // Vulkan buffer of the Indices
     };
 
 
@@ -360,11 +363,35 @@ namespace brdfa {
         /// <param name="rotationSpeed"></param>
         void update(const KeyEvent& ke, MouseEvent& me, float time, float translationSpeed, float rotationSpeed) {
 
-            /*Zooming:*/
-            if (ke.key == GLFW_KEY_E && ke.action != GLFW_RELEASE)
+            /*Forward, backward*/
+            if (ke.key == GLFW_KEY_W && ke.action != GLFW_RELEASE)
                 this->position += this->direction * time * translationSpeed;
-            if (ke.key == GLFW_KEY_Q && ke.action != GLFW_RELEASE)
+            if (ke.key == GLFW_KEY_S && ke.action != GLFW_RELEASE)
                 this->position -= this->direction * time * translationSpeed;
+
+            /*right, left*/
+            if (ke.key == GLFW_KEY_D && ke.action != GLFW_RELEASE) {
+                glm::vec3 rightDir = glm::cross(this->direction, glm::vec3(0,1,0));
+                this->position += rightDir * time * translationSpeed;
+                //this->position += glm::vec3(this->transformation[0][0], this->transformation[0][1], this->transformation[0][2]) * time * translationSpeed;
+            }    
+            if (ke.key == GLFW_KEY_A && ke.action != GLFW_RELEASE) {
+                glm::vec3 rightDir = glm::cross(this->direction, glm::vec3(0, 1, 0));
+                this->position -= rightDir * time * translationSpeed;
+            }
+
+            /*up, down*/
+            if (ke.key == GLFW_KEY_Q && ke.action != GLFW_RELEASE) {
+                glm::vec3 rightDir = glm::cross(this->direction, glm::vec3(0, 1, 0));
+                glm::vec3 upDir = glm::cross(rightDir, this->direction);
+                this->position += upDir * time * translationSpeed;
+            }
+            if (ke.key == GLFW_KEY_E && ke.action != GLFW_RELEASE) {
+                glm::vec3 rightDir = glm::cross(this->direction, glm::vec3(0, 1, 0));
+                glm::vec3 upDir = glm::cross(rightDir, this->direction);
+                this->position -= upDir * time * translationSpeed;
+            }
+
 
 
             if (me.update) {

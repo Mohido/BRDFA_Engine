@@ -19,6 +19,79 @@
 
 namespace brdfa {
 
+    enum BoxSide {
+        RIGHT = 0, 
+        LEFT = 1, 
+        TOP = 2, 
+        BOTTOM = 3,
+        FRONT = 4,
+        BACK = 5
+    };
+
+
+    /// <summary>
+    /// Returns the data of one of the skymap sides. 
+    /// </summary>
+    /// <param name="image"></param>
+    /// <param name="width"></param>
+    /// <param name="height"></param>
+    /// <param name="face"></param>
+    /// <returns></returns>
+    char* loadFace(char* image, const int& width, const int& height, const BoxSide& face) {
+        int faceOff_x, faceOff_y;
+        int faceWidth = width / 4, faceHeight = height / 3;
+        int faceSize = faceWidth * faceHeight * 4;
+
+
+        /*Getting the face offset*/
+        switch (face) {
+        case FRONT:
+            faceOff_x = faceWidth;
+            faceOff_y = faceHeight;
+            break;
+        case BACK:
+            faceOff_x = faceWidth*3;
+            faceOff_y = faceHeight;
+            break;
+        case LEFT:
+            faceOff_x = 0;
+            faceOff_y = faceHeight;
+            break;
+        case RIGHT:
+            faceOff_x = faceWidth * 2;
+            faceOff_y = faceHeight;
+            break;
+        case TOP:
+            faceOff_x = faceWidth ;
+            faceOff_y = 0;
+            break;
+        case BOTTOM:
+            faceOff_x = faceWidth;
+            faceOff_y = faceHeight * 2;
+            break;
+        default:
+            throw std::runtime_error("ERROR: No such a face.");
+        }
+
+        
+        /* Copying the image data */
+        char* imageData = new char[faceSize];
+        for (int r = 0; r < faceHeight; r++) {
+            int imgY = (faceOff_y + r);
+            for (int c = 0; c < faceWidth; c++) {
+                int i = c * 4;
+                int imgX = (faceOff_x + c) * 4;
+                imageData[i + r * faceWidth * 4] = image[imgX + imgY*width*4];
+                imageData[i + 1 + r * faceWidth * 4] = image[imgX + imgY*width*4 + 1];
+                imageData[i + 2 + r * faceWidth * 4] =  image[imgX + imgY*width * 4 + 2];
+                imageData[i + 3 + r * faceWidth * 4] = image[imgX + imgY * width + 3];
+            }
+        }
+
+        return imageData;
+    }
+
+
     /// <summary>
     /// 
     /// </summary>

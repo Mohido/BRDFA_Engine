@@ -1,10 +1,10 @@
 # BRDFA_Engine
-A 3D rendering engine powered by Vulkan for the purposes of analyzing different "Bidirectional Reflectance Distribution Function"s over environment maps. 
+A 3D rendering engine powered by Vulkan for the purposes of analyzing different "Bidirectional Reflectance Distribution Function"s over environment maps. This project is part of my thesis. My thesis is about analyzing BRDFs and documenting them. 
+
+<h1>STILL UNDER DEVELOPMENT...</h1>
 
 <h1>Images</h1>
-<h3>Raw Texture Rendering</h3>
-<img width=500 height=300 src="https://user-images.githubusercontent.com/48254077/150596842-5bc0e9b1-532a-492f-b2dc-d8ef7af485bd.png" />
-<h3>Mesh Normals Representation</h3>
-<img width=500 height=300 src="https://user-images.githubusercontent.com/48254077/150596882-71bdf4f4-3b90-4253-b24a-85b8e20194b2.png" />
-<h3>Mesh Reflections Representation</h3>
-<img width=500 height=300 src="https://user-images.githubusercontent.com/48254077/152038194-e39a181f-1ecb-42b5-9a81-ae1ce5a3437c.png" />
+<h3>How it looks like at the moment...</h3>
+<img width=500 height=300 src="https://user-images.githubusercontent.com/48254077/152436287-e1b765af-3aa5-4ee3-b7dc-e3e579b9c17e.png" />
+
+

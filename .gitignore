@@ -3,6 +3,8 @@
 *.vs
 *out/
 
+*.orig
+
 # Compiled Object files
 *.slo
 *.lo
