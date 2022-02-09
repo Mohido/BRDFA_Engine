@@ -223,6 +223,29 @@ namespace brdfa {
 	}
 
 
+	/// <summary>
+	/// 
+	/// </summary>
+	/// <param name="path"></param>
+	/// <returns></returns>
+	bool BRDFA_Engine::reloadSkymap(const std::string& path) {
+		cleanup();
+
+		/*Vulkan Re-initialization.*/
+		createSwapChain(m_swapChain, m_device, m_width_w, m_height_w);
+		createRenderPass(m_graphicsPipeline, m_device, m_swapChain);
+		createDescriptorSetLayout(m_descriptorData, m_device, m_swapChain);
+		createGraphicsPipeline(m_graphicsPipeline, m_skymap_pipeline, m_device, m_swapChain, m_descriptorData);
+		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipeline);
+
+		/*Meshes dependent*/
+		loadEnvironmentMap(path);
+		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
+		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
+		recordCommandBuffers(m_commander, m_device, m_graphicsPipeline, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
+		return true;
+	}
+
 
 	/// <summary>
 	/// 
@@ -786,11 +809,20 @@ namespace brdfa {
 				if (ImGui::MenuItem("Close", "Ctrl+W")) { m_uistate.running = false; }
 				ImGui::EndMenu();
 			}
+			if (ImGui::BeginMenu("Edit"))
+			{
+				if (ImGui::MenuItem("Skymap..", "Ctrl+E")) {
+					m_uistate.readSkymapWindowActive = true;
+					memset(tex_path, '\0', 100);
+				}
+				ImGui::EndMenu();
+			}
 			ImGui::EndMenuBar();
 		}
 
-		// Rendering loading files window.
-		if (m_uistate.readFileWindowActive) {
+
+		if (m_uistate.readFileWindowActive) {// Object File loader Window
+			
 			ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
 			ImGui::Begin("File Reader", &m_uistate.readFileWindowActive, file_reader_flags);
 			ImGui::InputText("Object path", obj_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
@@ -800,8 +832,24 @@ namespace brdfa {
 				m_uistate.readFileWindowActive = false;
 			}
 			ImGui::End();
-		}
+		}// Object File loader Window
+
+
+
+		if (m_uistate.readSkymapWindowActive) {// Skymap File loader Window
+			ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
+			ImGui::Begin("File Reader", &m_uistate.readSkymapWindowActive, file_reader_flags);
+			ImGui::InputText("Skymap path", tex_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
+			if (ImGui::Button("Load File", ImVec2(100, 30))) {
+				this->reloadSkymap(std::string(tex_path));
+				m_uistate.readSkymapWindowActive = false;
+			}
+			ImGui::End();
+		}// Skymap File loader Window
 		
+		
+
+
 
 		ImGuiStyle & style = ImGui::GetStyle();		
 		float spacing = style.ItemInnerSpacing.x;

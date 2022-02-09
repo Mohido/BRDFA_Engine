@@ -97,8 +97,9 @@ namespace brdfa {
 		bool interrupt();													// interrupt execution .. For later usage.
 
 		bool loadObject(const std::string& object_path, const std::string& texture_path);												// loading a mesh object into the scene.
-
 		bool deleteObject(const int& idx);									// Deletes the object corresponding to that index.
+
+		bool reloadSkymap(const std::string& path);
 
 		bool loadEnvironmentMap(const std::array<std::string,6>& skyboxSides);										// Loading an environment map into the scene.
 		bool loadEnvironmentMap(const std::string& skyboxSides);										// Loading an environment map into the scene.
