@@ -33,6 +33,7 @@
 
 
 
+
 namespace brdfa {
 	
 	
@@ -222,6 +223,29 @@ namespace brdfa {
 	}
 
 
+	/// <summary>
+	/// 
+	/// </summary>
+	/// <param name="path"></param>
+	/// <returns></returns>
+	bool BRDFA_Engine::reloadSkymap(const std::string& path) {
+		cleanup();
+
+		/*Vulkan Re-initialization.*/
+		createSwapChain(m_swapChain, m_device, m_width_w, m_height_w);
+		createRenderPass(m_graphicsPipeline, m_device, m_swapChain);
+		createDescriptorSetLayout(m_descriptorData, m_device, m_swapChain);
+		createGraphicsPipeline(m_graphicsPipeline, m_skymap_pipeline, m_device, m_swapChain, m_descriptorData);
+		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipeline);
+
+		/*Meshes dependent*/
+		loadEnvironmentMap(path);
+		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
+		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
+		recordCommandBuffers(m_commander, m_device, m_graphicsPipeline, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
+		return true;
+	}
+
 
 	/// <summary>
 	/// 
@@ -341,6 +365,129 @@ namespace brdfa {
 			throw std::runtime_error("ERROR: failed to create texture sampler!");
 		}
 	}
+
+
+	/// <summary>
+	/// 
+	/// </summary>
+	/// <returns></returns>
+	bool BRDFA_Engine::loadEnvironmentMap(const std::string& skyboxSides) {
+		/*Loading Image data from file.*/
+		int texWidth, texHeight, texChannels;
+		stbi_uc* textureData;
+		textureData = stbi_load(skyboxSides.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+		if (!textureData) {
+			throw std::runtime_error("ERROR: failed to load Environment Map image!: " + skyboxSides + " Does not exist!");
+		}
+		
+		unsigned int faceWidth = texWidth / 4;
+		unsigned int faceHeight = texHeight / 3;
+
+		VkDeviceSize imageSize = faceWidth * faceHeight * 4 * 6;				// Full buffer size (The size of all the images.)
+		VkDeviceSize layerSize = faceWidth * faceHeight * 4;			// Size per layer
+
+
+		/*Populating the staging buffer in the RAM*/
+		Buffer staging;
+		createBuffer(
+			m_commander, m_device,
+			imageSize,
+			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			staging);
+
+
+		/*Copying into the Staging buffer.*/
+		void* data;
+		vkMapMemory(m_device.device, staging.memory, 0, imageSize, 0, &data);
+		for (int i = 0; i < 6; i++) {
+			char* imageData = brdfa::loadFace((char*)textureData, texWidth, texHeight, BoxSide(i));
+			memcpy(static_cast<char*>(data) + (layerSize * i), imageData, static_cast<size_t>(layerSize));
+			delete[] imageData;
+		}
+		vkUnmapMemory(m_device.device, staging.memory);
+
+		/*Freeing the Loaded data in the RAM*/
+		stbi_image_free(textureData);
+
+
+		/*Creating an empty buffer in the GPU RAM*/
+		createImage(
+			m_commander, m_device,
+			faceWidth, faceHeight,
+			1, VK_SAMPLE_COUNT_1_BIT,
+			VK_FORMAT_R8G8B8A8_SRGB,
+			VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			m_skymap, true);
+
+
+		/*Transforming the created Image layout to receive data.*/
+		transitionImageLayout(
+			m_skymap,
+			m_commander, m_device,
+			VK_FORMAT_R8G8B8A8_SRGB,
+			VK_IMAGE_LAYOUT_UNDEFINED,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+
+		/*  Filling the Image Buffer in that we just created in the GPU ram.
+			Transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps*/
+		copyBufferToImage(
+			m_commander, m_device,
+			staging, m_skymap,
+			static_cast<uint32_t>(faceWidth), static_cast<uint32_t>(faceHeight));
+
+		//
+		/*Cleaning up the staging from the RAM*/
+		vkDestroyBuffer(m_device.device, staging.obj, nullptr);
+		vkFreeMemory(m_device.device, staging.memory, nullptr);
+
+		/*Transforming the image layout to shader read bit*/
+		transitionImageLayout(
+			m_skymap,
+			m_commander, m_device,
+			VK_FORMAT_R8G8B8A8_SRGB,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+
+		/*Creating sky map image view for the skymap.*/
+		m_skymap.view = createImageView(
+			m_skymap.obj, m_device.device,
+			VK_FORMAT_R8G8B8A8_SRGB,
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			m_skymap.mipLevels, true);
+
+
+		/*Create Texture sampler:*/
+		VkPhysicalDeviceProperties properties{};
+		vkGetPhysicalDeviceProperties(m_device.physicalDevice, &properties);
+
+		VkSamplerCreateInfo samplerInfo{};
+		samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+		samplerInfo.magFilter = VK_FILTER_LINEAR;
+		samplerInfo.minFilter = VK_FILTER_LINEAR;
+		samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		samplerInfo.anisotropyEnable = VK_TRUE;
+		samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+		samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+		samplerInfo.unnormalizedCoordinates = VK_FALSE;
+		samplerInfo.compareEnable = VK_FALSE;
+		samplerInfo.compareOp = VK_COMPARE_OP_NEVER;
+		samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		samplerInfo.minLod = 0.0f;
+		samplerInfo.maxLod = static_cast<float>(m_skymap.mipLevels);
+		samplerInfo.mipLodBias = 0.0f;
+
+		if (vkCreateSampler(m_device.device, &samplerInfo, nullptr, &m_skymap.sampler) != VK_SUCCESS) {
+			throw std::runtime_error("ERROR: failed to create texture sampler!");
+		}
+	}
+
 
 
 	/// <summary>
@@ -662,11 +809,20 @@ namespace brdfa {
 				if (ImGui::MenuItem("Close", "Ctrl+W")) { m_uistate.running = false; }
 				ImGui::EndMenu();
 			}
+			if (ImGui::BeginMenu("Edit"))
+			{
+				if (ImGui::MenuItem("Skymap..", "Ctrl+E")) {
+					m_uistate.readSkymapWindowActive = true;
+					memset(tex_path, '\0', 100);
+				}
+				ImGui::EndMenu();
+			}
 			ImGui::EndMenuBar();
 		}
 
-		// Rendering loading files window.
-		if (m_uistate.readFileWindowActive) {
+
+		if (m_uistate.readFileWindowActive) {// Object File loader Window
+			
 			ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
 			ImGui::Begin("File Reader", &m_uistate.readFileWindowActive, file_reader_flags);
 			ImGui::InputText("Object path", obj_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
@@ -676,8 +832,24 @@ namespace brdfa {
 				m_uistate.readFileWindowActive = false;
 			}
 			ImGui::End();
-		}
+		}// Object File loader Window
+
+
+
+		if (m_uistate.readSkymapWindowActive) {// Skymap File loader Window
+			ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
+			ImGui::Begin("File Reader", &m_uistate.readSkymapWindowActive, file_reader_flags);
+			ImGui::InputText("Skymap path", tex_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
+			if (ImGui::Button("Load File", ImVec2(100, 30))) {
+				this->reloadSkymap(std::string(tex_path));
+				m_uistate.readSkymapWindowActive = false;
+			}
+			ImGui::End();
+		}// Skymap File loader Window
 		
+		
+
+
 
 		ImGuiStyle & style = ImGui::GetStyle();		
 		float spacing = style.ItemInnerSpacing.x;

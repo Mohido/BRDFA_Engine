@@ -45,6 +45,7 @@ namespace brdfa {
         bool    running = true;
         bool    focused = true;
         bool    readFileWindowActive = false;
+        bool    readSkymapWindowActive = false;
 
         const char optionLabels[RenderOption::BRDFA_MAX_OPTIONS][30] = {
                 "RENDER TEXTURE"                ,

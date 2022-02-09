@@ -31,6 +31,8 @@ const std::array<std::string, 6> SKYMAP_PATHS = {
     "res/textures/skybox/back.jpg"
 };
 
+//const std::string SKYMAP_PATHS = "res/textures/skybox_1.png";
+
 
 
 // Skybox vertices.
