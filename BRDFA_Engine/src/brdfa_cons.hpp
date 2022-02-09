@@ -22,14 +22,16 @@ const std::string CUBE_MODEL_PATH = "res/objects/cube.obj";
 
 // Order of the skybox...
 //  front, back, up, down, right and left
-const std::array<std::string, 6> SKYMAP_PATHS = { 
-    "res/textures/skybox/right.jpg",
-    "res/textures/skybox/left.jpg",
-    "res/textures/skybox/top.jpg",
-    "res/textures/skybox/bottom.jpg",
-    "res/textures/skybox/front.jpg",
-    "res/textures/skybox/back.jpg"
-};
+//const std::array<std::string, 6> SKYMAP_PATHS = { 
+//    "res/textures/skybox/right.jpg",
+//    "res/textures/skybox/left.jpg",
+//    "res/textures/skybox/top.jpg",
+//    "res/textures/skybox/bottom.jpg",
+//    "res/textures/skybox/front.jpg",
+//    "res/textures/skybox/back.jpg"
+//};
+
+const std::string SKYMAP_PATHS = "res/textures/skybox_1.png";
 
 
 

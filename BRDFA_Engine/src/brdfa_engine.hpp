@@ -101,6 +101,8 @@ namespace brdfa {
 		bool deleteObject(const int& idx);									// Deletes the object corresponding to that index.
 
 		bool loadEnvironmentMap(const std::array<std::string,6>& skyboxSides);										// Loading an environment map into the scene.
+		bool loadEnvironmentMap(const std::string& skyboxSides);										// Loading an environment map into the scene.
+
 
 		bool isClosed();													// if the engine is closed.
 
