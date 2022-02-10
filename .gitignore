@@ -2,6 +2,7 @@
 *.d
 *.vs
 *out/
+*libs/
 
 *.orig
 
