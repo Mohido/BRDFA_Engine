@@ -4,6 +4,8 @@
 #include "brdfa_cons.hpp"
 
 #include <vulkan/vulkan.h>
+#include <shaderc/shaderc.h> // For real time compilation.
+
 #include <string>
 #include <vector>
 #include <iostream>
@@ -18,22 +20,40 @@ namespace brdfa {
     /// </summary>
     /// <param name="filename"></param>
     /// <returns></returns>
-    static std::vector<char> readFile(const std::string& filename) {
-        std::ifstream file(filename, std::ios::ate | std::ios::binary);
+    static std::vector<char> readFile(const std::string& filename, const bool& binary = true) {
 
-        if (!file.is_open()) {
-            throw std::runtime_error("failed to open file!");
+        if (binary) {
+            std::ifstream file(filename, std::ios::ate | std::ios::binary);
+            if (!file.is_open()) {
+                throw std::runtime_error("failed to open file!");
+            }
+
+            size_t fileSize = (size_t)file.tellg();
+            std::vector<char> buffer(fileSize);
+
+            file.seekg(0);
+            file.read(buffer.data(), fileSize);
+
+            file.close();
+
+            return buffer;
         }
+        else {
+            std::ifstream file(filename);
+            if (!file.is_open()) {
+                throw std::runtime_error("failed to open file!");
+            }
 
-        size_t fileSize = (size_t)file.tellg();
-        std::vector<char> buffer(fileSize);
+            file.seekg(0, std::ios_base::end);
+            std::streampos fileSize = file.tellg();
+            std::vector<char> buffer;
+            buffer.resize(fileSize);
 
-        file.seekg(0);
-        file.read(buffer.data(), fileSize);
-
-        file.close();
-
-        return buffer;
+            file.seekg(0, std::ios_base::beg);
+            file.read(&buffer[0], fileSize);
+            file.close();
+            return buffer;
+        }
     }
 
 
@@ -58,6 +78,48 @@ namespace brdfa {
 
 
 
+    /// <summary>
+    /// Given a glsl code, it compiles it at runtime and returns a spir-v code.
+    /// </summary>
+    /// <param name="device"></param>
+    /// <param name="glslCode"></param>
+    /// <returns></returns>
+    static std::vector<char> compileShader(const std::vector<char>& glslCode, const bool& vertexShader = true, const std::string& shadername = "realtimeShader") {
+
+        std::string glslC(glslCode.begin(), glslCode.end());
+
+        shaderc_shader_kind kind = (vertexShader) ? shaderc_glsl_vertex_shader : shaderc_fragment_shader;
+
+        shaderc_compiler_t compiler = shaderc_compiler_initialize();
+        shaderc_compilation_result_t result = shaderc_compile_into_spv(
+            compiler, glslC.c_str(), strlen(glslC.c_str()),
+            kind, shadername.c_str(), "main", nullptr);
+
+        shaderc_compilation_status compilationStatus = shaderc_result_get_compilation_status(result);
+
+        switch (compilationStatus) {
+        case shaderc_compilation_status_success:
+            std::cout << "[Shader Realtime Compiler]: INFO: Successfully compiled shader" << std::endl;
+            break;
+        default:
+            std::cout << "[Shader Realtime Compiler]: " << shadername << "ERROR: Compilation error" << std::endl;
+            printf("Warnings: %d", shaderc_result_get_num_warnings(result));
+            printf("Errors: %d", shaderc_result_get_num_errors(result));
+            std::cout << "\t\t" << shaderc_result_get_error_message(result) << std::endl;
+            return {};
+            break;
+        }
+
+        // Do stuff with compilation results.
+        const char* spirv = shaderc_result_get_bytes(result);
+        std::vector<char> spirvRet(spirv, spirv + shaderc_result_get_length(result));
+
+        // Releasing the compiled data.
+        shaderc_result_release(result);
+        shaderc_compiler_release(compiler);
+
+        return spirvRet;
+    }
 
 
 
@@ -79,7 +141,7 @@ namespace brdfa {
                 choosenFormat = format;
             }
         }
-         
+
         /*Scene Render pass*/
         {
             VkAttachmentDescription colorAttachment{};
@@ -243,17 +305,21 @@ namespace brdfa {
     /// <param name="device"></param>
     /// <param name="swapchain"></param>
     /// <param name="descriptor"></param>
-    static void createGraphicsPipeline(GPipeline& gpipeline, VkPipeline& sky_map_pipeline,  const Device& device ,const SwapChain& swapchain, const Descriptor& descriptor) {
-        auto vertShaderCode = readFile("shaders/vert.spv");
-        auto fragShaderCode = readFile("shaders/frag.spv");
+    static void createGraphicsPipeline(GPipeline& gpipeline, VkPipeline& sky_map_pipeline, const Device& device, const SwapChain& swapchain, const Descriptor& descriptor) {
+        //auto vertShaderCode = readFile("shaders/vert.spv");
+        //auto fragShaderCode = readFile("shaders/frag.spv");
 
+        /* Loading GLSL Source code*/
+        auto vertShaderCode = readFile("shaders/shader.vert", false);
+        auto fragShaderCode = readFile("shaders/shader.frag", false);
+        auto spirVShaderCode_vert = compileShader(vertShaderCode, true, "vertexShader");
+        auto spirVShaderCode_frag = compileShader(fragShaderCode, false, "FragmentSHader");
+        VkShaderModule vertShaderModule = createShaderModule(device, spirVShaderCode_vert);
+        VkShaderModule fragShaderModule = createShaderModule(device, spirVShaderCode_frag);
+
+        /*Loading Skymap shaders .spv*/
         auto skymapVertShaderCode = readFile("shaders/skybox.vert.spv");
         auto skymapFragShaderCode = readFile("shaders/skybox.frag.spv");
-
-
-        VkShaderModule vertShaderModule = createShaderModule(device, vertShaderCode);
-        VkShaderModule fragShaderModule = createShaderModule(device, fragShaderCode);
-
         VkShaderModule skymapVertShaderModule = createShaderModule(device, skymapVertShaderCode);
         VkShaderModule skymapFragShaderModule = createShaderModule(device, skymapFragShaderCode);
 
@@ -376,7 +442,7 @@ namespace brdfa {
         if (vkCreateGraphicsPipelines(device.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &gpipeline.pipeline) != VK_SUCCESS) {
             throw std::runtime_error("failed to create graphics pipeline!");
         }
-        
+
 
         /*Pipeline for Skymap*/
         depthStencil.depthWriteEnable = VK_FALSE;

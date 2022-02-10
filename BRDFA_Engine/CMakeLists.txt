@@ -34,7 +34,6 @@ include_directories(utils)
 file(COPY shaders DESTINATION "${CMAKE_BINARY_DIR}/")
 file(COPY res DESTINATION "${CMAKE_BINARY_DIR}/")
 
-
 # ---------------------------- Needed for SaschaWillems code for loading the VULKAN API
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 set(NAME BRDFA_Engine)
@@ -50,6 +49,8 @@ if (NOT CMAKE_VERSION VERSION_LESS 3.7.0)
 	find_package(Vulkan)
 endif()
 
+
+
 IF(UNIX AND NOT APPLE)
 	set(LINUX TRUE)
 ENDIF()
@@ -62,12 +63,20 @@ IF(WIN32)
 			MESSAGE("Using bundled Vulkan library version")
 		ENDIF()
 	ENDIF()
+	#find_library(shaderc_LIBRARY NAMES shaderc_combinedd HINTS "$ENV{VULKAN_SDK}/lib/shaderc_combinedd.lib" "${CMAKE_SOURCE_DIR}/libs/shaderc_combinedd.lib" REQUIRED)
+	find_library(shaderc_d_LIBRARY NAMES shaderc_combinedd HINTS "$ENV{VULKAN_SDK}/lib" "${CMAKE_SOURCE_DIR}/libs/shaderc_combinedd.lib" REQUIRED)
+	find_library(shaderc_LIBRARY NAMES shaderc_combined HINTS "$ENV{VULKAN_SDK}/lib" "${CMAKE_SOURCE_DIR}/libs/shaderc_combined.lib" REQUIRED)
+	message("[win32] vulkan library: ${Vulkan_LIBRARY}")
+	message("[win32] shaderc library: ${shaderc_d_LIBRARY}")
+	message("[win32] shaderc library: ${shaderc_LIBRARY}")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_USE_PLATFORM_WIN32_KHR")
 ELSEIF(LINUX)
 	IF (NOT Vulkan_FOUND)
 		find_library(Vulkan_LIBRARY NAMES vulkan HINTS "$ENV{VULKAN_SDK}/lib" "${CMAKE_SOURCE_DIR}/libs/vulkan" REQUIRED)
+		find_library(shaderc_LIBRARY NAMES shaderc_combined HINTS "$ENV{VULKAN_SDK}/lib" "${CMAKE_SOURCE_DIR}/libs/vulkan" REQUIRED)
 		IF (Vulkan_LIBRARY)
 			set(Vulkan_FOUND ON)
+			set(shaderc_FOUND ON)
 			MESSAGE("Using bundled Vulkan library version")
 		ENDIF()
 	ENDIF()
@@ -116,7 +125,9 @@ ENDIF(WIN32)
 IF (NOT Vulkan_FOUND)
 	message(FATAL_ERROR "Could not find Vulkan library!")
 ELSE()
+	message("FOUND libraries")
 	message(STATUS ${Vulkan_LIBRARY})
+	message(STATUS ${shaderc_LIBRARY})
 ENDIF()
 
 # Set preprocessor defines
@@ -142,20 +153,26 @@ ELSEIF(APPLE)
 ENDIF(MSVC)
 
 IF(WIN32)
-	# Nothing here (yet)
+	message("Linked: ${XCB_LIBRARIES} ${Vulkan_LIBRARY} ${shaderc_LIBRARY} ${DIRECTFB_LIBRARIES} ${WAYLAND_CLIENT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT}" )
+	link_libraries(${XCB_LIBRARIES} ${Vulkan_LIBRARY} ${shaderc_d_LIBRARY} ${DIRECTFB_LIBRARIES} ${WAYLAND_CLIENT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 ELSEIF(APPLE)
 	link_libraries(${Vulkan_LIBRARY} "-framework AppKit" "-framework QuartzCore")
 ELSE(WIN32)
-	link_libraries(${XCB_LIBRARIES} ${Vulkan_LIBRARY} ${Vulkan_LIBRARY} ${DIRECTFB_LIBRARIES} ${WAYLAND_CLIENT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+	message("Linked:")
+	link_libraries(${XCB_LIBRARIES} ${Vulkan_LIBRARY} ${shaderc_LIBRARY} ${DIRECTFB_LIBRARIES} ${WAYLAND_CLIENT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 ENDIF(WIN32)
 
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/")
+set(SHADERC_ENABLE_SHARED_CRT ON)
+
 
 # ------------------------      Link libraries libraries
 IF (Vulkan_FOUND)
 	MESSAGE("Using bundled Vulkan library version, ${Vulkan_LIBRARY}")
+	MESSAGE("Using bundled Shaderc library version, ${shaderc_LIBRARY}")
 	target_link_libraries(BRDFA_Engine "${CMAKE_SOURCE_DIR}/libs/glfw3.lib")
+	target_link_libraries(BRDFA_Engine "${shaderc_d_LIBRARY}")
 	target_link_libraries(BRDFA_Engine "${Vulkan_LIBRARY}")
 ENDIF()
 
