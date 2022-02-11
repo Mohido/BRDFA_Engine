@@ -118,7 +118,7 @@ namespace brdfa {
 
 
 	private:
-		void refreshObjects();												// Records the objects back again.
+		void refreshObject(const size_t& idx);												// Records the objects back again.
 		void addFragPipeline(
 			const std::string& name, 
 			const std::string& fragmentCode);								// This is used to add a pipeline to the scene. And refreshes the obejcts.
