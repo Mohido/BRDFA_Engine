@@ -137,7 +137,7 @@ namespace brdfa {
     /// <param name="meshCount"></param>
     static void createUniformBuffers(std::vector<Buffer>& uniformBuffers, Commander& commander, const Device& device, const SwapChain& swapchain, uint32_t meshCount) {
         VkDeviceSize bufferSize = sizeof(MVPMatrices);       
-        uniformBuffers.resize(swapchain.images.size()*meshCount);
+        uniformBuffers.resize(swapchain.images.size()*meshCount);       // Mesh Count can be of a maximum size to reduce the allocations
         for (size_t i = 0; i < uniformBuffers.size(); i++) {
             createBuffer(
                 commander, device,

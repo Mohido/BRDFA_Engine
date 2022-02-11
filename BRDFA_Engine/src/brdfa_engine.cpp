@@ -172,35 +172,42 @@ namespace brdfa {
 			std::cout << "INFO: Object and texture paths must be given to load the model. We don't support texture-less models yet." << std::endl;
 			return false;
 		}
-
 		vkDeviceWaitIdle(m_device.device);
-		cleanup();
-
-		m_meshes.push_back(loadMesh(m_commander, m_device, object_path, texture_path));		// Loading veriaty of objects
 		
-		/*Vulkan Re-initialization.*/
-		createSwapChain(m_swapChain, m_device, m_width_w, m_height_w);
-		createRenderPass(m_graphicsPipelines, m_device, m_swapChain);
-		createDescriptorSetLayout(m_descriptorData, m_device, m_swapChain);
+		/*Adding the new mesh*/
+		m_meshes.push_back(loadMesh(m_commander, m_device, object_path, texture_path));		// Loading veriaty of objects
 
-		/* Loading GLSL Source code*/
-		// auto vertShaderCode = readFile("shaders/main.vert", false);
-		// auto fragShaderCode = readFile("shaders/main.frag", false);
-		// auto spirVShaderCode_vert = compileShader(vertShaderCode, true, "vertexShader");
-		// auto spirVShaderCode_frag = compileShader(fragShaderCode, false, "FragmentSHader");
-		// createGraphicsPipeline(m_graphicsPipeline, m_skymap_pipeline, m_device, m_swapChain, m_descriptorData, spirVShaderCode_vert, spirVShaderCode_frag);
-		this->loadPipelines();
-		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipelines);
+		/*Adding a new uniform buffer*/
+		size_t oldSize = m_uniformBuffers.size();
+		size_t finalSlotsCount = m_swapChain.images.size() * m_meshes.size();
+		m_uniformBuffers.resize(finalSlotsCount);	// Adding 1 extra empty slot..
+		for (size_t i = oldSize; i < finalSlotsCount; i++) {
+			createBuffer(
+				m_commander, m_device, VkDeviceSize(sizeof(MVPMatrices)),
+				VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
+				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT 
+					| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+				m_uniformBuffers[i]);
+		}
+		
 
-		/*Meshes dependent*/
-		loadEnvironmentMap(SKYMAP_PATHS);
-		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
+		/*Recreating the Descriptors sets*/
+		vkDestroyDescriptorPool(m_device.device, m_descriptorData.pool, nullptr);
 		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
+		
+		/*Re-recording the command buffers*/
+		vkFreeCommandBuffers(m_device.device, m_commander.pool, static_cast<uint32_t>(m_commander.sceneBuffers.size()), m_commander.sceneBuffers.data());
 		recordCommandBuffers(m_commander, m_device, m_graphicsPipelines, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
 		return true;
 	}
 
 
+
+	/// <summary>
+	/// Called to load that object from the ith object from the scene.
+	/// </summary>
+	/// <param name="idx"></param>
+	/// <returns></returns>
 	bool BRDFA_Engine::deleteObject(const int& idx) {
 		if (this->m_meshes.size() == 1) {
 			std::cout << "You can NOT delete all the meshes!! At least 1 need to be used for the engine to continue running." << std::endl;

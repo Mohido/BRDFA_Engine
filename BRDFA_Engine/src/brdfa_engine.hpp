@@ -118,6 +118,11 @@ namespace brdfa {
 
 
 	private:
+		void refreshObjects();												// Records the objects back again.
+		void addFragPipeline(
+			const std::string& name, 
+			const std::string& fragmentCode);								// This is used to add a pipeline to the scene. And refreshes the obejcts.
+
 		void loadPipelines();												// Load all pipelines needed by the program to run.
 		void startWindow();													// Starts the GLFW window
 		void startVulkan();													// Fully initialize the Vulkan engine.
