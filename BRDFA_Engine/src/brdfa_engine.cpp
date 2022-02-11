@@ -244,24 +244,22 @@ namespace brdfa {
 	/// <param name="path"></param>
 	/// <returns></returns>
 	bool BRDFA_Engine::reloadSkymap(const std::string& path) {
-		cleanup();
+		/*Waiting for the current device to finish what it is doing.*/
+		vkDeviceWaitIdle(m_device.device);
+		
+		/*Destroying current environment map*/
+		// vkDestroyImage(m_device.device, m_skymap.obj, nullptr);
+		// vkDestroyImageView(m_device.device, m_skymap.obj, nullptr);
 
-		/*Vulkan Re-initialization.*/
-		createSwapChain(m_swapChain, m_device, m_width_w, m_height_w);
-		createRenderPass(m_graphicsPipelines, m_device, m_swapChain);
-		createDescriptorSetLayout(m_descriptorData, m_device, m_swapChain);
-		// auto vertShaderCode = readFile("shaders/main.vert", false);
-		// auto fragShaderCode = readFile("shaders/main.frag", false);
-		// auto spirVShaderCode_vert = compileShader(vertShaderCode, true, "vertexShader");
-		// auto spirVShaderCode_frag = compileShader(fragShaderCode, false, "FragmentSHader");
-		// createGraphicsPipeline(m_graphicsPipeline, m_skymap_pipeline, m_device, m_swapChain, m_descriptorData, spirVShaderCode_vert, spirVShaderCode_frag);
-		this->loadPipelines();
-		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipelines);
 
 		/*Meshes dependent*/
 		loadEnvironmentMap(path);
-		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
+
+		/*Recreating the Descriptors sets*/
+		vkDestroyDescriptorPool(m_device.device, m_descriptorData.pool, nullptr);
 		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
+
+		vkFreeCommandBuffers(m_device.device, m_commander.pool, static_cast<uint32_t>(m_commander.sceneBuffers.size()), m_commander.sceneBuffers.data());
 		recordCommandBuffers(m_commander, m_device, m_graphicsPipelines, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
 		return true;
 	}
@@ -431,17 +429,28 @@ namespace brdfa {
 		/*Freeing the Loaded data in the RAM*/
 		stbi_image_free(textureData);
 
+		if (m_skymap.width != faceWidth || m_skymap.height != faceHeight) { // If the new image has different resolution
+			vkDestroyImageView(m_device.device, m_skymap.view, nullptr);
+			vkDestroyImage(m_device.device, m_skymap.obj, nullptr);
+			vkFreeMemory(m_device.device, m_skymap.memory, nullptr);
+
+			m_skymap.view = VK_NULL_HANDLE;
+			m_skymap.obj = VK_NULL_HANDLE;
+			m_skymap.memory = VK_NULL_HANDLE;
+		}
 
 		/*Creating an empty buffer in the GPU RAM*/
-		createImage(
-			m_commander, m_device,
-			faceWidth, faceHeight,
-			1, VK_SAMPLE_COUNT_1_BIT,
-			VK_FORMAT_R8G8B8A8_SRGB,
-			VK_IMAGE_TILING_OPTIMAL,
-			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			m_skymap, true);
+		if (m_skymap.obj == VK_NULL_HANDLE) {
+			createImage(
+				m_commander, m_device,
+				faceWidth, faceHeight,
+				1, VK_SAMPLE_COUNT_1_BIT,
+				VK_FORMAT_R8G8B8A8_SRGB,
+				VK_IMAGE_TILING_OPTIMAL,
+				VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+				m_skymap, true);
+		}
 
 
 		/*Transforming the created Image layout to receive data.*/
@@ -474,12 +483,21 @@ namespace brdfa {
 			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 
+		if (m_skymap.view != VK_NULL_HANDLE) {
+			vkDestroyImageView(m_device.device, m_skymap.view, nullptr);
+		}
+
 		/*Creating sky map image view for the skymap.*/
 		m_skymap.view = createImageView(
 			m_skymap.obj, m_device.device,
 			VK_FORMAT_R8G8B8A8_SRGB,
 			VK_IMAGE_ASPECT_COLOR_BIT,
 			m_skymap.mipLevels, true);
+
+
+		/*If we are just using the old skymap (It has a sampler, then we don't need to recreate it.)*/
+		if (m_skymap.sampler != VK_NULL_HANDLE)
+			return true;
 
 
 		/*Create Texture sampler:*/
