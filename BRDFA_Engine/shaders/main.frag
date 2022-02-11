@@ -1,6 +1,5 @@
 #version 450
 
-
 /*Output variables. */
 layout(location = 0) out vec4 outColor;
 
@@ -28,34 +27,23 @@ struct BRDF_Output{
 };
 
 /*Functions*/
+//BRDF_Output brdf(vec3 L, vec3 N, vec3 V);
 BRDF_Output brdf(vec3 L, vec3 N, vec3 V);
-
 
 /*Main*/
 void main() {
 	//outColor = vec4(normalize(ubo.pos_c), 1.0f);
 	outColor = texture(texSampler, fragTexCoord);
+	vec3 N = normalize(inNormal);
+	vec3 V = normalize(env.pos_c - vertPosition);
+	vec3 L = -normalize(reflect(V, N));
 
 
-	/*textures view
-	if(ubo.render_opt.x == 0.0f){
-		outColor = texture(texSampler, fragTexCoord);
-	}
-	*/
+	BRDF_Output brdfo = brdf(L, N, V);
 
-	/*Normals view
-	if(ubo.render_opt.x == 1.0f){
-		outColor = vec4(normalize(inNormal), 1.0f);
-	}
-	*/
+	vec3 envColor = texture(map, L).rgb;
 
-	/*Reflection view
-	if(ubo.render_opt.x == 2.0f){
-		vec3 N = normalize(inNormal);
-		vec3 V = normalize(ubo.pos_c - vertPosition);
-		vec3 L = -normalize(reflect(V, N));
-		//outColor = vec4(L, 1.0f);
-		outColor = texture(map, L);
-	}
-	*/
+	vec3 c = envColor * brdfo.specular;
+
+	outColor = vec4(c, 1.);
 }

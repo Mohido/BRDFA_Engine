@@ -578,7 +578,7 @@ namespace brdfa {
 
 		auto vert_main_shader_code = readFile(SHADERS_PATH + "/main.vert", false);
 		auto frag_main_shader_code = readFile(SHADERS_PATH + "/main.frag", false);
-		auto vert_spirv = compileShader(vert_main_shader_code, true, "vertexShader");
+		auto vert_spirv = compileShader(std::string(vert_main_shader_code.begin(), vert_main_shader_code.end()), true, "vertexShader");
 
 
 		for (const auto& entry : std::filesystem::directory_iterator(brdfs)) {
@@ -606,11 +606,19 @@ namespace brdfa {
 
 				/*Form the whole fragment shader*/
 				auto brdf_shader_code = readFile(shaderPath, false);
-				std::vector<char> concatenated(frag_main_shader_code.begin(), frag_main_shader_code.end());
-				concatenated.insert(concatenated.end(), brdf_shader_code.begin(), brdf_shader_code.end());
+				std::string brdf_s(brdf_shader_code.begin(), brdf_shader_code.end());
+				std::string mc(frag_main_shader_code.begin(), frag_main_shader_code.end());
+				
+				/*Concatenating the source code with filtering the terminations*/
+				std::string concat;
+				concat.reserve(brdf_s.length() + mc.length());
+				for (int i = 0; i < mc.size(); i++)			
+					concat = (mc[i] == '\0') ? concat : concat + mc[i];
+				for (int i = 0; i < brdf_s.size(); i++)		
+					concat = (brdf_s[i] == '\0') ? concat : concat + brdf_s[i];
 
 				/*Compile the concatenated fragment shader.*/
-				auto frag_spirv = compileShader(concatenated, false, "FragmentSHader");
+				auto frag_spirv = compileShader(concat, false, "FragmentSHader");
 
 				/*Insert a new pipeline.*/
 				m_graphicsPipelines.pipelines.insert({ brdfName , {} });

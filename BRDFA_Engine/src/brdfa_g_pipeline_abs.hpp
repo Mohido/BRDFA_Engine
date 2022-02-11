@@ -84,9 +84,10 @@ namespace brdfa {
     /// <param name="device"></param>
     /// <param name="glslCode"></param>
     /// <returns></returns>
-    static std::vector<char> compileShader(const std::vector<char>& glslCode, const bool& vertexShader = true, const std::string& shadername = "realtimeShader") {
+    static std::vector<char> compileShader(const std::string& glslCode, const bool& vertexShader = true, const std::string& shadername = "realtimeShader") {
 
         std::string glslC(glslCode.begin(), glslCode.end());
+        //std::cout << glslCode.c_str() << std::endl;
 
         shaderc_shader_kind kind = (vertexShader) ? shaderc_glsl_vertex_shader : shaderc_fragment_shader;
 
