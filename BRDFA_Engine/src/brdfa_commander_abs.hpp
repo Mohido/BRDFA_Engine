@@ -285,8 +285,10 @@ namespace brdfa {
         renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size()); 
         renderPassInfo.pClearValues = clearValues.data();
         vkCmdBeginRenderPass(commander.uiBuffers[index], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-        vkCmdBindPipeline(commander.uiBuffers[index], VK_PIPELINE_BIND_POINT_GRAPHICS, gpipeline.pipeline);
 
+        // for (auto& it : gpipeline.pipelines) {
+        // printf("[INFO]: updateUICommandBuffers: Updating pipeline: %s\n", it.first.c_str());
+        vkCmdBindPipeline(commander.uiBuffers[index], VK_PIPELINE_BIND_POINT_GRAPHICS, gpipeline.pipelines.begin()->second);
         /*Drawing data to the framebuffer*/
         ImDrawData* drawData = ImGui::GetDrawData();
         if (drawData)
@@ -294,6 +296,8 @@ namespace brdfa {
             drawData->DisplayPos = { 0, 0 };
             ImGui_ImplVulkan_RenderDrawData(drawData, commander.uiBuffers[index]);
         }
+        // }
+        
 
         vkCmdEndRenderPass(commander.uiBuffers[index]);
         if (vkEndCommandBuffer(commander.uiBuffers[index]) != VK_SUCCESS) {
@@ -362,9 +366,15 @@ namespace brdfa {
             vkCmdBindIndexBuffer(commander.sceneBuffers[i], skymap.indexBuffer.obj, 0, VK_INDEX_TYPE_UINT32);
             vkCmdDrawIndexed(commander.sceneBuffers[i], skymap.indices.size(), 1, 0, 0, 0);
             
-            // Meshes rendering
-            vkCmdBindPipeline(commander.sceneBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, gpipeline.pipeline);
             for (size_t j = 0; j < meshes.size(); j++) {
+                // printf("[INFO]: Recoording pipeline: %s\n", it.first.c_str());
+                if (meshes[j].renderOption != "") {
+                    vkCmdBindPipeline(commander.sceneBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, gpipeline.pipelines.at(meshes[j].renderOption));
+                }
+                else {
+                    vkCmdBindPipeline(commander.sceneBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, gpipeline.pipelines.begin()->second);
+                }
+
                 /*Get buffer address from the device:*/
                 int descriptorSetIndex = j * swapchain.images.size() + i;
                 VkBuffer vertexBuffers[] = { meshes[j].vertexBuffer.obj };
@@ -373,7 +383,7 @@ namespace brdfa {
                 vkCmdBindDescriptorSets(commander.sceneBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, gpipeline.layout, 0, 1, &descriptorObj.sets[descriptorSetIndex], 0, nullptr);
                 vkCmdDrawIndexed(commander.sceneBuffers[i], meshes[j].indices.size(), 1, 0, 0, 0);
             }
-           
+
             vkCmdEndRenderPass(commander.sceneBuffers[i]);
             if (vkEndCommandBuffer(commander.sceneBuffers[i]) != VK_SUCCESS) {
                 throw std::runtime_error("failed to record command buffer!");

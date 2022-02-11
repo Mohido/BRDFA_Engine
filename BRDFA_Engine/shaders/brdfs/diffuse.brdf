@@ -1,0 +1,7 @@
+
+BRDF_Output brdf(vec3 L, vec3 N, vec3 V){
+	BRDF_Output s;
+	s.diffuse = vec3(1.);
+	s.specular = vec3(0.);
+	return s;
+}
