@@ -4,7 +4,7 @@
 
 #include <optional>
 #include <array>
-
+#include <unordered_map>
 
 // GLM Dependencies
 #define GLM_FORCE_RADIANS
@@ -113,7 +113,7 @@ namespace brdfa {
         VkRenderPass                    uiRenderpass;                   // Render pass for the UI
         VkRenderPass                    sceneRenderPass;                // Render pass to be used in Graphics pipeline.
         VkPipelineLayout                layout;                         // Pipeline layout used in the current Graphics pipeline.
-        VkPipeline                      pipeline;                       // Graphics pipeline that we can submit commands into.
+        std::unordered_map<std::string, VkPipeline>                      pipelines;                       // Graphics pipeline that we can submit commands into.
     };
 
 
@@ -227,7 +227,9 @@ namespace brdfa {
         std::vector<uint32_t>		indices;					        // Indices refering to the loaded vertices of the object.
 
         glm::mat4                   transformation = glm::mat4(1.0f);   // Holds the object transformation. Object to World transformation.
-        uint8_t                     renderOption = BRDFA_TEXTURE;                       // Defines what rendering option this object will be rendered by.
+        // uint8_t                     renderOption = BRDFA_TEXTURE;                       // Defines what rendering option this object will be rendered by.
+
+        std::string                 renderOption = "";
 
         Buffer						vertexBuffer;				        // Vulkan buffer of the vertices
         Buffer						indexBuffer;				        // Vulkan buffer of the Indices
