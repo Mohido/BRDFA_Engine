@@ -154,6 +154,7 @@ namespace brdfa {
 	}
 
 
+
 	/// <summary>
 	/// Saved for future usage.
 	/// </summary>
@@ -161,6 +162,7 @@ namespace brdfa {
 	bool BRDFA_Engine::interrupt() {
 		return true;
 	}
+
 
 
 	/// <summary>
@@ -172,94 +174,91 @@ namespace brdfa {
 			std::cout << "INFO: Object and texture paths must be given to load the model. We don't support texture-less models yet." << std::endl;
 			return false;
 		}
-
 		vkDeviceWaitIdle(m_device.device);
-		cleanup();
-
-		m_meshes.push_back(loadMesh(m_commander, m_device, object_path, texture_path));		// Loading veriaty of objects
 		
-		/*Vulkan Re-initialization.*/
-		createSwapChain(m_swapChain, m_device, m_width_w, m_height_w);
-		createRenderPass(m_graphicsPipelines, m_device, m_swapChain);
-		createDescriptorSetLayout(m_descriptorData, m_device, m_swapChain);
+		/*Adding the new mesh*/
+		m_meshes.push_back(loadMesh(m_commander, m_device, object_path, texture_path));		// Loading veriaty of objects
 
-		/* Loading GLSL Source code*/
-		// auto vertShaderCode = readFile("shaders/main.vert", false);
-		// auto fragShaderCode = readFile("shaders/main.frag", false);
-		// auto spirVShaderCode_vert = compileShader(vertShaderCode, true, "vertexShader");
-		// auto spirVShaderCode_frag = compileShader(fragShaderCode, false, "FragmentSHader");
-		// createGraphicsPipeline(m_graphicsPipeline, m_skymap_pipeline, m_device, m_swapChain, m_descriptorData, spirVShaderCode_vert, spirVShaderCode_frag);
-		this->loadPipelines();
-		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipelines);
-
-		/*Meshes dependent*/
-		loadEnvironmentMap(SKYMAP_PATHS);
-		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
+		/*Adding a new uniform buffer*/
+		size_t oldSize = m_uniformBuffers.size();
+		size_t finalSlotsCount = m_swapChain.images.size() * m_meshes.size();
+		m_uniformBuffers.resize(finalSlotsCount);	// Adding 1 extra empty slot..
+		for (size_t i = oldSize; i < finalSlotsCount; i++) {
+			createBuffer(
+				m_commander, m_device, VkDeviceSize(sizeof(MVPMatrices)),
+				VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
+				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT 
+					| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+				m_uniformBuffers[i]);
+		}
+		
+		/*Recreating the Descriptors sets*/
+		vkDestroyDescriptorPool(m_device.device, m_descriptorData.pool, nullptr);
 		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
+		
+		/*Re-recording the command buffers*/
+		vkFreeCommandBuffers(m_device.device, m_commander.pool, static_cast<uint32_t>(m_commander.sceneBuffers.size()), m_commander.sceneBuffers.data());
 		recordCommandBuffers(m_commander, m_device, m_graphicsPipelines, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
 		return true;
 	}
 
 
+
+	/// <summary>
+	/// Called to load that object from the ith object from the scene.
+	/// </summary>
+	/// <param name="idx"></param>
+	/// <returns></returns>
 	bool BRDFA_Engine::deleteObject(const int& idx) {
 		if (this->m_meshes.size() == 1) {
 			std::cout << "You can NOT delete all the meshes!! At least 1 need to be used for the engine to continue running." << std::endl;
 			return true;
 		}
-
 		vkDeviceWaitIdle(m_device.device);
-		cleanup();
 
 		/*Deleting the mesh vulkan objects.*/
 		destroyMesh(this->m_meshes.at(idx), m_device);
 		this->m_meshes.erase(this->m_meshes.begin() + idx);
 
+		/*Adding a new uniform buffer*/
+		size_t oldSize = m_uniformBuffers.size();
+		size_t finalSlotsCount = m_swapChain.images.size() * m_meshes.size();
+		for (size_t i = finalSlotsCount; i < oldSize; i++) {
+			vkDestroyBuffer(m_device.device, m_uniformBuffers[i].obj, nullptr);
+			vkFreeMemory(m_device.device, m_uniformBuffers[i].memory, nullptr);
+		}
+		m_uniformBuffers.resize(finalSlotsCount);	// Adding 1 extra empty slot..
 
-		/*Vulkan Re-initialization.*/
-		createSwapChain(m_swapChain, m_device, m_width_w, m_height_w);
-		createRenderPass(m_graphicsPipelines, m_device, m_swapChain);
-		createDescriptorSetLayout(m_descriptorData, m_device, m_swapChain);
-		// auto vertShaderCode = readFile("shaders/main.vert", false);
-		// auto fragShaderCode = readFile("shaders/main.frag", false);
-		// auto spirVShaderCode_vert = compileShader(vertShaderCode, true, "vertexShader");
-		// auto spirVShaderCode_frag = compileShader(fragShaderCode, false, "FragmentSHader");
-		// createGraphicsPipeline(m_graphicsPipeline, m_skymap_pipeline, m_device, m_swapChain, m_descriptorData, spirVShaderCode_vert, spirVShaderCode_frag);
-		this->loadPipelines();
-		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipelines);
-
-		/*Meshes dependent*/
-		loadEnvironmentMap(SKYMAP_PATHS);
-		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
+		/*Recreating the Descriptors sets*/
+		vkDestroyDescriptorPool(m_device.device, m_descriptorData.pool, nullptr);
 		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
+
+		/*Re-recording the command buffers*/
+		vkFreeCommandBuffers(m_device.device, m_commander.pool, static_cast<uint32_t>(m_commander.sceneBuffers.size()), m_commander.sceneBuffers.data());
 		recordCommandBuffers(m_commander, m_device, m_graphicsPipelines, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
 		return true;
 	}
 
 
+
 	/// <summary>
-	/// 
+	/// This function can be called to reload a new skymap to the scene. It can be called only to reload skybox images.
 	/// </summary>
-	/// <param name="path"></param>
-	/// <returns></returns>
+	/// <param name="path">Relative path to the skybox image</param>
+	/// <returns>If the image was loaoded successfully</returns>
 	bool BRDFA_Engine::reloadSkymap(const std::string& path) {
-		cleanup();
-
-		/*Vulkan Re-initialization.*/
-		createSwapChain(m_swapChain, m_device, m_width_w, m_height_w);
-		createRenderPass(m_graphicsPipelines, m_device, m_swapChain);
-		createDescriptorSetLayout(m_descriptorData, m_device, m_swapChain);
-		// auto vertShaderCode = readFile("shaders/main.vert", false);
-		// auto fragShaderCode = readFile("shaders/main.frag", false);
-		// auto spirVShaderCode_vert = compileShader(vertShaderCode, true, "vertexShader");
-		// auto spirVShaderCode_frag = compileShader(fragShaderCode, false, "FragmentSHader");
-		// createGraphicsPipeline(m_graphicsPipeline, m_skymap_pipeline, m_device, m_swapChain, m_descriptorData, spirVShaderCode_vert, spirVShaderCode_frag);
-		this->loadPipelines();
-		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipelines);
-
+		/*Waiting for the current device to finish what it is doing.*/
+		vkDeviceWaitIdle(m_device.device);
+		
 		/*Meshes dependent*/
 		loadEnvironmentMap(path);
-		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
+
+		/*Recreating the Descriptors sets*/
+		vkDestroyDescriptorPool(m_device.device, m_descriptorData.pool, nullptr);
 		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
+
+		/*Recording the new skymap mesh */
+		vkFreeCommandBuffers(m_device.device, m_commander.pool, static_cast<uint32_t>(m_commander.sceneBuffers.size()), m_commander.sceneBuffers.data());
 		recordCommandBuffers(m_commander, m_device, m_graphicsPipelines, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
 		return true;
 	}
@@ -267,7 +266,7 @@ namespace brdfa {
 
 
 	/// <summary>
-	/// 
+	/// Loading an environment map that is seperated into 6 different files. Skymap is only supported.
 	/// </summary>
 	/// <returns></returns>
 	bool BRDFA_Engine::loadEnvironmentMap(const std::array<std::string, 6>& skyboxSides) {
@@ -386,6 +385,7 @@ namespace brdfa {
 	}
 
 
+
 	/// <summary>
 	/// 
 	/// </summary>
@@ -405,7 +405,6 @@ namespace brdfa {
 		VkDeviceSize imageSize = faceWidth * faceHeight * 4 * 6;				// Full buffer size (The size of all the images.)
 		VkDeviceSize layerSize = faceWidth * faceHeight * 4;			// Size per layer
 
-
 		/*Populating the staging buffer in the RAM*/
 		Buffer staging;
 		createBuffer(
@@ -414,7 +413,6 @@ namespace brdfa {
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			staging);
-
 
 		/*Copying into the Staging buffer.*/
 		void* data;
@@ -429,18 +427,28 @@ namespace brdfa {
 		/*Freeing the Loaded data in the RAM*/
 		stbi_image_free(textureData);
 
+		if (m_skymap.width != faceWidth || m_skymap.height != faceHeight) { // If the new image has different resolution
+			vkDestroyImageView(m_device.device, m_skymap.view, nullptr);
+			vkDestroyImage(m_device.device, m_skymap.obj, nullptr);
+			vkFreeMemory(m_device.device, m_skymap.memory, nullptr);
+
+			m_skymap.view = VK_NULL_HANDLE;
+			m_skymap.obj = VK_NULL_HANDLE;
+			m_skymap.memory = VK_NULL_HANDLE;
+		}
 
 		/*Creating an empty buffer in the GPU RAM*/
-		createImage(
-			m_commander, m_device,
-			faceWidth, faceHeight,
-			1, VK_SAMPLE_COUNT_1_BIT,
-			VK_FORMAT_R8G8B8A8_SRGB,
-			VK_IMAGE_TILING_OPTIMAL,
-			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			m_skymap, true);
-
+		if (m_skymap.obj == VK_NULL_HANDLE) {
+			createImage(
+				m_commander, m_device,
+				faceWidth, faceHeight,
+				1, VK_SAMPLE_COUNT_1_BIT,
+				VK_FORMAT_R8G8B8A8_SRGB,
+				VK_IMAGE_TILING_OPTIMAL,
+				VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+				m_skymap, true);
+		}
 
 		/*Transforming the created Image layout to receive data.*/
 		transitionImageLayout(
@@ -450,7 +458,6 @@ namespace brdfa {
 			VK_IMAGE_LAYOUT_UNDEFINED,
 			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-
 		/*  Filling the Image Buffer in that we just created in the GPU ram.
 			Transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps*/
 		copyBufferToImage(
@@ -458,7 +465,6 @@ namespace brdfa {
 			staging, m_skymap,
 			static_cast<uint32_t>(faceWidth), static_cast<uint32_t>(faceHeight));
 
-		//
 		/*Cleaning up the staging from the RAM*/
 		vkDestroyBuffer(m_device.device, staging.obj, nullptr);
 		vkFreeMemory(m_device.device, staging.memory, nullptr);
@@ -471,6 +477,9 @@ namespace brdfa {
 			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
+		if (m_skymap.view != VK_NULL_HANDLE) {
+			vkDestroyImageView(m_device.device, m_skymap.view, nullptr);
+		}
 
 		/*Creating sky map image view for the skymap.*/
 		m_skymap.view = createImageView(
@@ -479,6 +488,9 @@ namespace brdfa {
 			VK_IMAGE_ASPECT_COLOR_BIT,
 			m_skymap.mipLevels, true);
 
+		/*If we are just using the old skymap (It has a sampler, then we don't need to recreate it.)*/
+		if (m_skymap.sampler != VK_NULL_HANDLE)
+			return true;
 
 		/*Create Texture sampler:*/
 		VkPhysicalDeviceProperties properties{};
@@ -530,7 +542,11 @@ namespace brdfa {
 
 
 
-
+	/// <summary>
+	/// Registers a Keyboard event to the engine Keyboard event system.
+	/// </summary>
+	/// <param name="key">key pressed</param>
+	/// <param name="action">action</param>
 	void BRDFA_Engine::fireKeyEvent(int key, int action) {
 		/*checking for Shifts*/
 		m_keyboardEvent = {key, action};
@@ -545,6 +561,11 @@ namespace brdfa {
 	}
 
 
+	/// <summary>
+	/// Registers a mouse event to the engine mouse event system.
+	/// </summary>
+	/// <param name="button">Mouse Button that has been clicked (1->5)</param>
+	/// <param name="action">The mouse action that has been inputted</param>
 	void BRDFA_Engine::fireMouseButtonEvent(int button, int action) {
 		if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
 			double xpos, ypos;
@@ -563,6 +584,21 @@ namespace brdfa {
 
 
 // ------------------------------------------------ MEMBER FUNCTIONS ---------------------------------------
+
+	/// <summary>
+	/// This is called to refresh a specific object. Refreshing means re-recording.
+	/// </summary>
+	/// <param name="idx"></param>
+	void BRDFA_Engine::refreshObject(const size_t& idx) {
+		/*Waiting for the device to be free.*/
+		vkDeviceWaitIdle(m_device.device);
+
+		/*Re-recording the command buffers*/
+		vkFreeCommandBuffers(m_device.device, m_commander.pool, static_cast<uint32_t>(m_commander.sceneBuffers.size()), m_commander.sceneBuffers.data());
+		recordCommandBuffers(m_commander, m_device, m_graphicsPipelines, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
+	}
+
+
 
 	/// <summary>
 	/// Load all the needed pipelines.
@@ -969,14 +1005,6 @@ namespace brdfa {
 			{ // Rendering the Rendering options.
 				float w = ImGui::CalcItemWidth();
 				ImGui::PushItemWidth(w - spacing * 5.0f - button_sz * 2.0f);
-				// if (ImGui::ArrowButton("##l", ImGuiDir_Left) && m_meshes[i].renderOption > 0)
-				// 	m_meshes[i].renderOption--;
-				// ImGui::SameLine(0, 1.0f);
-				// if (ImGui::ArrowButton("##r", ImGuiDir_Right) && m_uistate.renderOption < RenderOption::BRDFA_MAX_OPTIONS - 1) {
-				// 	m_meshes[i].renderOption++;
-				// 	std::cout << "rendering option: " << (int)m_meshes[i].renderOption << std::endl;
-				// }
-				// ImGui::SameLine(0, 1.0f);
 				if (ImGui::BeginCombo("Rendering Obtions", current_item)) // The second parameter is the label previewed before opening the combo.
 				{
 					bool refreshEngine = false;
@@ -993,8 +1021,7 @@ namespace brdfa {
 						}
 					}
 					if (refreshEngine)
-						recreate();
-					
+						refreshObject(i);
 					ImGui::EndCombo();
 				}
 			} // Rendering_options rendered
