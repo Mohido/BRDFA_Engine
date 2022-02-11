@@ -10,6 +10,7 @@
 #include <queue>
 #include <vector>
 
+
 #include "brdfa_structs.hpp"
 
 
@@ -33,52 +34,52 @@ namespace brdfa {
 	class BRDFA_Engine {
 	private:
 		/*Imgui stuff*/
-		bool								m_activeImgui = true;
-		VkDescriptorPool					m_imguiPool;
+		bool											m_activeImgui = true;
+		VkDescriptorPool								m_imguiPool;
 
 		/*Engine configuration*/
-		const BRDFAEngineConfiguration		m_configuration;				// the engine initial configuration.
-		size_t								m_currentFrame = 0;				// The current frame being rendered.
-		bool								m_active;
+		const BRDFAEngineConfiguration					m_configuration;				// the engine initial configuration.
+		size_t											m_currentFrame = 0;				// The current frame being rendered.
+		bool											m_active;
 		
 
-		uint32_t m_width_w, m_height_w;	
+		uint32_t										m_width_w, m_height_w;	
 
 
 		/*GFLW stuff*/
-		GLFWwindow*							m_window;						// window handler.
-		bool								m_frameBufferResized;			// If frame buffer is resized or not.
+		GLFWwindow*										m_window;						// window handler.
+		bool											m_frameBufferResized;			// If frame buffer is resized or not.
 
 		/*Vulkan objects*/
-		Instance							m_instance;                     // Vulkan process handler
-        Device								m_device;                       // Holds the physical/logical device of the engine.
-        SwapChain							m_swapChain;                    // swapchain related objects.
-        Descriptor							m_descriptorData;               // Holds Descriptor pool and its relative layout and sets.
-		GPipeline							m_graphicsPipeline;				// Holds the Graphics pipeline data.
-		Commander							m_commander;					// Handles the command pool and its related command buffers.
-		std::vector<SyncCollection>			m_sync;							// Fences per swapchain image. CPU/GPU signals, Semaphores per swapchain image. GPU/GPU signals.
-		std::vector<VkFence>				m_imagesInFlight;
+		Instance										m_instance;                     // Vulkan process handler
+        Device											m_device;                       // Holds the physical/logical device of the engine.
+        SwapChain										m_swapChain;                    // swapchain related objects.
+        Descriptor										m_descriptorData;               // Holds Descriptor pool and its relative layout and sets.
+		GPipeline										m_graphicsPipelines;				// Holds the Graphics pipeline data.
+		Commander										m_commander;					// Handles the command pool and its related command buffers.
+		std::vector<SyncCollection>						m_sync;							// Fences per swapchain image. CPU/GPU signals, Semaphores per swapchain image. GPU/GPU signals.
+		std::vector<VkFence>							m_imagesInFlight;
 		
 
 
 		/*Engine Scene variables*/
-		Camera								m_camera;
-		std::vector<Mesh>					m_meshes;						// Scene meshes.
-		std::vector<Buffer>					m_uniformBuffers;				// Scene Uniform buffers. Camera transformation is a such.
-		Mesh								m_skymap_mesh;					// Mesh that defines the skymap to be rendered. It is rendered on a seperate pipeline
-		Image								m_skymap;						// Skybox image
-		VkPipeline							m_skymap_pipeline;				// Pipeline that holds the Skymap Shaders info.
+		Camera											m_camera;
+		std::vector<Mesh>								m_meshes;						// Scene meshes.
+		std::vector<Buffer>								m_uniformBuffers;				// Scene Uniform buffers. Camera transformation is a such.
+		Mesh											m_skymap_mesh;					// Mesh that defines the skymap to be rendered. It is rendered on a seperate pipeline
+		Image											m_skymap;						// Skybox image
+		VkPipeline										m_skymap_pipeline;				// Pipeline that holds the Skymap Shaders info.
 
 
 		/*Event System.*/
-		KeyEvent							m_keyboardEvent;				// Events per updates.
-		MouseEvent							m_mouseEvent;					// Holds the values require by the mouse event.
+		KeyEvent										m_keyboardEvent;				// Events per updates.
+		MouseEvent										m_mouseEvent;					// Holds the values require by the mouse event.
 
 
 		/*UI state system*/
-		UIState								m_uistate;
+		UIState											m_uistate;
 
-		const uint8_t						MAX_FRAMES_IN_FLIGHT = 2;
+		const uint8_t									MAX_FRAMES_IN_FLIGHT = 2;
 
 
 	public:
@@ -117,6 +118,7 @@ namespace brdfa {
 
 
 	private:
+		void loadPipelines();												// Load all pipelines needed by the program to run.
 		void startWindow();													// Starts the GLFW window
 		void startVulkan();													// Fully initialize the Vulkan engine.
 		bool startImgui();													// Starts the Imgui for vulkan and glfw

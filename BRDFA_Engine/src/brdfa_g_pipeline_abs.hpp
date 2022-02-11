@@ -84,9 +84,10 @@ namespace brdfa {
     /// <param name="device"></param>
     /// <param name="glslCode"></param>
     /// <returns></returns>
-    static std::vector<char> compileShader(const std::vector<char>& glslCode, const bool& vertexShader = true, const std::string& shadername = "realtimeShader") {
+    static std::vector<char> compileShader(const std::string& glslCode, const bool& vertexShader = true, const std::string& shadername = "realtimeShader") {
 
         std::string glslC(glslCode.begin(), glslCode.end());
+        //std::cout << glslCode.c_str() << std::endl;
 
         shaderc_shader_kind kind = (vertexShader) ? shaderc_glsl_vertex_shader : shaderc_fragment_shader;
 
@@ -297,6 +298,23 @@ namespace brdfa {
     }
 
 
+    /// <summary>
+    /// This will allow the creation of a pipeline layout
+    /// </summary>
+    /// <param name="gpipeline"></param>
+    /// <param name="device"></param>
+    /// <param name="descriptor"></param>
+    static void createPipelineLayout(GPipeline& gpipeline,  const Device& device, const Descriptor& descriptor) {
+        VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+        pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        pipelineLayoutInfo.setLayoutCount = 1;
+        pipelineLayoutInfo.pSetLayouts = &descriptor.layout;
+
+        if (vkCreatePipelineLayout(device.device, &pipelineLayoutInfo, nullptr, &gpipeline.layout) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create pipeline layout!");
+        }
+    }
+
 
     /// <summary>
     /// 
@@ -305,23 +323,25 @@ namespace brdfa {
     /// <param name="device"></param>
     /// <param name="swapchain"></param>
     /// <param name="descriptor"></param>
-    static void createGraphicsPipeline(GPipeline& gpipeline, VkPipeline& sky_map_pipeline, const Device& device, const SwapChain& swapchain, const Descriptor& descriptor) {
+    static void createGraphicsPipeline(
+            const VkPipelineLayout& layout,     const VkRenderPass& sceneRenderPass, 
+            VkPipeline& gpipeline,      VkPipeline& sky_map_pipeline, 
+            const Device& device,       const SwapChain& swapchain, 
+            const Descriptor& descriptor,       const std::vector<char>& vertShaderSpirv, 
+            const std::vector<char>& fragShaderSpirv,       const bool& isSkymap) 
+    {
+
         //auto vertShaderCode = readFile("shaders/vert.spv");
         //auto fragShaderCode = readFile("shaders/frag.spv");
+        VkShaderModule vertShaderModule = createShaderModule(device, vertShaderSpirv);
+        VkShaderModule fragShaderModule = createShaderModule(device, fragShaderSpirv);
 
-        /* Loading GLSL Source code*/
-        auto vertShaderCode = readFile("shaders/shader.vert", false);
-        auto fragShaderCode = readFile("shaders/shader.frag", false);
-        auto spirVShaderCode_vert = compileShader(vertShaderCode, true, "vertexShader");
-        auto spirVShaderCode_frag = compileShader(fragShaderCode, false, "FragmentSHader");
-        VkShaderModule vertShaderModule = createShaderModule(device, spirVShaderCode_vert);
-        VkShaderModule fragShaderModule = createShaderModule(device, spirVShaderCode_frag);
 
         /*Loading Skymap shaders .spv*/
-        auto skymapVertShaderCode = readFile("shaders/skybox.vert.spv");
-        auto skymapFragShaderCode = readFile("shaders/skybox.frag.spv");
-        VkShaderModule skymapVertShaderModule = createShaderModule(device, skymapVertShaderCode);
-        VkShaderModule skymapFragShaderModule = createShaderModule(device, skymapFragShaderCode);
+        // auto skymapVertShaderCode = readFile("shaders/skybox.vert.spv");
+        // auto skymapFragShaderCode = readFile("shaders/skybox.frag.spv");
+        // VkShaderModule skymapVertShaderModule = createShaderModule(device, vertShaderSpirv);
+        // VkShaderModule skymapFragShaderModule = createShaderModule(device, fragShaderSpirv);
 
 
 
@@ -414,14 +434,6 @@ namespace brdfa {
         colorBlending.blendConstants[2] = 0.0f;
         colorBlending.blendConstants[3] = 0.0f;
 
-        VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-        pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipelineLayoutInfo.setLayoutCount = 1;
-        pipelineLayoutInfo.pSetLayouts = &descriptor.layout;
-
-        if (vkCreatePipelineLayout(device.device, &pipelineLayoutInfo, nullptr, &gpipeline.layout) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create pipeline layout!");
-        }
 
         VkGraphicsPipelineCreateInfo pipelineInfo{};
         pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -434,12 +446,12 @@ namespace brdfa {
         pipelineInfo.pMultisampleState = &multisampling;
         pipelineInfo.pDepthStencilState = &depthStencil;
         pipelineInfo.pColorBlendState = &colorBlending;
-        pipelineInfo.layout = gpipeline.layout;
-        pipelineInfo.renderPass = gpipeline.sceneRenderPass;
+        pipelineInfo.layout = layout;
+        pipelineInfo.renderPass = sceneRenderPass;
         pipelineInfo.subpass = 0;
         pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-        if (vkCreateGraphicsPipelines(device.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &gpipeline.pipeline) != VK_SUCCESS) {
+        if (!isSkymap && vkCreateGraphicsPipelines(device.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &gpipeline) != VK_SUCCESS) {
             throw std::runtime_error("failed to create graphics pipeline!");
         }
 
@@ -449,20 +461,18 @@ namespace brdfa {
         depthStencil.depthTestEnable = VK_FALSE;
         rasterizer.cullMode = VK_CULL_MODE_FRONT_BIT;
 
-        vertShaderStageInfo.module = skymapVertShaderModule;
-        fragShaderStageInfo.module = skymapFragShaderModule;
+        vertShaderStageInfo.module = vertShaderModule;
+        fragShaderStageInfo.module = fragShaderModule;
         shaderStages[0] = vertShaderStageInfo;
         shaderStages[1] = fragShaderStageInfo;
 
-        if (vkCreateGraphicsPipelines(device.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &sky_map_pipeline) != VK_SUCCESS) {
+        if (isSkymap && vkCreateGraphicsPipelines(device.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &sky_map_pipeline) != VK_SUCCESS) {
             throw std::runtime_error("failed to create graphics pipeline!");
         }
 
 
         vkDestroyShaderModule(device.device, fragShaderModule, nullptr);
         vkDestroyShaderModule(device.device, vertShaderModule, nullptr);
-        vkDestroyShaderModule(device.device, skymapVertShaderModule, nullptr);
-        vkDestroyShaderModule(device.device, skymapFragShaderModule, nullptr);
     }
 
 

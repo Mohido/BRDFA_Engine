@@ -29,6 +29,7 @@
 // STD Dependencies
 #include <iostream>
 #include <chrono>
+#include <filesystem>
 
 
 
@@ -179,16 +180,23 @@ namespace brdfa {
 		
 		/*Vulkan Re-initialization.*/
 		createSwapChain(m_swapChain, m_device, m_width_w, m_height_w);
-		createRenderPass(m_graphicsPipeline, m_device, m_swapChain);
+		createRenderPass(m_graphicsPipelines, m_device, m_swapChain);
 		createDescriptorSetLayout(m_descriptorData, m_device, m_swapChain);
-		createGraphicsPipeline(m_graphicsPipeline, m_skymap_pipeline, m_device, m_swapChain, m_descriptorData);
-		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipeline);
+
+		/* Loading GLSL Source code*/
+		// auto vertShaderCode = readFile("shaders/main.vert", false);
+		// auto fragShaderCode = readFile("shaders/main.frag", false);
+		// auto spirVShaderCode_vert = compileShader(vertShaderCode, true, "vertexShader");
+		// auto spirVShaderCode_frag = compileShader(fragShaderCode, false, "FragmentSHader");
+		// createGraphicsPipeline(m_graphicsPipeline, m_skymap_pipeline, m_device, m_swapChain, m_descriptorData, spirVShaderCode_vert, spirVShaderCode_frag);
+		this->loadPipelines();
+		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipelines);
 
 		/*Meshes dependent*/
 		loadEnvironmentMap(SKYMAP_PATHS);
 		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
 		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
-		recordCommandBuffers(m_commander, m_device, m_graphicsPipeline, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
+		recordCommandBuffers(m_commander, m_device, m_graphicsPipelines, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
 		return true;
 	}
 
@@ -209,16 +217,21 @@ namespace brdfa {
 
 		/*Vulkan Re-initialization.*/
 		createSwapChain(m_swapChain, m_device, m_width_w, m_height_w);
-		createRenderPass(m_graphicsPipeline, m_device, m_swapChain);
+		createRenderPass(m_graphicsPipelines, m_device, m_swapChain);
 		createDescriptorSetLayout(m_descriptorData, m_device, m_swapChain);
-		createGraphicsPipeline(m_graphicsPipeline, m_skymap_pipeline, m_device, m_swapChain, m_descriptorData);
-		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipeline);
+		// auto vertShaderCode = readFile("shaders/main.vert", false);
+		// auto fragShaderCode = readFile("shaders/main.frag", false);
+		// auto spirVShaderCode_vert = compileShader(vertShaderCode, true, "vertexShader");
+		// auto spirVShaderCode_frag = compileShader(fragShaderCode, false, "FragmentSHader");
+		// createGraphicsPipeline(m_graphicsPipeline, m_skymap_pipeline, m_device, m_swapChain, m_descriptorData, spirVShaderCode_vert, spirVShaderCode_frag);
+		this->loadPipelines();
+		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipelines);
 
 		/*Meshes dependent*/
 		loadEnvironmentMap(SKYMAP_PATHS);
 		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
 		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
-		recordCommandBuffers(m_commander, m_device, m_graphicsPipeline, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
+		recordCommandBuffers(m_commander, m_device, m_graphicsPipelines, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
 		return true;
 	}
 
@@ -233,16 +246,21 @@ namespace brdfa {
 
 		/*Vulkan Re-initialization.*/
 		createSwapChain(m_swapChain, m_device, m_width_w, m_height_w);
-		createRenderPass(m_graphicsPipeline, m_device, m_swapChain);
+		createRenderPass(m_graphicsPipelines, m_device, m_swapChain);
 		createDescriptorSetLayout(m_descriptorData, m_device, m_swapChain);
-		createGraphicsPipeline(m_graphicsPipeline, m_skymap_pipeline, m_device, m_swapChain, m_descriptorData);
-		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipeline);
+		// auto vertShaderCode = readFile("shaders/main.vert", false);
+		// auto fragShaderCode = readFile("shaders/main.frag", false);
+		// auto spirVShaderCode_vert = compileShader(vertShaderCode, true, "vertexShader");
+		// auto spirVShaderCode_frag = compileShader(fragShaderCode, false, "FragmentSHader");
+		// createGraphicsPipeline(m_graphicsPipeline, m_skymap_pipeline, m_device, m_swapChain, m_descriptorData, spirVShaderCode_vert, spirVShaderCode_frag);
+		this->loadPipelines();
+		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipelines);
 
 		/*Meshes dependent*/
 		loadEnvironmentMap(path);
 		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
 		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
-		recordCommandBuffers(m_commander, m_device, m_graphicsPipeline, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
+		recordCommandBuffers(m_commander, m_device, m_graphicsPipelines, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
 		return true;
 	}
 
@@ -547,6 +565,85 @@ namespace brdfa {
 // ------------------------------------------------ MEMBER FUNCTIONS ---------------------------------------
 
 	/// <summary>
+	/// Load all the needed pipelines.
+	/// </summary>
+	void BRDFA_Engine::loadPipelines() {
+		/*Craetion of a pipeline layout*/
+		createPipelineLayout(m_graphicsPipelines, m_device, m_descriptorData);
+
+		/*Creation of objects Pipelines*/
+		std::string mainShader_f = (SHADERS_PATH + "/main.frag");
+		std::string mainShader_v = (SHADERS_PATH + "/main.vert");
+		std::string brdfs = (SHADERS_PATH + "/brdfs");
+
+		auto vert_main_shader_code = readFile(SHADERS_PATH + "/main.vert", false);
+		auto frag_main_shader_code = readFile(SHADERS_PATH + "/main.frag", false);
+		auto vert_spirv = compileShader(std::string(vert_main_shader_code.begin(), vert_main_shader_code.end()), true, "vertexShader");
+
+
+		for (const auto& entry : std::filesystem::directory_iterator(brdfs)) {
+			std::string temp = entry.path().string();
+			std::size_t found = temp.find_last_of("/\\");		// Finding splitters
+			std::string brdfFilePath = temp.substr(0, found);
+			std::string brdfFileName = temp.substr(found+1);
+			
+
+			printf("[INFO]: Loading file: %s\n", brdfFilePath.c_str());
+			int extInd = brdfFileName.find(".brdf");
+			bool isbrdf = extInd != std::string::npos;
+			if (isbrdf) {
+				/*BRDF name as a key and the shader file path.*/
+				std::string brdfName(brdfFileName.begin() , brdfFileName.begin() + extInd);
+				std::string shaderPath = brdfFilePath + "/" + brdfFileName;
+
+				printf("[INFO]: Loading BRDF: %s\n", brdfFileName.c_str());
+
+				/*Check if the pipeline with the name exists.*/
+				if (m_graphicsPipelines.pipelines.find(brdfName) != m_graphicsPipelines.pipelines.end()) {
+					printf("[WARNING]: BRDF Pipeline already created.\n");
+					continue;
+				}
+
+				/*Form the whole fragment shader*/
+				auto brdf_shader_code = readFile(shaderPath, false);
+				std::string brdf_s(brdf_shader_code.begin(), brdf_shader_code.end());
+				std::string mc(frag_main_shader_code.begin(), frag_main_shader_code.end());
+				
+				/*Concatenating the source code with filtering the terminations*/
+				std::string concat;
+				concat.reserve(brdf_s.length() + mc.length());
+				for (int i = 0; i < mc.size(); i++)			
+					concat = (mc[i] == '\0') ? concat : concat + mc[i];
+				for (int i = 0; i < brdf_s.size(); i++)		
+					concat = (brdf_s[i] == '\0') ? concat : concat + brdf_s[i];
+
+				/*Compile the concatenated fragment shader.*/
+				auto frag_spirv = compileShader(concat, false, "FragmentSHader");
+
+				/*Insert a new pipeline.*/
+				m_graphicsPipelines.pipelines.insert({ brdfName , {} });
+				createGraphicsPipeline(
+					m_graphicsPipelines.layout, m_graphicsPipelines.sceneRenderPass, 
+					m_graphicsPipelines.pipelines.at(brdfName), m_skymap_pipeline, 
+					m_device, m_swapChain, m_descriptorData, vert_spirv, frag_spirv, false);
+			}
+		}
+			
+
+		/*Creation of skymap pipelines*/
+
+		auto vert_sky_shader_code = readFile(SHADERS_PATH + "/skybox.vert.spv", true);
+		auto frag_sky_shader_code = readFile(SHADERS_PATH + "/skybox.frag.spv", true);
+		createGraphicsPipeline(
+			m_graphicsPipelines.layout, m_graphicsPipelines.sceneRenderPass,
+			m_graphicsPipelines.pipelines.begin()->second, m_skymap_pipeline,
+			m_device, m_swapChain, m_descriptorData, 
+			vert_sky_shader_code, frag_sky_shader_code, true);
+	}
+
+
+
+	/// <summary>
 	/// Starts the GLFW window.
 	/// </summary>
 	void BRDFA_Engine::startWindow()
@@ -583,11 +680,16 @@ namespace brdfa {
 		pickPhysicalDevice(m_instance.instance, m_device);
 		createLogicalDevice(m_device, m_configuration.validationLayersEnabled);
 		createSwapChain(m_swapChain, m_device, m_width_w, m_height_w);
-		createRenderPass(m_graphicsPipeline, m_device, m_swapChain);
+		createRenderPass(m_graphicsPipelines, m_device, m_swapChain);
 		createDescriptorSetLayout(m_descriptorData, m_device, m_swapChain);
-		createGraphicsPipeline(m_graphicsPipeline,m_skymap_pipeline,  m_device, m_swapChain, m_descriptorData);
+		// auto vertShaderCode = readFile("shaders/main.vert", false);
+		// auto fragShaderCode = readFile("shaders/main.frag", false);
+		// auto spirVShaderCode_vert = compileShader(vertShaderCode, true, "vertexShader");
+		// auto spirVShaderCode_frag = compileShader(fragShaderCode, false, "FragmentSHader");
+		// createGraphicsPipeline(m_graphicsPipeline, m_skymap_pipeline, m_device, m_swapChain, m_descriptorData, spirVShaderCode_vert, spirVShaderCode_frag);
+		this->loadPipelines();
 		createCommandPool(m_commander.pool, m_device);
-		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipeline);
+		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipelines);
 		createSyncObjects(m_sync, m_imagesInFlight, m_device, m_swapChain, MAX_FRAMES_IN_FLIGHT);
 
 		/*SCENE Initalization. Related functionalities.*/
@@ -600,7 +702,7 @@ namespace brdfa {
 		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
 		
 		/*Recording the command buffers.*/
-		recordCommandBuffers(m_commander, m_device, m_graphicsPipeline, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
+		recordCommandBuffers(m_commander, m_device, m_graphicsPipelines, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
 
 		/*Engine is ready!*/
 		m_active = true;
@@ -658,7 +760,7 @@ namespace brdfa {
 		init_info.ImageCount = m_swapChain.images.size();
 		init_info.MSAASamples = m_device.msaaSamples;
 
-		bool initV = ImGui_ImplVulkan_Init(&init_info, m_graphicsPipeline.sceneRenderPass);
+		bool initV = ImGui_ImplVulkan_Init(&init_info, m_graphicsPipelines.sceneRenderPass);
 
 		//execute a gpu command to upload imgui font textures
 		VkCommandBuffer cmd = beginSingleTimeCommands(m_commander, m_device);
@@ -709,7 +811,7 @@ namespace brdfa {
 			ubo.view = m_camera.transformation;				//glm::lookAt(glm::vec3(0.0f, 3.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 			ubo.proj = m_camera.projection;					//glm::perspective(glm::radians(45.0f), m_swapChain.extent.width / (float)m_swapChain.extent.height, 0.1f, 10.0f);
 			ubo.pos_c = m_camera.position;
-			ubo.render_opt = glm::vec3(m_meshes[i].renderOption, 0.0f, 0.0f);
+			ubo.render_opt = glm::vec3(0.0f, 0.0f, 0.0f);
 
 			void* data;
 			vkMapMemory(m_device.device, m_uniformBuffers[ind].memory, 0, sizeof(ubo), 0, &data);
@@ -782,11 +884,13 @@ namespace brdfa {
 
 
 
-
+	/// <summary>
+	/// 
+	/// </summary>
+	/// <param name="imageIndex"></param>
 	void BRDFA_Engine::drawUI(uint32_t imageIndex) {
 		static char obj_path[100];				// Mesh path
 		static char tex_path[100];				// Texture path
-
 
 		ImGui_ImplVulkan_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
@@ -795,7 +899,6 @@ namespace brdfa {
 		/*Create the engine menu window*/
 		ImGui::SetNextWindowSize(ImVec2(400, 100), ImGuiCond_FirstUseEver);
 		ImGui::Begin("BRDFA Engine Menu", &m_uistate.running, ImGuiWindowFlags_MenuBar);
-
 
 		// Rendering the Menu bar
 		if (ImGui::BeginMenuBar())
@@ -821,10 +924,7 @@ namespace brdfa {
 			}
 			ImGui::EndMenuBar();
 		}
-
-
-		if (m_uistate.readFileWindowActive) {// Object File loader Window
-			
+		if (m_uistate.readFileWindowActive) {// Object File loader Window	
 			ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
 			ImGui::Begin("File Reader", &m_uistate.readFileWindowActive, file_reader_flags);
 			ImGui::InputText("Object path", obj_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
@@ -835,8 +935,6 @@ namespace brdfa {
 			}
 			ImGui::End();
 		}// Object File loader Window
-
-
 
 		if (m_uistate.readSkymapWindowActive) {// Skymap File loader Window
 			ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
@@ -849,9 +947,6 @@ namespace brdfa {
 			ImGui::End();
 		}// Skymap File loader Window
 		
-		
-
-
 
 		ImGuiStyle & style = ImGui::GetStyle();		
 		float spacing = style.ItemInnerSpacing.x;
@@ -860,7 +955,7 @@ namespace brdfa {
 		// Rendering Meshes data. (Per mesh.)
 		for (int i = 0; i < m_meshes.size(); i++) {
 			std::string curObj = "Object_" + std::to_string(i+1);
-			const char* current_item = m_uistate.optionLabels[m_meshes[i].renderOption];
+			const char* current_item = m_meshes[i].renderOption.c_str(); //m_uistate.optionLabels[m_meshes[i].renderOption];
 			
 			// Starting the section of the object
 			ImGui::BeginChild(curObj.data(), ImVec2(0.0f, button_sz*8.0f), false);
@@ -874,27 +969,32 @@ namespace brdfa {
 			{ // Rendering the Rendering options.
 				float w = ImGui::CalcItemWidth();
 				ImGui::PushItemWidth(w - spacing * 5.0f - button_sz * 2.0f);
-				if (ImGui::ArrowButton("##l", ImGuiDir_Left) && m_meshes[i].renderOption > 0)
-					m_meshes[i].renderOption--;
-				ImGui::SameLine(0, 1.0f);
-				if (ImGui::ArrowButton("##r", ImGuiDir_Right) && m_uistate.renderOption < RenderOption::BRDFA_MAX_OPTIONS - 1) {
-					m_meshes[i].renderOption++;
-					std::cout << "rendering option: " << (int)m_meshes[i].renderOption << std::endl;
-				}
-				ImGui::SameLine(0, 1.0f);
+				// if (ImGui::ArrowButton("##l", ImGuiDir_Left) && m_meshes[i].renderOption > 0)
+				// 	m_meshes[i].renderOption--;
+				// ImGui::SameLine(0, 1.0f);
+				// if (ImGui::ArrowButton("##r", ImGuiDir_Right) && m_uistate.renderOption < RenderOption::BRDFA_MAX_OPTIONS - 1) {
+				// 	m_meshes[i].renderOption++;
+				// 	std::cout << "rendering option: " << (int)m_meshes[i].renderOption << std::endl;
+				// }
+				// ImGui::SameLine(0, 1.0f);
 				if (ImGui::BeginCombo("Rendering Obtions", current_item)) // The second parameter is the label previewed before opening the combo.
 				{
-					for (uint8_t n = 0; n < RenderOption::BRDFA_MAX_OPTIONS; n++)
+					bool refreshEngine = false;
+					for (auto& it : m_graphicsPipelines.pipelines)
 					{
-						bool is_selected = strcmp(current_item, m_uistate.optionLabels[n]); // You can store your selection however you want, outside or inside your objects
-						if (ImGui::Selectable(m_uistate.optionLabels[n], is_selected)) {
-							//current_item = m_uistate.optionLabels[n];
+						bool is_selected = strcmp(current_item, it.first.c_str()); // You can store your selection however you want, outside or inside your objects
+						if (ImGui::Selectable(it.first.c_str(), is_selected)) {
 							if (is_selected) {
-								m_meshes[i].renderOption = n;
+								printf("[INFO]: Has been selected: %s\n", it.first.c_str());
+								m_meshes[i].renderOption = it.first;
 								ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+								refreshEngine = true;
 							}
 						}
 					}
+					if (refreshEngine)
+						recreate();
+					
 					ImGui::EndCombo();
 				}
 			} // Rendering_options rendered
@@ -931,7 +1031,7 @@ namespace brdfa {
 
 		// Update the m_uistate and checks if any of the imgui windows are focused.
 		m_uistate.focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow);
-		updateUICommandBuffers(m_commander, m_device, m_graphicsPipeline, m_swapChain, imageIndex);
+		updateUICommandBuffers(m_commander, m_device, m_graphicsPipelines, m_swapChain, imageIndex);
 	}
 
 
@@ -967,9 +1067,13 @@ namespace brdfa {
 		vkFreeCommandBuffers(m_device.device, m_commander.pool, static_cast<uint32_t>(m_commander.sceneBuffers.size()), m_commander.sceneBuffers.data());
 
 		/*Clearing the Graphics pipeline*/
-		vkDestroyPipeline(m_device.device, m_graphicsPipeline.pipeline, nullptr);
-		vkDestroyPipelineLayout(m_device.device, m_graphicsPipeline.layout, nullptr);
-		vkDestroyRenderPass(m_device.device, m_graphicsPipeline.sceneRenderPass, nullptr);
+		for (auto& it : m_graphicsPipelines.pipelines) {
+			vkDestroyPipeline(m_device.device, it.second , nullptr);
+		}
+		m_graphicsPipelines.pipelines.clear();
+		
+		vkDestroyPipelineLayout(m_device.device, m_graphicsPipelines.layout, nullptr);
+		vkDestroyRenderPass(m_device.device, m_graphicsPipelines.sceneRenderPass, nullptr);
 
 		/*Delete the remaining swapchain objects*/
 		for (auto imageView : m_swapChain.imageViews) {
@@ -1012,16 +1116,21 @@ namespace brdfa {
 
 		/*Vulkan Re-initialization.*/
 		createSwapChain(m_swapChain, m_device, m_width_w, m_height_w);
-		createRenderPass(m_graphicsPipeline, m_device, m_swapChain);
+		createRenderPass(m_graphicsPipelines, m_device, m_swapChain);
 		createDescriptorSetLayout(m_descriptorData, m_device, m_swapChain);
-		createGraphicsPipeline(m_graphicsPipeline, m_skymap_pipeline, m_device, m_swapChain, m_descriptorData);
-		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipeline);
+		// auto vertShaderCode = readFile("shaders/main.vert", false);
+		// auto fragShaderCode = readFile("shaders/main.frag", false);
+		// auto spirVShaderCode_vert = compileShader(vertShaderCode, true, "vertexShader");
+		// auto spirVShaderCode_frag = compileShader(fragShaderCode, false, "FragmentSHader");
+		// createGraphicsPipeline(m_graphicsPipeline, m_skymap_pipeline, m_device, m_swapChain, m_descriptorData, spirVShaderCode_vert, spirVShaderCode_frag);
+		loadPipelines();
+		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipelines);
 
 		/*Meshes dependent*/
 		loadEnvironmentMap(SKYMAP_PATHS);
 		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
 		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
-		recordCommandBuffers(m_commander, m_device, m_graphicsPipeline, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
+		recordCommandBuffers(m_commander, m_device, m_graphicsPipelines, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
 
 		/*Syncronization objects re-initialization.*/
 		m_imagesInFlight.resize(m_swapChain.images.size(), VK_NULL_HANDLE);
