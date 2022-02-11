@@ -190,7 +190,6 @@ namespace brdfa {
 				m_uniformBuffers[i]);
 		}
 		
-
 		/*Recreating the Descriptors sets*/
 		vkDestroyDescriptorPool(m_device.device, m_descriptorData.pool, nullptr);
 		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
@@ -213,31 +212,27 @@ namespace brdfa {
 			std::cout << "You can NOT delete all the meshes!! At least 1 need to be used for the engine to continue running." << std::endl;
 			return true;
 		}
-
 		vkDeviceWaitIdle(m_device.device);
-		cleanup();
 
 		/*Deleting the mesh vulkan objects.*/
 		destroyMesh(this->m_meshes.at(idx), m_device);
 		this->m_meshes.erase(this->m_meshes.begin() + idx);
 
+		/*Adding a new uniform buffer*/
+		size_t oldSize = m_uniformBuffers.size();
+		size_t finalSlotsCount = m_swapChain.images.size() * m_meshes.size();
+		for (size_t i = finalSlotsCount; i < oldSize; i++) {
+			vkDestroyBuffer(m_device.device, m_uniformBuffers[i].obj, nullptr);
+			vkFreeMemory(m_device.device, m_uniformBuffers[i].memory, nullptr);
+		}
+		m_uniformBuffers.resize(finalSlotsCount);	// Adding 1 extra empty slot..
 
-		/*Vulkan Re-initialization.*/
-		createSwapChain(m_swapChain, m_device, m_width_w, m_height_w);
-		createRenderPass(m_graphicsPipelines, m_device, m_swapChain);
-		createDescriptorSetLayout(m_descriptorData, m_device, m_swapChain);
-		// auto vertShaderCode = readFile("shaders/main.vert", false);
-		// auto fragShaderCode = readFile("shaders/main.frag", false);
-		// auto spirVShaderCode_vert = compileShader(vertShaderCode, true, "vertexShader");
-		// auto spirVShaderCode_frag = compileShader(fragShaderCode, false, "FragmentSHader");
-		// createGraphicsPipeline(m_graphicsPipeline, m_skymap_pipeline, m_device, m_swapChain, m_descriptorData, spirVShaderCode_vert, spirVShaderCode_frag);
-		this->loadPipelines();
-		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipelines);
-
-		/*Meshes dependent*/
-		loadEnvironmentMap(SKYMAP_PATHS);
-		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
+		/*Recreating the Descriptors sets*/
+		vkDestroyDescriptorPool(m_device.device, m_descriptorData.pool, nullptr);
 		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
+
+		/*Re-recording the command buffers*/
+		vkFreeCommandBuffers(m_device.device, m_commander.pool, static_cast<uint32_t>(m_commander.sceneBuffers.size()), m_commander.sceneBuffers.data());
 		recordCommandBuffers(m_commander, m_device, m_graphicsPipelines, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
 		return true;
 	}
