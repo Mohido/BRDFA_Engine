@@ -5,6 +5,8 @@
 #define GLFW_INCLUDE_VULKAN
 #include <glfw/glfw3.h>
 
+#include <imgui_text_editor/TextEditor.h>
+
 #include <string>
 #include <array>
 #include <queue>
@@ -82,6 +84,9 @@ namespace brdfa {
 		const uint8_t									MAX_FRAMES_IN_FLIGHT = 2;
 
 
+		/*IMGUI Text editor Addon: https://github.com/ELTE-IK-CG/Dragonfly/tree/master/include/ImGui-addons/imgui_text_editor*/
+		TextEditor										m_textEditor;
+
 	public:
 		BRDFA_Engine(const BRDFAEngineConfiguration& conf)
 			: m_configuration(conf), m_frameBufferResized(false)
@@ -118,6 +123,10 @@ namespace brdfa {
 
 
 	private:
+		void drawUI_objects();
+		void drawUI_camera();
+		void drawUI_advance();
+
 		void refreshObject(const size_t& idx);												// Records the objects back again.
 		void addFragPipeline(
 			const std::string& name, 
@@ -132,5 +141,6 @@ namespace brdfa {
 		void drawUI(uint32_t imageIndex);
 		void cleanup();														// Clean up the swapchain and the Vulkan objects. Mostly used during window resizing
 		void recreate();													// Cleans up the vulkan engine and recreate its objects. Called when the window is being resized.
+		void drawUI_menubar();
 	};
 }

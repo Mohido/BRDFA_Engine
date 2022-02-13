@@ -20,6 +20,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/hash.hpp>
 
+#include <imgui_text_editor/TextEditor.h>
+
 // BRDFA_Engine Dependencies
 #include "brdfa_engine.hpp"
 #include "brdfa_cons.hpp"
@@ -971,7 +973,6 @@ namespace brdfa {
 			}
 			ImGui::End();
 		}// Object File loader Window
-
 		if (m_uistate.readSkymapWindowActive) {// Skymap File loader Window
 			ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
 			ImGui::Begin("File Reader", &m_uistate.readSkymapWindowActive, file_reader_flags);
@@ -982,77 +983,30 @@ namespace brdfa {
 			}
 			ImGui::End();
 		}// Skymap File loader Window
-		
-
-		ImGuiStyle & style = ImGui::GetStyle();		
-		float spacing = style.ItemInnerSpacing.x;
-		float button_sz = ImGui::GetFrameHeight();
-		
-		// Rendering Meshes data. (Per mesh.)
-		for (int i = 0; i < m_meshes.size(); i++) {
-			std::string curObj = "Object_" + std::to_string(i+1);
-			const char* current_item = m_meshes[i].renderOption.c_str(); //m_uistate.optionLabels[m_meshes[i].renderOption];
-			
-			// Starting the section of the object
-			ImGui::BeginChild(curObj.data(), ImVec2(0.0f, button_sz*8.0f), false);
-
-			{// Tab menu of the object
-				ImGui::BeginTabBar(curObj.data());
-				ImGui::BeginTabItem(curObj.data());
-				ImGui::EndTabItem();
-				ImGui::EndTabBar();
-			} // Tab menu of the object
-			{ // Rendering the Rendering options.
-				float w = ImGui::CalcItemWidth();
-				ImGui::PushItemWidth(w - spacing * 5.0f - button_sz * 2.0f);
-				if (ImGui::BeginCombo("Rendering Obtions", current_item)) // The second parameter is the label previewed before opening the combo.
+		{
+			ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
+			if (ImGui::BeginTabBar("WindowTabs", tab_bar_flags))
+			{
+				if (ImGui::BeginTabItem("Objects"))
 				{
-					bool refreshEngine = false;
-					for (auto& it : m_graphicsPipelines.pipelines)
-					{
-						bool is_selected = strcmp(current_item, it.first.c_str()); // You can store your selection however you want, outside or inside your objects
-						if (ImGui::Selectable(it.first.c_str(), is_selected)) {
-							if (is_selected) {
-								printf("[INFO]: Has been selected: %s\n", it.first.c_str());
-								m_meshes[i].renderOption = it.first;
-								ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
-								refreshEngine = true;
-							}
-						}
-					}
-					if (refreshEngine)
-						refreshObject(i);
-					ImGui::EndCombo();
+					drawUI_objects();
+					ImGui::EndTabItem();
 				}
-			} // Rendering_options rendered
-			{ // Object Translation option
-				float trans[3] = { m_meshes[i].transformation[3][0] , m_meshes[i].transformation[3][1], m_meshes[i].transformation[3][2] };
-				ImGui::InputFloat3("Translation", trans);
-				m_meshes[i].transformation[3][0] = trans[0];
-				m_meshes[i].transformation[3][1] = trans[1];
-				m_meshes[i].transformation[3][2] = trans[2];
-			} // Object Translation option
-			{ // Object Scale option
-				float trans[3] = { m_meshes[i].transformation[0][0] , m_meshes[i].transformation[1][1], m_meshes[i].transformation[2][2] };
-				ImGui::InputFloat3("Scale", trans);
-				m_meshes[i].transformation[0][0] = trans[0];
-				m_meshes[i].transformation[1][1] = trans[1];
-				m_meshes[i].transformation[2][2] = trans[2];
-			} // Object scale option
-
-			{ // Object deletion button
-				ImGui::NewLine();
-				if (ImGui::Button("Delete")) {
-					this->deleteObject(i);
-					std::cout << "Deleting: " << curObj << std::endl;
+				if (ImGui::BeginTabItem("Camera"))
+				{
+					drawUI_camera();
+					ImGui::EndTabItem();
 				}
-				
-			} // Object deletion button
+				if (ImGui::BeginTabItem("Advance"))
+				{
+					drawUI_advance();
+					ImGui::EndTabItem();
+				}
+				ImGui::EndTabBar();
+			}
+			ImGui::Separator();
+		}
 
-			ImGui::EndChild();
-		} // For loop over objects
-
-		// Drawing into the IMGUI internal state.
 		ImGui::End();		// "BRDFA engine menu" end()
 		ImGui::Render();
 
@@ -1162,6 +1116,147 @@ namespace brdfa {
 		/*Syncronization objects re-initialization.*/
 		m_imagesInFlight.resize(m_swapChain.images.size(), VK_NULL_HANDLE);
 	}
+
+
+
+	/// <summary>
+	/// Draws the Objects Panel. The user can change the objects parameters here.
+	/// </summary>
+	void BRDFA_Engine::drawUI_objects() {
+		//ImGuiStyle& style = ImGui::GetStyle();
+		//float spacing = style.ItemInnerSpacing.x;
+		float button_sz = ImGui::GetFrameHeight();
+
+		// Rendering Meshes data. (Per mesh.)
+		for (int i = 0; i < m_meshes.size(); i++) {
+			std::string curObj = "Object_" + std::to_string(i + 1);
+			const char* current_item = m_meshes[i].renderOption.c_str(); //m_uistate.optionLabels[m_meshes[i].renderOption];
+
+			// Starting the section of the object
+			ImGui::BeginChild(curObj.data(), ImVec2(0.0f, button_sz * 10.0f), false);
+
+			{// Tab menu of the object
+				ImGui::BeginTabBar(curObj.data());
+				ImGui::BeginTabItem(curObj.data());
+				ImGui::EndTabItem();
+				ImGui::EndTabBar();
+			} // Tab menu of the object
+			{ // Rendering the Rendering options.
+				//float w = ImGui::CalcItemWidth();
+				//ImGui::PushItemWidth(w - spacing * 5.0f - button_sz * 2.0f);
+				if (ImGui::BeginCombo("Rendering Obtions", current_item)) // The second parameter is the label previewed before opening the combo.
+				{
+					bool refreshEngine = false;
+					for (auto& it : m_graphicsPipelines.pipelines)
+					{
+						bool is_selected = strcmp(current_item, it.first.c_str()); // You can store your selection however you want, outside or inside your objects
+						if (ImGui::Selectable(it.first.c_str(), is_selected)) {
+							if (is_selected) {
+								printf("[INFO]: Has been selected: %s\n", it.first.c_str());
+								m_meshes[i].renderOption = it.first;
+								ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+								refreshEngine = true;
+							}
+						}
+					}
+					if (refreshEngine)
+						refreshObject(i);
+					ImGui::EndCombo();
+				}
+			} // Rendering_options rendered
+			{ // Object Translation option
+				float trans[3] = { m_meshes[i].transformation[3][0] , m_meshes[i].transformation[3][1], m_meshes[i].transformation[3][2] };
+				ImGui::InputFloat3("Translation", trans);
+				m_meshes[i].transformation[3][0] = trans[0];
+				m_meshes[i].transformation[3][1] = trans[1];
+				m_meshes[i].transformation[3][2] = trans[2];
+			} // Object Translation option
+			{ // Object Scale option
+				float trans[3] = { m_meshes[i].transformation[0][0] , m_meshes[i].transformation[1][1], m_meshes[i].transformation[2][2] };
+				ImGui::InputFloat3("Scale", trans);
+				m_meshes[i].transformation[0][0] = trans[0];
+				m_meshes[i].transformation[1][1] = trans[1];
+				m_meshes[i].transformation[2][2] = trans[2];
+			} // Object scale option
+			ImGui::Separator();
+			{ // Object Scale option
+				//float trans[3] = { m_meshes[i].transformation[0][0] , m_meshes[i].transformation[1][1], m_meshes[i].transformation[2][2] };
+				float iw = ImGui::CalcItemWidth();
+				ImGui::PushItemWidth(iw * 0.5);
+				float material[2] = { 0.5 };
+				ImGui::InputFloat2("Additional Parameters", material);
+				int samples = 100;
+				ImGui::InputInt("Light Samples", &samples, 1, 10);
+				ImGui::PopItemWidth();
+			} // Object scale option
+
+
+			{ // Object deletion button
+				ImGui::NewLine();
+				if (ImGui::Button("Delete")) {
+					this->deleteObject(i);
+					std::cout << "Deleting: " << curObj << std::endl;
+				}
+			} // Object deletion button
+
+			ImGui::EndChild();
+		} // For loop over objects
+	}
+
+
+	/// <summary>
+	/// Drarws the Camera panel. The user can edit the camera parameters such as movement speed, zoom, rotate, 
+	/// and change the projection matrix
+	/// </summary>
+	void BRDFA_Engine::drawUI_camera() {
+	}
+
+
+	/// <summary>
+	/// Draws the Advance panel. In advance panel, the user can insert new GLSL BRDFs, Test/Compile/Edit/Save them. 
+	///		
+	/// </summary>
+	void BRDFA_Engine::drawUI_advance() {
+		// ImGui::ShowDemoWindow();
+		if (ImGui::CollapsingHeader("BRDFs Configuration"))
+		{
+			if (ImGui::TreeNode("Loaded BRDFs"))
+			{
+				static ImGuiTreeNodeFlags base_flags = ImGuiTreeNodeFlags_SpanAvailWidth;
+				int node_clicked = -1;
+				static std::string selected_brdf_node;
+				int i = -1;
+				for (const auto& it : m_graphicsPipelines.pipelines)
+				{
+					i++;
+					ImGuiTreeNodeFlags node_flags = base_flags;
+					if (i < 1)
+					{
+						if (ImGui::TreeNode(it.first.c_str()))
+						{
+							ImGui::BulletText("This is a brdf that can be edited.\nBlah Blah");
+							ImGui::TreePop();
+						}
+					}
+					else
+					{
+						std::string brdfName = "(Loaded from cache): " + it.first;
+						ImGui::BulletText(brdfName.c_str());
+					}
+				}
+				ImGui::TreePop();
+			}
+		}
+
+		if (ImGui::CollapsingHeader("Tests and Logs Configuration"))
+		{
+
+		}
+	}
+
+
+
+	
 
 
 
