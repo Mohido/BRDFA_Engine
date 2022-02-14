@@ -13,7 +13,11 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/hash.hpp>
+
+#include <imgui_text_editor/TextEditor.h>
+
 #include <cmath>
+
 
 #include <iostream>
 
@@ -23,19 +27,19 @@ namespace brdfa {
     /// Describe the rendering options that the engine provides. It holds all the variaty of BRDFs that we going to analyze.
     /// </summary>
     enum RenderOption {
-        BRDFA_TEXTURE               = 0,            // Texture rendering
-        BRDFA_NORMALS               = 1,            // Normals of the mesh
-        BRDFA_VIEW_ANGLE            = 2,            // dot(Normal, View angle)
-        BRDFA_REFLECTION_ANGLE      = 3,            // dot(Normal, Reflection Direction)
-        BRDFA_DIFFUSE               = 4,            // 100% diffuse
-        BRDFA_REFECTION             = 5,            // 100% reflection
-        BRDFA_COOKTORRANCE          = 6,            // Naive cooktorrance model
-        BRDFA_PHONG                 = 7,            // basic phong model
-        BRDFA_MAX_OPTIONS           = 8,            // Indecates the maximum length of the options
+        BRDFA_TEXTURE = 0,            // Texture rendering
+        BRDFA_NORMALS = 1,            // Normals of the mesh
+        BRDFA_VIEW_ANGLE = 2,            // dot(Normal, View angle)
+        BRDFA_REFLECTION_ANGLE = 3,            // dot(Normal, Reflection Direction)
+        BRDFA_DIFFUSE = 4,            // 100% diffuse
+        BRDFA_REFECTION = 5,            // 100% reflection
+        BRDFA_COOKTORRANCE = 6,            // Naive cooktorrance model
+        BRDFA_PHONG = 7,            // basic phong model
+        BRDFA_MAX_OPTIONS = 8,            // Indecates the maximum length of the options
     };
 
 
-    
+
 
     /// <summary>
     /// Holds the states of the UI buttons and options. For now we only have the rendering option.
@@ -72,7 +76,7 @@ namespace brdfa {
         VkQueue                         presentQueue;
     };
 
-    
+
     /// <summary>
     /// Image holds all the data needed to create an image or sampler.
     /// </summary>
@@ -103,8 +107,8 @@ namespace brdfa {
     };
 
     struct Descriptor {
-        VkDescriptorSetLayout           layout  = VK_NULL_HANDLE;                         // The layout of the descriptor sets
-        VkDescriptorPool                pool    = VK_NULL_HANDLE;                           // Vulkan Object which handles memory allocation functionalities
+        VkDescriptorSetLayout           layout = VK_NULL_HANDLE;                         // The layout of the descriptor sets
+        VkDescriptorPool                pool = VK_NULL_HANDLE;                           // Vulkan Object which handles memory allocation functionalities
         std::vector<VkDescriptorSet>    sets;                           // The sets we have initialized and created.
     };
 
@@ -285,7 +289,7 @@ namespace brdfa {
         glm::vec3                       direction = glm::vec3(0.0f, 0.0f, -1.0f);    // Look direction.
 
 
-        Camera(){}
+        Camera() {}
 
         /// <summary>
         /// Creates a prespective camera entity. 
@@ -296,7 +300,7 @@ namespace brdfa {
         /// <param name="fPlane"></param>
         /// <param name="yAngle">Angle in degrees of the y-axis (height)</param>
         Camera(uint32_t width, uint32_t height, float nPlane, float fPlane, float yAngle)
-        : uid(1)
+            : uid(1)
         {
             aspectRatio = width / (float)height;
             nPlane = nPlane;
@@ -331,7 +335,7 @@ namespace brdfa {
                 std::cout << "]" << std::endl;
             }
         }
-        
+
 
         void updateViewMatrix() {
             transformation = glm::lookAt(this->position, this->position + this->direction, glm::vec3(0.0f, 1.0f, 0.0f));
@@ -373,10 +377,10 @@ namespace brdfa {
 
             /*right, left*/
             if (ke.key == GLFW_KEY_D && ke.action != GLFW_RELEASE) {
-                glm::vec3 rightDir = glm::cross(this->direction, glm::vec3(0,1,0));
+                glm::vec3 rightDir = glm::cross(this->direction, glm::vec3(0, 1, 0));
                 this->position += rightDir * time * translationSpeed;
                 //this->position += glm::vec3(this->transformation[0][0], this->transformation[0][1], this->transformation[0][2]) * time * translationSpeed;
-            }    
+            }
             if (ke.key == GLFW_KEY_A && ke.action != GLFW_RELEASE) {
                 glm::vec3 rightDir = glm::cross(this->direction, glm::vec3(0, 1, 0));
                 this->position -= rightDir * time * translationSpeed;
@@ -403,9 +407,9 @@ namespace brdfa {
 
 
                 /*Restricting the angle of horizontal movement.*/
-                if (rotation.y > 89.0f) 
+                if (rotation.y > 89.0f)
                     rotation.y = 89.0f;
-                if(rotation.y < -89.0f)
+                if (rotation.y < -89.0f)
                     rotation.y = -89.0f;
 
                 /*Recalculation of the matrices. */
@@ -427,14 +431,25 @@ namespace brdfa {
             if (me.update) {
                 std::cout << "New Matrix transformation of the Camera is: " << std::endl;
                 printTransformation();
-                printf("Camera position: (%f, %f, %f)\n\n", position.x, position.y, position.z );
+                printf("Camera position: (%f, %f, %f)\n\n", position.x, position.y, position.z);
                 printf("Camera direction: (%f, %f, %f)\n\n", direction.x, direction.y, direction.z);
                 std::cout << std::endl;
             }
         }
-
     };
 
+
+
+
+    /// <summary>
+    /// Holds the needed data for a singular brdf panel in the menu. It stores if the code has been changed and stuff.
+    /// </summary>
+    struct BRDF_Panel{
+        std::string             brdfName;
+        TextEditor              glslPanel;	/*IMGUI Text editor Addon: https://github.com/ELTE-IK-CG/Dragonfly/tree/master/include/ImGui-addons/imgui_text_editor*/
+        std::vector<char>       latest_spir_v;
+        bool                    tested = false;
+    };
 
     
 }

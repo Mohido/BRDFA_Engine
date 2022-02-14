@@ -43,9 +43,9 @@ namespace brdfa {
 		const BRDFAEngineConfiguration					m_configuration;				// the engine initial configuration.
 		size_t											m_currentFrame = 0;				// The current frame being rendered.
 		bool											m_active;
-		
-
 		uint32_t										m_width_w, m_height_w;	
+		// std::unordered_map<std::string, std::string>	m_code_loaded;
+		
 
 
 		/*GFLW stuff*/
@@ -80,13 +80,16 @@ namespace brdfa {
 
 		/*UI state system*/
 		UIState											m_uistate;
+		std::unordered_map<std::string, BRDF_Panel>		m_loadedBrdfs;
+		std::unordered_map<std::string, BRDF_Panel>		m_costumBrdfs;
+
+
+		std::string										m_mainFragShader;
+		std::vector<char>								m_vertSpirv;
 
 		const uint8_t									MAX_FRAMES_IN_FLIGHT = 2;
 
-
-		/*IMGUI Text editor Addon: https://github.com/ELTE-IK-CG/Dragonfly/tree/master/include/ImGui-addons/imgui_text_editor*/
-		TextEditor										m_textEditor;
-
+	
 	public:
 		BRDFA_Engine(const BRDFAEngineConfiguration& conf)
 			: m_configuration(conf), m_frameBufferResized(false)
@@ -132,6 +135,7 @@ namespace brdfa {
 			const std::string& name, 
 			const std::string& fragmentCode);								// This is used to add a pipeline to the scene. And refreshes the obejcts.
 
+		void recreatePipeline(const std::string&, const std::vector<char> fragSpirv );											// Quickly recreates a specific pipeline.
 		void loadPipelines();												// Load all pipelines needed by the program to run.
 		void startWindow();													// Starts the GLFW window
 		void startVulkan();													// Fully initialize the Vulkan engine.

@@ -602,8 +602,36 @@ namespace brdfa {
 
 
 
+	void BRDFA_Engine::recreatePipeline(const std::string& brdfName, const std::vector<char> fragSpirv)
+	{
+		/*Destroying old pipeline*/
+		vkDeviceWaitIdle(m_device.device);
+		if (m_graphicsPipelines.pipelines.find(brdfName) != m_graphicsPipelines.pipelines.end())
+			vkDestroyPipeline(m_device.device, m_graphicsPipelines.pipelines.at(brdfName), nullptr);
+
+		/*Creating a new pipeline*/
+		createGraphicsPipeline(
+			m_graphicsPipelines.layout, m_graphicsPipelines.sceneRenderPass,
+			m_graphicsPipelines.pipelines.at(brdfName), m_skymap_pipeline,
+			m_device, m_swapChain, m_descriptorData, m_vertSpirv, fragSpirv, false);
+
+		/*Re record the scene objects*/
+		for (size_t j = 0; j < m_meshes.size(); j++)
+			refreshObject(j);
+	}
+
 	/// <summary>
-	/// Load all the needed pipelines.
+	/// Load all the needed pipelines. 
+	///		* We load the cached BRDFs first. Cached means pre-compiled BRDFs.
+	///		* We load all the source codes of the BRDFs second.
+	///		* We create graphics pipelines from the cached spir-v shaders.
+	///		* Configurations can be: 
+	///				1) Hot-Start: which only uses the cache without compiling and building the rest of the BRDFs.		
+	///				2) Full Load: Which will load all the BRDFs that are not cached, compile them, cache them and then build the graphics pipelines.  
+	///					This method will take a bit longer because of the compilation step for the non-cached brdfs.
+	///								
+	/// The whole BRDF source codes will be loaded to the engine.
+	/// 
 	/// </summary>
 	void BRDFA_Engine::loadPipelines() {
 		/*Craetion of a pipeline layout*/
@@ -616,8 +644,9 @@ namespace brdfa {
 
 		auto vert_main_shader_code = readFile(SHADERS_PATH + "/main.vert", false);
 		auto frag_main_shader_code = readFile(SHADERS_PATH + "/main.frag", false);
-		auto vert_spirv = compileShader(std::string(vert_main_shader_code.begin(), vert_main_shader_code.end()), true, "vertexShader");
+		m_mainFragShader = std::string(frag_main_shader_code.begin(), frag_main_shader_code.end());
 
+		m_vertSpirv = compileShader(std::string(vert_main_shader_code.begin(), vert_main_shader_code.end()), true, "vertexShader");
 
 		for (const auto& entry : std::filesystem::directory_iterator(brdfs)) {
 			std::string temp = entry.path().string();
@@ -645,25 +674,34 @@ namespace brdfa {
 				/*Form the whole fragment shader*/
 				auto brdf_shader_code = readFile(shaderPath, false);
 				std::string brdf_s(brdf_shader_code.begin(), brdf_shader_code.end());
-				std::string mc(frag_main_shader_code.begin(), frag_main_shader_code.end());
+				//std::string mc(frag_main_shader_code.begin(), frag_main_shader_code.end());
 				
 				/*Concatenating the source code with filtering the terminations*/
 				std::string concat;
-				concat.reserve(brdf_s.length() + mc.length());
-				for (int i = 0; i < mc.size(); i++)			
-					concat = (mc[i] == '\0') ? concat : concat + mc[i];
+				concat.reserve(brdf_s.length() + m_mainFragShader.length());
+				for (int i = 0; i < m_mainFragShader.size(); i++)			
+					concat = (m_mainFragShader[i] == '\0') ? concat : concat + m_mainFragShader[i];
 				for (int i = 0; i < brdf_s.size(); i++)		
 					concat = (brdf_s[i] == '\0') ? concat : concat + brdf_s[i];
 
 				/*Compile the concatenated fragment shader.*/
 				auto frag_spirv = compileShader(concat, false, "FragmentSHader");
 
+				/*If we reach this point, it means that we will insert the loaded brdf into our loaded brdfs panel*/
+				if (m_loadedBrdfs.find(brdfName) == m_loadedBrdfs.end()) {
+					BRDF_Panel	lp;
+					lp.brdfName = brdfName;
+					lp.latest_spir_v = frag_spirv;
+					lp.glslPanel.SetText(brdf_s);
+					m_loadedBrdfs.insert({ brdfName, lp });
+				}
+
 				/*Insert a new pipeline.*/
 				m_graphicsPipelines.pipelines.insert({ brdfName , {} });
 				createGraphicsPipeline(
 					m_graphicsPipelines.layout, m_graphicsPipelines.sceneRenderPass, 
 					m_graphicsPipelines.pipelines.at(brdfName), m_skymap_pipeline, 
-					m_device, m_swapChain, m_descriptorData, vert_spirv, frag_spirv, false);
+					m_device, m_swapChain, m_descriptorData, m_vertSpirv, frag_spirv, false);
 			}
 		}
 			
@@ -1218,34 +1256,85 @@ namespace brdfa {
 	/// </summary>
 	void BRDFA_Engine::drawUI_advance() {
 		// ImGui::ShowDemoWindow();
-		if (ImGui::CollapsingHeader("BRDFs Configuration"))
-		{
-			if (ImGui::TreeNode("Loaded BRDFs"))
-			{
-				static ImGuiTreeNodeFlags base_flags = ImGuiTreeNodeFlags_SpanAvailWidth;
-				int node_clicked = -1;
-				static std::string selected_brdf_node;
-				int i = -1;
-				for (const auto& it : m_graphicsPipelines.pipelines)
+
+		if (ImGui::CollapsingHeader("BRDFs Configuration")){
+
+			/*Draw Loaded BRDFs*/
+			ImGui::SetWindowFontScale(1.2);
+			if (ImGui::TreeNode("Loaded BRDFs")){ // Loaded BRDFs
+				for (auto& it : m_loadedBrdfs)
 				{
-					i++;
-					ImGuiTreeNodeFlags node_flags = base_flags;
-					if (i < 1)
+					if (ImGui::TreeNode(it.first.c_str()))
 					{
-						if (ImGui::TreeNode(it.first.c_str()))
-						{
-							ImGui::BulletText("This is a brdf that can be edited.\nBlah Blah");
-							ImGui::TreePop();
+						// Starting the section of the object
+						float bs = ImGui::GetFrameHeight();
+						float w = ImGui::GetColumnWidth();
+						ImGui::BeginChild(it.first.c_str(), ImVec2(0.0f, bs * 10.0f), true);
+
+						ImGui::SetWindowFontScale(1.4);
+						it.second.glslPanel.Render(it.first.c_str(), ImVec2(w, bs * 8.0f), true);
+						ImGui::SetWindowFontScale(1.0);
+						ImGui::NewLine();
+
+						if (it.second.glslPanel.IsTextChanged())
+							it.second.tested = false;
+						
+						ImVec4 col = (it.second.tested) ? ImVec4(0, 0.7, 0, 1) : ImVec4(0.7, 0, 0, 1);
+
+						ImGui::SameLine(0, w / 9);
+						ImGui::PushStyleColor(ImGuiCol_Button, col);
+						bool test = ImGui::Button("Test", ImVec2(w / 3, 0));
+						ImGui::PopStyleColor();
+						ImGui::SameLine(0, w / 9);
+						bool push = ImGui::Button("Push", ImVec2(w / 3, 0));
+
+						if (test) {
+							std::string concat;
+							std::string brdf_s = it.second.glslPanel.GetText();
+							concat.reserve(brdf_s.length() + m_mainFragShader.length());
+							for (int i = 0; i < m_mainFragShader.size(); i++)
+								concat = (m_mainFragShader[i] == '\0') ? concat : concat + m_mainFragShader[i];
+							for (int i = 0; i < brdf_s.size(); i++)
+								concat = (brdf_s[i] == '\0') ? concat : concat + brdf_s[i];
+
+							/*Compile the concatenated fragment shader.*/
+							try {
+								auto frag_spirv = compileShader(concat, false, "FragmentSHader");
+								it.second.tested = true;
+								it.second.latest_spir_v = frag_spirv;
+							}
+							catch (std::exception e) {
+								it.second.tested = false;
+								std::cout << "[ERROR]: Compilation Error for the given shader" << std::endl;
+							}
 						}
+						if (push && it.second.tested) {
+							recreatePipeline(it.second.brdfName, it.second.latest_spir_v);
+						}
+
+
+						ImGui::EndChild();
+						ImGui::TreePop();
 					}
-					else
+					
+				}
+				ImGui::TreePop();
+			}// end Loaded Brdfs
+
+			ImGui::Separator();
+
+			if (ImGui::TreeNode("Costum BRDFs")){ // Costum BRDFs
+				for (const auto& it : m_costumBrdfs)
+				{
+					if (ImGui::TreeNode(it.first.c_str()))
 					{
-						std::string brdfName = "(Loaded from cache): " + it.first;
-						ImGui::BulletText(brdfName.c_str());
+						ImGui::BulletText("This is a costume brdf with the name of: %s", it.first.c_str());
+						ImGui::TreePop();
 					}
 				}
 				ImGui::TreePop();
-			}
+			} // Costum BRDFs
+			ImGui::SetWindowFontScale(1.0);
 		}
 
 		if (ImGui::CollapsingHeader("Tests and Logs Configuration"))
