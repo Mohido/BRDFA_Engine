@@ -711,8 +711,8 @@ namespace brdfa {
 		auto vert_main_shader_code = readFile(SHADERS_PATH + "/main.vert", false);
 		auto frag_main_shader_code = readFile(SHADERS_PATH + "/main.frag", false);
 		m_mainFragShader = std::string(frag_main_shader_code.begin(), frag_main_shader_code.end());
-
 		m_vertSpirv = compileShader(std::string(vert_main_shader_code.begin(), vert_main_shader_code.end()), true, "vertexShader");
+
 
 		for (const auto& entry : std::filesystem::directory_iterator(brdfs)) {
 			std::string temp = entry.path().string();
@@ -1077,6 +1077,7 @@ namespace brdfa {
 			}
 			ImGui::End();
 		}// Object File loader Window
+
 		if (m_uistate.readSkymapWindowActive) {// Skymap File loader Window
 			ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
 			ImGui::Begin("File Reader", &m_uistate.readSkymapWindowActive, file_reader_flags);
