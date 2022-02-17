@@ -136,6 +136,7 @@ namespace brdfa {
 			const std::string& fragmentCode);								// This is used to add a pipeline to the scene. And refreshes the obejcts.
 
 		void recreatePipeline(const std::string&, const std::vector<char> fragSpirv );											// Quickly recreates a specific pipeline.
+		void addPipeline(const std::string&, const std::vector<char> fragSpirv);
 		void loadPipelines();												// Load all pipelines needed by the program to run.
 		void startWindow();													// Starts the GLFW window
 		void startVulkan();													// Fully initialize the Vulkan engine.

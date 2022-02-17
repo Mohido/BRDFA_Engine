@@ -620,6 +620,26 @@ namespace brdfa {
 			refreshObject(j);
 	}
 
+	void BRDFA_Engine::addPipeline(const std::string& brdfName, const std::vector<char> fragSpirv)
+	{
+		/*Destroying old pipeline*/
+		vkDeviceWaitIdle(m_device.device);
+		if (m_graphicsPipelines.pipelines.find(brdfName) != m_graphicsPipelines.pipelines.end()) {
+			throw std::runtime_error("ERROR: BRDF Pipeline can't be added. It already exists!.");
+		}
+
+		m_graphicsPipelines.pipelines.insert({ brdfName , VK_NULL_HANDLE });
+
+		/*Creating a new pipeline*/
+		createGraphicsPipeline(
+			m_graphicsPipelines.layout, m_graphicsPipelines.sceneRenderPass,
+			m_graphicsPipelines.pipelines.at(brdfName), m_skymap_pipeline,
+			m_device, m_swapChain, m_descriptorData, m_vertSpirv, fragSpirv, false);
+
+		/*Re record the scene objects*/
+		for (size_t j = 0; j < m_meshes.size(); j++) refreshObject(j);
+	}
+
 	/// <summary>
 	/// Load all the needed pipelines. 
 	///		* We load the cached BRDFs first. Cached means pre-compiled BRDFs.
@@ -1269,7 +1289,9 @@ namespace brdfa {
 						// Starting the section of the object
 						float bs = ImGui::GetFrameHeight();
 						float w = ImGui::GetColumnWidth();
-						ImGui::BeginChild(it.first.c_str(), ImVec2(0.0f, bs * 10.0f), true);
+						ImGui::BeginChild(it.first.c_str(), ImVec2(0.0f, bs * 11.0f), true);
+
+						ImGui::Text("struct BRDF_Output{ vec3 diffuse; vec3 specular;}");
 
 						ImGui::SetWindowFontScale(1.4);
 						it.second.glslPanel.Render(it.first.c_str(), ImVec2(w, bs * 8.0f), true);
@@ -1312,11 +1334,9 @@ namespace brdfa {
 							recreatePipeline(it.second.brdfName, it.second.latest_spir_v);
 						}
 
-
 						ImGui::EndChild();
 						ImGui::TreePop();
-					}
-					
+					}					
 				}
 				ImGui::TreePop();
 			}// end Loaded Brdfs
@@ -1324,18 +1344,94 @@ namespace brdfa {
 			ImGui::Separator();
 
 			if (ImGui::TreeNode("Costum BRDFs")){ // Costum BRDFs
-				for (const auto& it : m_costumBrdfs)
-				{
+
+				std::vector<std::string> deletedInd;
+				for (auto& it : m_costumBrdfs){
 					if (ImGui::TreeNode(it.first.c_str()))
 					{
-						ImGui::BulletText("This is a costume brdf with the name of: %s", it.first.c_str());
+						// Starting the section of the object
+						float bs = ImGui::GetFrameHeight();
+						float w = ImGui::GetColumnWidth();
+						ImGui::BeginChild(it.first.c_str(), ImVec2(0.0f, bs * 11.0f), true);
+
+						ImGui::Text("struct BRDF_Output{ vec3 diffuse; vec3 specular;}");
+
+						ImGui::SetWindowFontScale(1.4);
+						it.second.glslPanel.Render(it.first.c_str(), ImVec2(w, bs * 8.0f), true);
+						ImGui::SetWindowFontScale(1.0);
+						ImGui::NewLine();
+
+						if (it.second.glslPanel.IsTextChanged())
+							it.second.tested = false;
+
+						ImVec4 col = (it.second.tested) ? ImVec4(0, 0.7, 0, 1) : ImVec4(0.7, 0, 0, 1);
+
+						ImGui::SameLine(0, w / 9);
+						ImGui::PushStyleColor(ImGuiCol_Button, col);
+						bool test = ImGui::Button("Test", ImVec2(w / 3, 0));
+						ImGui::PopStyleColor();
+						ImGui::SameLine(0, w / 9);
+						bool add = ImGui::Button("Add", ImVec2(w / 3, 0));
+
+						if (test) {
+							std::string concat;
+							std::string brdf_s = it.second.glslPanel.GetText();
+							concat.reserve(brdf_s.length() + m_mainFragShader.length());
+							for (int i = 0; i < m_mainFragShader.size(); i++)
+								concat = (m_mainFragShader[i] == '\0') ? concat : concat + m_mainFragShader[i];
+							for (int i = 0; i < brdf_s.size(); i++)
+								concat = (brdf_s[i] == '\0') ? concat : concat + brdf_s[i];
+
+							/*Compile the concatenated fragment shader.*/
+							try {
+								auto frag_spirv = compileShader(concat, false, "FragmentSHader");
+								it.second.tested = true;
+								it.second.latest_spir_v = frag_spirv;
+							}
+							catch (std::exception e) {
+								it.second.tested = false;
+								std::cout << "[ERROR]: Compilation Error for the given shader" << std::endl;
+							}
+						}
+						if (add && it.second.tested) {
+							m_loadedBrdfs.insert({ it.first, it.second });
+							addPipeline(it.second.brdfName, it.second.latest_spir_v);
+							deletedInd.push_back(it.first);
+						}
+
+						ImGui::EndChild();
 						ImGui::TreePop();
 					}
 				}
+
+				/*Clearing the costum ones.*/
+				for (std::string& s : deletedInd) m_costumBrdfs.erase(s);
+
+				/*Adding a new costum BRDF to the system*/
+				static char name[20];
+				if (strlen(name) == 0) memset(name, '\0', 20);
+				bool pressedB = ImGui::Button("+");
+				ImGui::SameLine();
+				ImGui::InputText("Name", name , 20);
+				if (pressedB && strlen(name) > 0) {
+					BRDF_Panel panel;
+					panel.brdfName = name;
+					panel.glslPanel.SetText("BRDF_Output brdf(vec3 L, vec3 N, vec3 V){\n\n}");
+					panel.tested = false;
+					
+					memset(name, '\0', 20);
+					std::cout << "The new name is: " << panel.brdfName << std::endl;
+					bool unique = m_loadedBrdfs.find(panel.brdfName) == m_loadedBrdfs.end() && m_costumBrdfs.find(panel.brdfName) == m_costumBrdfs.end();
+					if (unique) m_costumBrdfs.insert({ panel.brdfName, panel });
+				}
+
 				ImGui::TreePop();
 			} // Costum BRDFs
+
 			ImGui::SetWindowFontScale(1.0);
 		}
+
+
 
 		if (ImGui::CollapsingHeader("Tests and Logs Configuration"))
 		{
