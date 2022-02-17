@@ -646,8 +646,10 @@ namespace brdfa {
 	{
 		/*Destroying old pipeline*/
 		vkDeviceWaitIdle(m_device.device);
-		if (m_graphicsPipelines.pipelines.find(brdfName) != m_graphicsPipelines.pipelines.end())
+		if (m_graphicsPipelines.pipelines.find(brdfName) != m_graphicsPipelines.pipelines.end())	// if found then destroy the old pipeline
 			vkDestroyPipeline(m_device.device, m_graphicsPipelines.pipelines.at(brdfName), nullptr);
+		else   // if not found then create a new one.
+			m_graphicsPipelines.pipelines.insert({ brdfName , VK_NULL_HANDLE });
 
 		/*Creating a new pipeline*/
 		createGraphicsPipeline(
@@ -708,18 +710,25 @@ namespace brdfa {
 		std::string mainShader_v = (SHADERS_PATH + "/main.vert");
 		std::string brdfs = (SHADERS_PATH + "/brdfs");
 
-		auto vert_main_shader_code = readFile(SHADERS_PATH + "/main.vert", false);
-		auto frag_main_shader_code = readFile(SHADERS_PATH + "/main.frag", false);
-		m_mainFragShader = std::string(frag_main_shader_code.begin(), frag_main_shader_code.end());
-		m_vertSpirv = compileShader(std::string(vert_main_shader_code.begin(), vert_main_shader_code.end()), true, "vertexShader");
+		/*Loading the basic.spv (basic rendering.)*/
+		m_vertSpirv = readFile(SHADERS_PATH + "/vert.spv", true);
+		auto frag_main_shader_code = readFile(SHADERS_PATH + "/basic.spv", true);
+		m_graphicsPipelines.pipelines.insert({ "None" , {} });
+		createGraphicsPipeline(
+			m_graphicsPipelines.layout, m_graphicsPipelines.sceneRenderPass,
+			m_graphicsPipelines.pipelines.at("None"), m_skymap_pipeline,
+			m_device, m_swapChain, m_descriptorData, m_vertSpirv, frag_main_shader_code, false);
 
+		/*Loading the extra BRDFs*/
+		frag_main_shader_code.clear();
+		frag_main_shader_code = readFile(SHADERS_PATH + "/main.frag", false);
+		m_mainFragShader = std::string(frag_main_shader_code.begin(), frag_main_shader_code.end());
 
 		for (const auto& entry : std::filesystem::directory_iterator(brdfs)) {
 			std::string temp = entry.path().string();
 			std::size_t found = temp.find_last_of("/\\");		// Finding splitters
 			std::string brdfFilePath = temp.substr(0, found);
 			std::string brdfFileName = temp.substr(found+1);
-			
 
 			printf("[INFO]: Loading file: %s\n", brdfFilePath.c_str());
 			int extInd = brdfFileName.find(".brdf");
@@ -750,15 +759,19 @@ namespace brdfa {
 				for (int i = 0; i < brdf_s.size(); i++)		
 					concat = (brdf_s[i] == '\0') ? concat : concat + brdf_s[i];
 
-				/*Compile the concatenated fragment shader.*/
-				auto frag_spirv = compileShader(concat, false, "FragmentSHader");
-
 				/*If we reach this point, it means that we will insert the loaded brdf into our loaded brdfs panel*/
+				std::vector<char> frag_spirv;
 				if (m_loadedBrdfs.find(brdfName) == m_loadedBrdfs.end()) {
 					BRDF_Panel	lp;
 					lp.brdfName = brdfName;
-					lp.latest_spir_v = frag_spirv;
 					lp.glslPanel.SetText(brdf_s);
+					if (m_configuration.hot_load) {
+						lp.tested = false;
+						m_loadedBrdfs.insert({ brdfName, lp });
+						continue;
+					}
+					frag_spirv = compileShader(concat, false, "FragmentSHader");
+					lp.latest_spir_v = frag_spirv;
 					m_loadedBrdfs.insert({ brdfName, lp });
 				}
 
