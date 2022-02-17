@@ -43,7 +43,8 @@ void main() {
 
 	vec3 envColor = texture(map, L).rgb;
 
-	vec3 c = envColor * brdfo.specular;
+	// vec3 c = envColor * brdfo.specular;
 
-	outColor = vec4(c, 1.);
+	outColor = vec4(brdfo.specular, 1.);//vec4(texture(texSampler, fragTexCoord));
+	// outColor = vec4(brdfo.specular, 1.);
 }

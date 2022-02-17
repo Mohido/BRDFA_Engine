@@ -16,6 +16,13 @@ file (GLOB IMGUI_SRC
 			)
 
 
+# IMGUI source files
+file (GLOB IMGUI_SRC_ADDONS
+			"utils/imgui_text_editor/*.cpp" 
+			"utils/imgui_text_editor/*.h"
+			)
+
+
 # Engine Source files
 file ( GLOB BRDFA_ENGINE_SRC 
 			"src/brdfa*.hpp" 
@@ -23,7 +30,7 @@ file ( GLOB BRDFA_ENGINE_SRC
 			)
 
 # Our built executable.
-add_executable (BRDFA_Engine "src/main.cpp" ${BRDFA_ENGINE_SRC} ${IMGUI_SRC} )
+add_executable (BRDFA_Engine "src/main.cpp" ${BRDFA_ENGINE_SRC} ${IMGUI_SRC} ${IMGUI_SRC_ADDONS} )
 
 # ---------------------------- C++ "Include" directories
 include_directories(src) 

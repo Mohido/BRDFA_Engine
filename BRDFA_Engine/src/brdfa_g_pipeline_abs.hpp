@@ -11,6 +11,7 @@
 #include <iostream>
 #include <algorithm>
 #include <fstream>
+#include <sstream>
 
 namespace brdfa {
 
@@ -103,11 +104,19 @@ namespace brdfa {
             std::cout << "[Shader Realtime Compiler]: INFO: Successfully compiled shader" << std::endl;
             break;
         default:
-            std::cout << "[Shader Realtime Compiler]: " << shadername << "ERROR: Compilation error" << std::endl;
-            printf("Warnings: %d", shaderc_result_get_num_warnings(result));
-            printf("Errors: %d", shaderc_result_get_num_errors(result));
-            std::cout << "\t\t" << shaderc_result_get_error_message(result) << std::endl;
-            return {};
+            // std::cout << "[Shader Realtime Compiler]: " << shadername << "ERROR: Compilation error" << std::endl;
+            std::ostringstream ss;
+            ss << std::string("[Shader Realtime Compiler]: ");
+            ss << std::string(shadername);
+            ss << std::string("ERROR: Compilation error\n");
+            ss << std::string("Warnings: ");
+            //ss << std::to_string(shaderc_result_get_num_warnings(result));
+            ss << std::string("\nErrors: ");
+            //ss << std::to_string(shaderc_result_get_num_errors(result));
+            ss << std::string("\t\t");
+            ss << std::string(shaderc_result_get_error_message(result));
+            //std::runtime_error(ss.str());
+            throw std::exception("Wrong Wronnnn");
             break;
         }
 

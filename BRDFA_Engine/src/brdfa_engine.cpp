@@ -20,6 +20,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/hash.hpp>
 
+#include <imgui_text_editor/TextEditor.h>
+
 // BRDFA_Engine Dependencies
 #include "brdfa_engine.hpp"
 #include "brdfa_cons.hpp"
@@ -397,6 +399,7 @@ namespace brdfa {
 		textureData = stbi_load(skyboxSides.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 		if (!textureData) {
 			throw std::runtime_error("ERROR: failed to load Environment Map image!: " + skyboxSides + " Does not exist!");
+			return false; // we should not break the whole program if we don't find an image...
 		}
 		
 		unsigned int faceWidth = texWidth / 4;
@@ -599,9 +602,102 @@ namespace brdfa {
 	}
 
 
+	/// <summary>
+	/// 
+	/// </summary>
+	/// <param name="brdfName"></param>
+	/// <param name="cacheIt"></param>
+	void BRDFA_Engine::saveBRDF(const std::string& brdfName, const bool& cacheIt)
+	{
+		/*Saving the BRDF fragment file*/
+		std::string textPath = "shaders/brdfs/";
+		std::ofstream fileBRDF_text( (textPath + brdfName + std::string(".brdf")).c_str(), std::ofstream::out);
+		if (!fileBRDF_text) {
+			std::cout << "ERROR: CAN'T OPEN FILE TO SAVE BRDF" << std::endl;
+			return;
+		}
+		fileBRDF_text << m_loadedBrdfs.at(brdfName).glslPanel.GetText();
+		fileBRDF_text.close();
+
+		/*Cache it if needed*/
+		std::string cachePath = "shaders/cache/";
+		std::ofstream fileBRDF_spir;
+		if (cacheIt) {
+			fileBRDF_spir.open((cachePath + brdfName + std::string(".spv")), std::ofstream::out | std::ofstream::binary);
+			if (!fileBRDF_spir) {
+				std::cout << "ERROR: CAN'T CACHE BRDF" << std::endl;
+				return;
+			}
+			for (size_t i = 0; i < m_loadedBrdfs.at(brdfName).latest_spir_v.size(); i++) {
+				fileBRDF_spir << m_loadedBrdfs.at(brdfName).latest_spir_v.at(i);
+			}
+			fileBRDF_spir.close();
+		}
+		std::cout << "BRDFs have been saved." << std::endl;
+	}
+
 
 	/// <summary>
-	/// Load all the needed pipelines.
+	/// 
+	/// </summary>
+	/// <param name="brdfName"></param>
+	/// <param name="fragSpirv"></param>
+	void BRDFA_Engine::recreatePipeline(const std::string& brdfName, const std::vector<char>& fragSpirv)
+	{
+		/*Destroying old pipeline*/
+		vkDeviceWaitIdle(m_device.device);
+		if (m_graphicsPipelines.pipelines.find(brdfName) != m_graphicsPipelines.pipelines.end())
+			vkDestroyPipeline(m_device.device, m_graphicsPipelines.pipelines.at(brdfName), nullptr);
+
+		/*Creating a new pipeline*/
+		createGraphicsPipeline(
+			m_graphicsPipelines.layout, m_graphicsPipelines.sceneRenderPass,
+			m_graphicsPipelines.pipelines.at(brdfName), m_skymap_pipeline,
+			m_device, m_swapChain, m_descriptorData, m_vertSpirv, fragSpirv, false);
+
+		/*Re record the scene objects*/
+		for (size_t j = 0; j < m_meshes.size(); j++)
+			refreshObject(j);
+	}
+
+
+	/// <summary>
+	/// 
+	/// </summary>
+	/// <param name="brdfName"></param>
+	/// <param name="fragSpirv"></param>
+	void BRDFA_Engine::addPipeline(const std::string& brdfName, const std::vector<char>& fragSpirv)
+	{
+		/*Destroying old pipeline*/
+		vkDeviceWaitIdle(m_device.device);
+		if (m_graphicsPipelines.pipelines.find(brdfName) != m_graphicsPipelines.pipelines.end()) {
+			throw std::runtime_error("ERROR: BRDF Pipeline can't be added. It already exists!.");
+		}
+
+		m_graphicsPipelines.pipelines.insert({ brdfName , VK_NULL_HANDLE });
+
+		/*Creating a new pipeline*/
+		createGraphicsPipeline(
+			m_graphicsPipelines.layout, m_graphicsPipelines.sceneRenderPass,
+			m_graphicsPipelines.pipelines.at(brdfName), m_skymap_pipeline,
+			m_device, m_swapChain, m_descriptorData, m_vertSpirv, fragSpirv, false);
+
+		/*Re record the scene objects*/
+		for (size_t j = 0; j < m_meshes.size(); j++) refreshObject(j);
+	}
+
+	/// <summary>
+	/// Load all the needed pipelines. 
+	///		* We load the cached BRDFs first. Cached means pre-compiled BRDFs.
+	///		* We load all the source codes of the BRDFs second.
+	///		* We create graphics pipelines from the cached spir-v shaders.
+	///		* Configurations can be: 
+	///				1) Hot-Start: which only uses the cache without compiling and building the rest of the BRDFs.		
+	///				2) Full Load: Which will load all the BRDFs that are not cached, compile them, cache them and then build the graphics pipelines.  
+	///					This method will take a bit longer because of the compilation step for the non-cached brdfs.
+	///								
+	/// The whole BRDF source codes will be loaded to the engine.
+	/// 
 	/// </summary>
 	void BRDFA_Engine::loadPipelines() {
 		/*Craetion of a pipeline layout*/
@@ -614,7 +710,8 @@ namespace brdfa {
 
 		auto vert_main_shader_code = readFile(SHADERS_PATH + "/main.vert", false);
 		auto frag_main_shader_code = readFile(SHADERS_PATH + "/main.frag", false);
-		auto vert_spirv = compileShader(std::string(vert_main_shader_code.begin(), vert_main_shader_code.end()), true, "vertexShader");
+		m_mainFragShader = std::string(frag_main_shader_code.begin(), frag_main_shader_code.end());
+		m_vertSpirv = compileShader(std::string(vert_main_shader_code.begin(), vert_main_shader_code.end()), true, "vertexShader");
 
 
 		for (const auto& entry : std::filesystem::directory_iterator(brdfs)) {
@@ -643,25 +740,34 @@ namespace brdfa {
 				/*Form the whole fragment shader*/
 				auto brdf_shader_code = readFile(shaderPath, false);
 				std::string brdf_s(brdf_shader_code.begin(), brdf_shader_code.end());
-				std::string mc(frag_main_shader_code.begin(), frag_main_shader_code.end());
+				//std::string mc(frag_main_shader_code.begin(), frag_main_shader_code.end());
 				
 				/*Concatenating the source code with filtering the terminations*/
 				std::string concat;
-				concat.reserve(brdf_s.length() + mc.length());
-				for (int i = 0; i < mc.size(); i++)			
-					concat = (mc[i] == '\0') ? concat : concat + mc[i];
+				concat.reserve(brdf_s.length() + m_mainFragShader.length());
+				for (int i = 0; i < m_mainFragShader.size(); i++)			
+					concat = (m_mainFragShader[i] == '\0') ? concat : concat + m_mainFragShader[i];
 				for (int i = 0; i < brdf_s.size(); i++)		
 					concat = (brdf_s[i] == '\0') ? concat : concat + brdf_s[i];
 
 				/*Compile the concatenated fragment shader.*/
 				auto frag_spirv = compileShader(concat, false, "FragmentSHader");
 
+				/*If we reach this point, it means that we will insert the loaded brdf into our loaded brdfs panel*/
+				if (m_loadedBrdfs.find(brdfName) == m_loadedBrdfs.end()) {
+					BRDF_Panel	lp;
+					lp.brdfName = brdfName;
+					lp.latest_spir_v = frag_spirv;
+					lp.glslPanel.SetText(brdf_s);
+					m_loadedBrdfs.insert({ brdfName, lp });
+				}
+
 				/*Insert a new pipeline.*/
 				m_graphicsPipelines.pipelines.insert({ brdfName , {} });
 				createGraphicsPipeline(
 					m_graphicsPipelines.layout, m_graphicsPipelines.sceneRenderPass, 
 					m_graphicsPipelines.pipelines.at(brdfName), m_skymap_pipeline, 
-					m_device, m_swapChain, m_descriptorData, vert_spirv, frag_spirv, false);
+					m_device, m_swapChain, m_descriptorData, m_vertSpirv, frag_spirv, false);
 			}
 		}
 			
@@ -982,77 +1088,30 @@ namespace brdfa {
 			}
 			ImGui::End();
 		}// Skymap File loader Window
-		
-
-		ImGuiStyle & style = ImGui::GetStyle();		
-		float spacing = style.ItemInnerSpacing.x;
-		float button_sz = ImGui::GetFrameHeight();
-		
-		// Rendering Meshes data. (Per mesh.)
-		for (int i = 0; i < m_meshes.size(); i++) {
-			std::string curObj = "Object_" + std::to_string(i+1);
-			const char* current_item = m_meshes[i].renderOption.c_str(); //m_uistate.optionLabels[m_meshes[i].renderOption];
-			
-			// Starting the section of the object
-			ImGui::BeginChild(curObj.data(), ImVec2(0.0f, button_sz*8.0f), false);
-
-			{// Tab menu of the object
-				ImGui::BeginTabBar(curObj.data());
-				ImGui::BeginTabItem(curObj.data());
-				ImGui::EndTabItem();
-				ImGui::EndTabBar();
-			} // Tab menu of the object
-			{ // Rendering the Rendering options.
-				float w = ImGui::CalcItemWidth();
-				ImGui::PushItemWidth(w - spacing * 5.0f - button_sz * 2.0f);
-				if (ImGui::BeginCombo("Rendering Obtions", current_item)) // The second parameter is the label previewed before opening the combo.
+		{
+			ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
+			if (ImGui::BeginTabBar("WindowTabs", tab_bar_flags))
+			{
+				if (ImGui::BeginTabItem("Objects"))
 				{
-					bool refreshEngine = false;
-					for (auto& it : m_graphicsPipelines.pipelines)
-					{
-						bool is_selected = strcmp(current_item, it.first.c_str()); // You can store your selection however you want, outside or inside your objects
-						if (ImGui::Selectable(it.first.c_str(), is_selected)) {
-							if (is_selected) {
-								printf("[INFO]: Has been selected: %s\n", it.first.c_str());
-								m_meshes[i].renderOption = it.first;
-								ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
-								refreshEngine = true;
-							}
-						}
-					}
-					if (refreshEngine)
-						refreshObject(i);
-					ImGui::EndCombo();
+					drawUI_objects();
+					ImGui::EndTabItem();
 				}
-			} // Rendering_options rendered
-			{ // Object Translation option
-				float trans[3] = { m_meshes[i].transformation[3][0] , m_meshes[i].transformation[3][1], m_meshes[i].transformation[3][2] };
-				ImGui::InputFloat3("Translation", trans);
-				m_meshes[i].transformation[3][0] = trans[0];
-				m_meshes[i].transformation[3][1] = trans[1];
-				m_meshes[i].transformation[3][2] = trans[2];
-			} // Object Translation option
-			{ // Object Scale option
-				float trans[3] = { m_meshes[i].transformation[0][0] , m_meshes[i].transformation[1][1], m_meshes[i].transformation[2][2] };
-				ImGui::InputFloat3("Scale", trans);
-				m_meshes[i].transformation[0][0] = trans[0];
-				m_meshes[i].transformation[1][1] = trans[1];
-				m_meshes[i].transformation[2][2] = trans[2];
-			} // Object scale option
-
-			{ // Object deletion button
-				ImGui::NewLine();
-				if (ImGui::Button("Delete")) {
-					this->deleteObject(i);
-					std::cout << "Deleting: " << curObj << std::endl;
+				if (ImGui::BeginTabItem("Camera"))
+				{
+					drawUI_camera();
+					ImGui::EndTabItem();
 				}
-				
-			} // Object deletion button
+				if (ImGui::BeginTabItem("Advance"))
+				{
+					drawUI_advance();
+					ImGui::EndTabItem();
+				}
+				ImGui::EndTabBar();
+			}
+			ImGui::Separator();
+		}
 
-			ImGui::EndChild();
-		} // For loop over objects
-
-		// Drawing into the IMGUI internal state.
 		ImGui::End();		// "BRDFA engine menu" end()
 		ImGui::Render();
 
@@ -1165,4 +1224,273 @@ namespace brdfa {
 
 
 
+	/// <summary>
+	/// Draws the Objects Panel. The user can change the objects parameters here.
+	/// </summary>
+	void BRDFA_Engine::drawUI_objects() {
+		//ImGuiStyle& style = ImGui::GetStyle();
+		//float spacing = style.ItemInnerSpacing.x;
+		float button_sz = ImGui::GetFrameHeight();
+
+		// Rendering Meshes data. (Per mesh.)
+		for (int i = 0; i < m_meshes.size(); i++) {
+			std::string curObj = "Object_" + std::to_string(i + 1);
+			const char* current_item = m_meshes[i].renderOption.c_str(); //m_uistate.optionLabels[m_meshes[i].renderOption];
+
+			// Starting the section of the object
+			ImGui::BeginChild(curObj.data(), ImVec2(0.0f, button_sz * 10.0f), false);
+
+			{// Tab menu of the object
+				ImGui::BeginTabBar(curObj.data());
+				ImGui::BeginTabItem(curObj.data());
+				ImGui::EndTabItem();
+				ImGui::EndTabBar();
+			} // Tab menu of the object
+			{ // Rendering the Rendering options.
+				//float w = ImGui::CalcItemWidth();
+				//ImGui::PushItemWidth(w - spacing * 5.0f - button_sz * 2.0f);
+				if (ImGui::BeginCombo("Rendering Obtions", current_item)) // The second parameter is the label previewed before opening the combo.
+				{
+					bool refreshEngine = false;
+					for (auto& it : m_graphicsPipelines.pipelines)
+					{
+						bool is_selected = strcmp(current_item, it.first.c_str()); // You can store your selection however you want, outside or inside your objects
+						if (ImGui::Selectable(it.first.c_str(), is_selected)) {
+							if (is_selected) {
+								printf("[INFO]: Has been selected: %s\n", it.first.c_str());
+								m_meshes[i].renderOption = it.first;
+								ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+								refreshEngine = true;
+							}
+						}
+					}
+					if (refreshEngine)
+						refreshObject(i);
+					ImGui::EndCombo();
+				}
+			} // Rendering_options rendered
+			{ // Object Translation option
+				float trans[3] = { m_meshes[i].transformation[3][0] , m_meshes[i].transformation[3][1], m_meshes[i].transformation[3][2] };
+				ImGui::InputFloat3("Translation", trans);
+				m_meshes[i].transformation[3][0] = trans[0];
+				m_meshes[i].transformation[3][1] = trans[1];
+				m_meshes[i].transformation[3][2] = trans[2];
+			} // Object Translation option
+			{ // Object Scale option
+				float trans[3] = { m_meshes[i].transformation[0][0] , m_meshes[i].transformation[1][1], m_meshes[i].transformation[2][2] };
+				ImGui::InputFloat3("Scale", trans);
+				m_meshes[i].transformation[0][0] = trans[0];
+				m_meshes[i].transformation[1][1] = trans[1];
+				m_meshes[i].transformation[2][2] = trans[2];
+			} // Object scale option
+			ImGui::Separator();
+			{ // Object Scale option
+				//float trans[3] = { m_meshes[i].transformation[0][0] , m_meshes[i].transformation[1][1], m_meshes[i].transformation[2][2] };
+				float iw = ImGui::CalcItemWidth();
+				ImGui::PushItemWidth(iw * 0.5);
+				float material[2] = { 0.5 };
+				ImGui::InputFloat2("Additional Parameters", material);
+				int samples = 100;
+				ImGui::InputInt("Light Samples", &samples, 1, 10);
+				ImGui::PopItemWidth();
+			} // Object scale option
+
+
+			{ // Object deletion button
+				ImGui::NewLine();
+				if (ImGui::Button("Delete")) {
+					this->deleteObject(i);
+					std::cout << "Deleting: " << curObj << std::endl;
+				}
+			} // Object deletion button
+
+			ImGui::EndChild();
+		} // For loop over objects
+	}
+
+
+	/// <summary>
+	/// Drarws the Camera panel. The user can edit the camera parameters such as movement speed, zoom, rotate, 
+	/// and change the projection matrix
+	/// </summary>
+	void BRDFA_Engine::drawUI_camera() {
+	}
+
+
+	/// <summary>
+	/// Draws the Advance panel. In advance panel, the user can insert new GLSL BRDFs, Test/Compile/Edit/Save them. 
+	///		
+	/// </summary>
+	void BRDFA_Engine::drawUI_advance() {
+		// ImGui::ShowDemoWindow();
+
+		if (ImGui::CollapsingHeader("BRDFs Configuration")){
+
+			/*Draw Loaded BRDFs*/
+			ImGui::SetWindowFontScale(1.2);
+			if (ImGui::TreeNode("Loaded BRDFs")){ // Loaded BRDFs
+				for (auto& it : m_loadedBrdfs)
+				{
+					if (ImGui::TreeNode(it.first.c_str()))
+					{
+						// Starting the section of the object
+						float bs = ImGui::GetFrameHeight();
+						float w = ImGui::GetColumnWidth();
+						ImGui::BeginChild(it.first.c_str(), ImVec2(0.0f, bs * 11.0f), true);
+
+						ImGui::Text("struct BRDF_Output{ vec3 diffuse; vec3 specular;}");
+
+						ImGui::SetWindowFontScale(1.4);
+						it.second.glslPanel.Render(it.first.c_str(), ImVec2(w, bs * 8.0f), true);
+						ImGui::SetWindowFontScale(1.0);
+						ImGui::NewLine();
+
+						if (it.second.glslPanel.IsTextChanged())
+							it.second.tested = false;
+						
+						ImVec4 col = (it.second.tested) ? ImVec4(0, 0.7, 0, 1) : ImVec4(0.7, 0, 0, 1);
+
+						ImGui::PushStyleColor(ImGuiCol_Button , col);
+						if(!it.second.tested) ImGui::PushStyleColor(ImGuiCol_ButtonHovered, col);
+						ImGui::SameLine(0, w / 20);
+						bool test = ImGui::Button("Test", ImVec2(w / 4, 0));
+						ImGui::SameLine(0, w / 20);
+						bool push = ImGui::Button("View", ImVec2(w / 4, 0));
+						ImGui::SameLine(0, w / 20);
+						bool save = ImGui::Button("Save", ImVec2(w / 4, 0));
+						ImGui::PopStyleColor();
+						if (!it.second.tested) ImGui::PopStyleColor();
+						
+
+						if (test) {
+							std::string concat;
+							std::string brdf_s = it.second.glslPanel.GetText();
+							concat.reserve(brdf_s.length() + m_mainFragShader.length());
+							for (int i = 0; i < m_mainFragShader.size(); i++)
+								concat = (m_mainFragShader[i] == '\0') ? concat : concat + m_mainFragShader[i];
+							for (int i = 0; i < brdf_s.size(); i++)
+								concat = (brdf_s[i] == '\0') ? concat : concat + brdf_s[i];
+
+							/*Compile the concatenated fragment shader.*/
+							try {
+								auto frag_spirv = compileShader(concat, false, "FragmentSHader");
+								it.second.tested = true;
+								it.second.latest_spir_v = frag_spirv;
+							}
+							catch (std::exception e) {
+								it.second.tested = false;
+								std::cout << "[ERROR]: Compilation Error for the given shader" << std::endl;
+							}
+						}
+						if (push && it.second.tested) {
+							recreatePipeline(it.second.brdfName, it.second.latest_spir_v);
+						}
+
+						if (save && it.second.tested) {
+							saveBRDF(it.second.brdfName, true);
+						}
+
+						ImGui::EndChild();
+						ImGui::TreePop();
+					}					
+				}
+				ImGui::TreePop();
+			}// end Loaded Brdfs
+
+			ImGui::Separator();
+
+			if (ImGui::TreeNode("Costum BRDFs")){ // Costum BRDFs
+
+				std::vector<std::string> deletedInd;
+				for (auto& it : m_costumBrdfs){
+					if (ImGui::TreeNode(it.first.c_str()))
+					{
+						// Starting the section of the object
+						float bs = ImGui::GetFrameHeight();
+						float w = ImGui::GetColumnWidth();
+						ImGui::BeginChild(it.first.c_str(), ImVec2(0.0f, bs * 11.0f), true);
+
+						ImGui::Text("struct BRDF_Output{ vec3 diffuse; vec3 specular;}");
+
+						ImGui::SetWindowFontScale(1.4);
+						it.second.glslPanel.Render(it.first.c_str(), ImVec2(w, bs * 8.0f), true);
+						ImGui::SetWindowFontScale(1.0);
+						ImGui::NewLine();
+
+						if (it.second.glslPanel.IsTextChanged())
+							it.second.tested = false;
+
+						ImVec4 col = (it.second.tested) ? ImVec4(0, 0.7, 0, 1) : ImVec4(0.7, 0, 0, 1);
+
+						ImGui::SameLine(0, w / 9);
+						ImGui::PushStyleColor(ImGuiCol_Button, col);
+						bool test = ImGui::Button("Test", ImVec2(w / 3, 0));
+						ImGui::PopStyleColor();
+						ImGui::SameLine(0, w / 9);
+						bool add = ImGui::Button("Add", ImVec2(w / 3, 0));
+
+						if (test) {
+							std::string concat;
+							std::string brdf_s = it.second.glslPanel.GetText();
+							concat.reserve(brdf_s.length() + m_mainFragShader.length());
+							for (int i = 0; i < m_mainFragShader.size(); i++)
+								concat = (m_mainFragShader[i] == '\0') ? concat : concat + m_mainFragShader[i];
+							for (int i = 0; i < brdf_s.size(); i++)
+								concat = (brdf_s[i] == '\0') ? concat : concat + brdf_s[i];
+
+							/*Compile the concatenated fragment shader.*/
+							try {
+								auto frag_spirv = compileShader(concat, false, "FragmentSHader");
+								it.second.tested = true;
+								it.second.latest_spir_v = frag_spirv;
+							}
+							catch (std::exception e) {
+								it.second.tested = false;
+								std::cout << "[ERROR]: Compilation Error for the given shader" << std::endl;
+							}
+						}
+						if (add && it.second.tested) {
+							m_loadedBrdfs.insert({ it.first, it.second });
+							addPipeline(it.second.brdfName, it.second.latest_spir_v);
+							deletedInd.push_back(it.first);
+						}
+
+						ImGui::EndChild();
+						ImGui::TreePop();
+					}
+				}
+
+				/*Clearing the costum ones.*/
+				for (std::string& s : deletedInd) m_costumBrdfs.erase(s);
+
+				/*Adding a new costum BRDF to the system*/
+				static char name[20];
+				if (strlen(name) == 0) memset(name, '\0', 20);
+				bool pressedB = ImGui::Button("+");
+				ImGui::SameLine();
+				ImGui::InputText("Name", name , 20);
+				if (pressedB && strlen(name) > 0) {
+					BRDF_Panel panel;
+					panel.brdfName = name;
+					panel.glslPanel.SetText("BRDF_Output brdf(vec3 L, vec3 N, vec3 V){\n\n}");
+					panel.tested = false;
+					
+					memset(name, '\0', 20);
+					std::cout << "The new name is: " << panel.brdfName << std::endl;
+					bool unique = m_loadedBrdfs.find(panel.brdfName) == m_loadedBrdfs.end() && m_costumBrdfs.find(panel.brdfName) == m_costumBrdfs.end();
+					if (unique) m_costumBrdfs.insert({ panel.brdfName, panel });
+				}
+
+				ImGui::TreePop();
+			} // Costum BRDFs
+
+			ImGui::SetWindowFontScale(1.0);
+		}
+
+		/*TODO:: Implement Collapsing window.*/
+		if (ImGui::CollapsingHeader("Tests and Logs Configuration"))
+		{
+
+		}
+	}
 }

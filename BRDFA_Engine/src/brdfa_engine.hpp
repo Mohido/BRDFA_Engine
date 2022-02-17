@@ -5,6 +5,8 @@
 #define GLFW_INCLUDE_VULKAN
 #include <glfw/glfw3.h>
 
+#include <imgui_text_editor/TextEditor.h>
+
 #include <string>
 #include <array>
 #include <queue>
@@ -41,9 +43,9 @@ namespace brdfa {
 		const BRDFAEngineConfiguration					m_configuration;				// the engine initial configuration.
 		size_t											m_currentFrame = 0;				// The current frame being rendered.
 		bool											m_active;
-		
-
 		uint32_t										m_width_w, m_height_w;	
+		// std::unordered_map<std::string, std::string>	m_code_loaded;
+		
 
 
 		/*GFLW stuff*/
@@ -78,10 +80,16 @@ namespace brdfa {
 
 		/*UI state system*/
 		UIState											m_uistate;
+		std::unordered_map<std::string, BRDF_Panel>		m_loadedBrdfs;
+		std::unordered_map<std::string, BRDF_Panel>		m_costumBrdfs;
+
+
+		std::string										m_mainFragShader;
+		std::vector<char>								m_vertSpirv;
 
 		const uint8_t									MAX_FRAMES_IN_FLIGHT = 2;
 
-
+	
 	public:
 		BRDFA_Engine(const BRDFAEngineConfiguration& conf)
 			: m_configuration(conf), m_frameBufferResized(false)
@@ -118,19 +126,24 @@ namespace brdfa {
 
 
 	private:
-		void refreshObject(const size_t& idx);												// Records the objects back again.
-		void addFragPipeline(
-			const std::string& name, 
-			const std::string& fragmentCode);								// This is used to add a pipeline to the scene. And refreshes the obejcts.
+		void drawUI_objects();
+		void drawUI_camera();
+		void drawUI_advance();
 
-		void loadPipelines();												// Load all pipelines needed by the program to run.
-		void startWindow();													// Starts the GLFW window
-		void startVulkan();													// Fully initialize the Vulkan engine.
-		bool startImgui();													// Starts the Imgui for vulkan and glfw
-		void update(uint32_t currentImage);									// Update function. Time dependent function.
+		void refreshObject(const size_t& idx);													// Records the objects back again.
+		void addFragPipeline(const std::string&, const std::string&);							// This is used to add a pipeline to the scene. And refreshes the obejcts.
+		void saveBRDF(const std::string& brdfName, const bool& cacheIt = true);							// Save the BRDF to the disk.
+		void recreatePipeline(const std::string&, const std::vector<char>&);					// Quickly recreates a specific pipeline.
+		void addPipeline(const std::string&, const std::vector<char>&);							// Add a new pipeline to the graphics pipelines.
+		void loadPipelines();																	// Load all pipelines needed by the program to run.
+		void startWindow();																		// Starts the GLFW window
+		void startVulkan();																		// Fully initialize the Vulkan engine.
+		bool startImgui();																		// Starts the Imgui for vulkan and glfw
+		void update(uint32_t currentImage);														// Update function. Time dependent function.
 		void render(uint32_t imageIndex);
 		void drawUI(uint32_t imageIndex);
-		void cleanup();														// Clean up the swapchain and the Vulkan objects. Mostly used during window resizing
-		void recreate();													// Cleans up the vulkan engine and recreate its objects. Called when the window is being resized.
+		void cleanup();																			// Clean up the swapchain and the Vulkan objects. Mostly used during window resizing
+		void recreate();																		// Cleans up the vulkan engine and recreate its objects. Called when the window is being resized.
+		void drawUI_menubar();
 	};
 }
