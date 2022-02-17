@@ -709,6 +709,7 @@ namespace brdfa {
 		std::string mainShader_f = (SHADERS_PATH + "/main.frag");
 		std::string mainShader_v = (SHADERS_PATH + "/main.vert");
 		std::string brdfs = (SHADERS_PATH + "/brdfs");
+		std::string cache = (SHADERS_PATH + "/cache");
 
 		/*Loading the basic.spv (basic rendering.)*/
 		m_vertSpirv = readFile(SHADERS_PATH + "/vert.spv", true);
@@ -730,15 +731,31 @@ namespace brdfa {
 			std::string brdfFilePath = temp.substr(0, found);
 			std::string brdfFileName = temp.substr(found+1);
 
-			printf("[INFO]: Loading file: %s\n", brdfFilePath.c_str());
+			printf("[INFO]: Loading file: %s\n", temp.c_str());
 			int extInd = brdfFileName.find(".brdf");
 			bool isbrdf = extInd != std::string::npos;
 			if (isbrdf) {
 				/*BRDF name as a key and the shader file path.*/
 				std::string brdfName(brdfFileName.begin() , brdfFileName.begin() + extInd);
 				std::string shaderPath = brdfFilePath + "/" + brdfFileName;
-
 				printf("[INFO]: Loading BRDF: %s\n", brdfFileName.c_str());
+
+				/*Check if current file exist in cache. And if it exists, load it from there.*/
+				bool loadCache = false;
+				for (const auto& entry_c : std::filesystem::directory_iterator(cache)) {
+					if (m_configuration.no_cache_load) break;
+					temp = entry_c.path().string();
+					found = temp.find_last_of("/\\");		// Finding splitters
+					std::string cacheFilePath = temp.substr(0, found);
+					std::string cacheFileName = temp.substr(found + 1);
+					extInd = cacheFileName.find(".spv");
+					std::string cacheName(cacheFileName.begin(), cacheFileName.begin() + extInd);
+					if (cacheName == brdfName) {
+						loadCache = true;
+						printf("[INFO]: Loading \"%s\" BRDF from its Cache\n", brdfName.c_str());
+						break;
+					}
+				}
 
 				/*Check if the pipeline with the name exists.*/
 				if (m_graphicsPipelines.pipelines.find(brdfName) != m_graphicsPipelines.pipelines.end()) {
@@ -770,7 +787,8 @@ namespace brdfa {
 						m_loadedBrdfs.insert({ brdfName, lp });
 						continue;
 					}
-					frag_spirv = compileShader(concat, false, "FragmentSHader");
+					std::string cacheFileName = cache + "/" + brdfName + ".spv";
+					frag_spirv = (loadCache)? readFile(cacheFileName): compileShader(concat, false, "FragmentSHader");
 					lp.latest_spir_v = frag_spirv;
 					m_loadedBrdfs.insert({ brdfName, lp });
 				}

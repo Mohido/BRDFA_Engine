@@ -233,7 +233,7 @@ namespace brdfa {
         glm::mat4                   transformation = glm::mat4(1.0f);   // Holds the object transformation. Object to World transformation.
         // uint8_t                     renderOption = BRDFA_TEXTURE;                       // Defines what rendering option this object will be rendered by.
 
-        std::string                 renderOption = "";
+        std::string                 renderOption = "None";
 
         Buffer						vertexBuffer;				        // Vulkan buffer of the vertices
         Buffer						indexBuffer;				        // Vulkan buffer of the Indices
