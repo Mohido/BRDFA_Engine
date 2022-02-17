@@ -399,6 +399,7 @@ namespace brdfa {
 		textureData = stbi_load(skyboxSides.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 		if (!textureData) {
 			throw std::runtime_error("ERROR: failed to load Environment Map image!: " + skyboxSides + " Does not exist!");
+			return false; // we should not break the whole program if we don't find an image...
 		}
 		
 		unsigned int faceWidth = texWidth / 4;
@@ -601,8 +602,47 @@ namespace brdfa {
 	}
 
 
+	/// <summary>
+	/// 
+	/// </summary>
+	/// <param name="brdfName"></param>
+	/// <param name="cacheIt"></param>
+	void BRDFA_Engine::saveBRDF(const std::string& brdfName, const bool& cacheIt)
+	{
+		/*Saving the BRDF fragment file*/
+		std::string textPath = "shaders/brdfs/";
+		std::ofstream fileBRDF_text( (textPath + brdfName + std::string(".brdf")).c_str(), std::ofstream::out);
+		if (!fileBRDF_text) {
+			std::cout << "ERROR: CAN'T OPEN FILE TO SAVE BRDF" << std::endl;
+			return;
+		}
+		fileBRDF_text << m_loadedBrdfs.at(brdfName).glslPanel.GetText();
+		fileBRDF_text.close();
 
-	void BRDFA_Engine::recreatePipeline(const std::string& brdfName, const std::vector<char> fragSpirv)
+		/*Cache it if needed*/
+		std::string cachePath = "shaders/cache/";
+		std::ofstream fileBRDF_spir;
+		if (cacheIt) {
+			fileBRDF_spir.open((cachePath + brdfName + std::string(".spv")), std::ofstream::out | std::ofstream::binary);
+			if (!fileBRDF_spir) {
+				std::cout << "ERROR: CAN'T CACHE BRDF" << std::endl;
+				return;
+			}
+			for (size_t i = 0; i < m_loadedBrdfs.at(brdfName).latest_spir_v.size(); i++) {
+				fileBRDF_spir << m_loadedBrdfs.at(brdfName).latest_spir_v.at(i);
+			}
+			fileBRDF_spir.close();
+		}
+		std::cout << "BRDFs have been saved." << std::endl;
+	}
+
+
+	/// <summary>
+	/// 
+	/// </summary>
+	/// <param name="brdfName"></param>
+	/// <param name="fragSpirv"></param>
+	void BRDFA_Engine::recreatePipeline(const std::string& brdfName, const std::vector<char>& fragSpirv)
 	{
 		/*Destroying old pipeline*/
 		vkDeviceWaitIdle(m_device.device);
@@ -620,7 +660,13 @@ namespace brdfa {
 			refreshObject(j);
 	}
 
-	void BRDFA_Engine::addPipeline(const std::string& brdfName, const std::vector<char> fragSpirv)
+
+	/// <summary>
+	/// 
+	/// </summary>
+	/// <param name="brdfName"></param>
+	/// <param name="fragSpirv"></param>
+	void BRDFA_Engine::addPipeline(const std::string& brdfName, const std::vector<char>& fragSpirv)
 	{
 		/*Destroying old pipeline*/
 		vkDeviceWaitIdle(m_device.device);
@@ -1303,12 +1349,17 @@ namespace brdfa {
 						
 						ImVec4 col = (it.second.tested) ? ImVec4(0, 0.7, 0, 1) : ImVec4(0.7, 0, 0, 1);
 
-						ImGui::SameLine(0, w / 9);
-						ImGui::PushStyleColor(ImGuiCol_Button, col);
-						bool test = ImGui::Button("Test", ImVec2(w / 3, 0));
+						ImGui::PushStyleColor(ImGuiCol_Button , col);
+						if(!it.second.tested) ImGui::PushStyleColor(ImGuiCol_ButtonHovered, col);
+						ImGui::SameLine(0, w / 20);
+						bool test = ImGui::Button("Test", ImVec2(w / 4, 0));
+						ImGui::SameLine(0, w / 20);
+						bool push = ImGui::Button("View", ImVec2(w / 4, 0));
+						ImGui::SameLine(0, w / 20);
+						bool save = ImGui::Button("Save", ImVec2(w / 4, 0));
 						ImGui::PopStyleColor();
-						ImGui::SameLine(0, w / 9);
-						bool push = ImGui::Button("Push", ImVec2(w / 3, 0));
+						if (!it.second.tested) ImGui::PopStyleColor();
+						
 
 						if (test) {
 							std::string concat;
@@ -1332,6 +1383,10 @@ namespace brdfa {
 						}
 						if (push && it.second.tested) {
 							recreatePipeline(it.second.brdfName, it.second.latest_spir_v);
+						}
+
+						if (save && it.second.tested) {
+							saveBRDF(it.second.brdfName, true);
 						}
 
 						ImGui::EndChild();
@@ -1431,18 +1486,10 @@ namespace brdfa {
 			ImGui::SetWindowFontScale(1.0);
 		}
 
-
-
+		/*TODO:: Implement Collapsing window.*/
 		if (ImGui::CollapsingHeader("Tests and Logs Configuration"))
 		{
 
 		}
 	}
-
-
-
-	
-
-
-
 }
