@@ -978,9 +978,8 @@ namespace brdfa {
 
 		for (size_t i = 0; i < m_meshes.size(); i++) { // setup ubos for meshes
 			size_t ind = i * m_swapChain.images.size() + currentImage;
-			
 			MVPMatrices ubo{};
-			ubo.model = m_meshes[i].transformation;			//glm::rotate(modelTr, time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+			ubo.model = m_meshes[i].getFinalTransformation();			//glm::rotate(modelTr, time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 			ubo.view = m_camera.transformation;				//glm::lookAt(glm::vec3(0.0f, 3.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 			ubo.proj = m_camera.projection;					//glm::perspective(glm::radians(45.0f), m_swapChain.extent.width / (float)m_swapChain.extent.height, 0.1f, 10.0f);
 			ubo.pos_c = m_camera.position;
@@ -1269,7 +1268,7 @@ namespace brdfa {
 			const char* current_item = m_meshes[i].renderOption.c_str(); //m_uistate.optionLabels[m_meshes[i].renderOption];
 
 			// Starting the section of the object
-			ImGui::BeginChild(curObj.data(), ImVec2(0.0f, button_sz * 10.0f), false);
+			ImGui::BeginChild(curObj.data(), ImVec2(0.0f, button_sz * 11.0f), false);
 
 			{// Tab menu of the object
 				ImGui::BeginTabBar(curObj.data());
@@ -1300,33 +1299,35 @@ namespace brdfa {
 					ImGui::EndCombo();
 				}
 			} // Rendering_options rendered
+			ImGui::Separator();
 			{ // Object Translation option
 				float trans[3] = { m_meshes[i].transformation[3][0] , m_meshes[i].transformation[3][1], m_meshes[i].transformation[3][2] };
-				ImGui::InputFloat3("Translation", trans);
+				ImGui::DragFloat3("Translation", trans, 0.01f);
 				m_meshes[i].transformation[3][0] = trans[0];
 				m_meshes[i].transformation[3][1] = trans[1];
 				m_meshes[i].transformation[3][2] = trans[2];
 			} // Object Translation option
 			{ // Object Scale option
 				float trans[3] = { m_meshes[i].transformation[0][0] , m_meshes[i].transformation[1][1], m_meshes[i].transformation[2][2] };
-				ImGui::InputFloat3("Scale", trans);
+				ImGui::DragFloat3("Scaler", trans, 0.01f);
 				m_meshes[i].transformation[0][0] = trans[0];
 				m_meshes[i].transformation[1][1] = trans[1];
 				m_meshes[i].transformation[2][2] = trans[2];
 			} // Object scale option
-			ImGui::Separator();
 			{ // Object Scale option
+				float trans[3] = { m_meshes[i].rotation[0] , m_meshes[i].rotation[1], m_meshes[i].rotation[2] };
+				ImGui::DragFloat3("Rotation", trans, 0.05f);
+				m_meshes[i].rotation = glm::vec3(trans[0], trans[1], trans[2]);
+			} // Object scale option
+			ImGui::Separator();
+			{ // Object extra parameters
 				//float trans[3] = { m_meshes[i].transformation[0][0] , m_meshes[i].transformation[1][1], m_meshes[i].transformation[2][2] };
 				float iw = ImGui::CalcItemWidth();
 				ImGui::PushItemWidth(iw * 0.5);
-				float material[2] = { 0.5 };
-				ImGui::InputFloat2("Additional Parameters", material);
-				int samples = 100;
-				ImGui::InputInt("Light Samples", &samples, 1, 10);
+				ImGui::DragFloat2("Additional Parameters", m_meshes[i].extra, 0.001f, 0.0f, 1.0f, "%.4f", 1.0f);
+				ImGui::InputInt("Light Samples", &m_meshes[i].samples, 1, 10);
 				ImGui::PopItemWidth();
-			} // Object scale option
-
-
+			} // Object extra parameters
 			{ // Object deletion button
 				ImGui::NewLine();
 				if (ImGui::Button("Delete")) {

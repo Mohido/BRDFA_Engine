@@ -223,6 +223,7 @@ namespace brdfa {
     };
 
 
+
     struct Mesh {
         uint32_t					uid;
         Image						textureImage;				        // Holds the texture Image data.
@@ -230,13 +231,27 @@ namespace brdfa {
         std::vector<Vertex>			vertices;					        // Vertices of the Mesh. Vertices can hold more than a position.
         std::vector<uint32_t>		indices;					        // Indices refering to the loaded vertices of the object.
 
+        float                       extra[2] = { 0, 0 };
+        int                         samples = 100;
+
+        glm::vec3                   rotation = glm::vec3(0,0,0);        // Rotation of the object.
         glm::mat4                   transformation = glm::mat4(1.0f);   // Holds the object transformation. Object to World transformation.
-        // uint8_t                     renderOption = BRDFA_TEXTURE;                       // Defines what rendering option this object will be rendered by.
 
         std::string                 renderOption = "None";
 
         Buffer						vertexBuffer;				        // Vulkan buffer of the vertices
         Buffer						indexBuffer;				        // Vulkan buffer of the Indices
+
+
+        glm::mat4 getFinalTransformation() {
+            glm::mat4 ret(transformation);
+            ret = glm::rotate(ret, glm::radians(rotation[0]), glm::vec3(1, 0, 0));
+            ret = glm::rotate(ret, glm::radians(rotation[1]), glm::vec3(0, 1, 0));
+            ret = glm::rotate(ret, glm::radians(rotation[2]), glm::vec3(0, 0, 1));
+            return ret;
+        }
+
+
     };
 
 
