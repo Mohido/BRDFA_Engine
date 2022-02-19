@@ -1063,6 +1063,9 @@ namespace brdfa {
 	void BRDFA_Engine::drawUI(uint32_t imageIndex) {
 		static char obj_path[100];				// Mesh path
 		static char tex_path[100];				// Texture path
+		static char extra_tex_paths[3][100];				// Texture path
+		static int extraTexturesCount = 0;
+
 
 		ImGui_ImplVulkan_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
@@ -1079,8 +1082,12 @@ namespace brdfa {
 			{
 				if (ImGui::MenuItem("Open..", "Ctrl+O")) { 
 					m_uistate.readFileWindowActive = true;
+					extraTexturesCount = 0;
 					memset(obj_path, '\0', 100);
 					memset(tex_path, '\0', 100);
+					memset(extra_tex_paths[0], '\0', 100);
+					memset(extra_tex_paths[1], '\0', 100);
+					memset(extra_tex_paths[2], '\0', 100);
 				}
 				if (ImGui::MenuItem("Save", "Ctrl+S")) { /* Do stuff */ }
 				if (ImGui::MenuItem("Close", "Ctrl+W")) { m_uistate.running = false; }
@@ -1100,7 +1107,16 @@ namespace brdfa {
 			ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
 			ImGui::Begin("File Reader", &m_uistate.readFileWindowActive, file_reader_flags);
 			ImGui::InputText("Object path", obj_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
-			ImGui::InputText("Texture path", tex_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
+			ImGui::InputText("iTexture0", tex_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
+			
+			for (int j = 0; j < extraTexturesCount; j++) {
+				std::string label = std::string("iTexture") + std::to_string(j+1);
+				ImGui::InputText(label.c_str() , extra_tex_paths[j], 100, ImGuiInputTextFlags_AlwaysOverwrite);
+			}
+
+			if (extraTexturesCount < 3 && ImGui::Button("+", ImVec2(50, 0)))
+				extraTexturesCount++;
+
 			if (ImGui::Button("Load File", ImVec2(100, 30))) {
 				this->loadObject(std::string(obj_path), std::string(tex_path));
 				m_uistate.readFileWindowActive = false;
@@ -1350,16 +1366,34 @@ namespace brdfa {
 
 
 	/// <summary>
-	/// Draws the Advance panel. In advance panel, the user can insert new GLSL BRDFs, Test/Compile/Edit/Save them. 
+	///		Draws the Advance panel. In advance panel, the user can insert new GLSL BRDFs, Test/Compile/Edit/Save them. 
 	///		
 	/// </summary>
 	void BRDFA_Engine::drawUI_advance() {
 		// ImGui::ShowDemoWindow();
-
 		if (ImGui::CollapsingHeader("BRDFs Configuration")){
-
 			/*Draw Loaded BRDFs*/
 			ImGui::SetWindowFontScale(1.2);
+			if (ImGui::TreeNode("Help")) {
+				if (ImGui::TreeNode("Editting BRDFs")) {
+					ImGui::TextWrapped("Here you can create a new BRDF, or edit the pre-existing saved ones.");
+					ImGui::TextWrapped("\t* To create a new BRDF please click on the costum BRDF drop down.Then insert a new BRDF name and click the + button.After that, a temporary BRDF template will be created.The temporary BRDF will not be saved unless it is tested, then can be loaded to the main BRDFs. ");
+					ImGui::TextWrapped("\t* To edit an existed BRDF, you can open the Loaded BRDFs panel and edit the BRDF that you are interested in changing. The changes will not occur, unless you test them first. After testing them, you can view them (Update the Rendering Options). You can save the BRDF to a file and cache it with the save button. The files can be found in the \"./shaders/brdfs\"");
+					ImGui::TreePop();
+				}// end Editting BRDFs panel
+				if (ImGui::TreeNode("Globals")) {
+					ImGui::TextWrapped("We have some global uniform variables that you can use in the BRDF code. The variables are the following:");
+					ImGui::TextWrapped("* iTexture0, iTexture1, iTexture2, iTexture3");
+					ImGui::TextWrapped("\tThese are texture parameters that holds the values of the textures filled when the mesh is loaded. iTexture0 must be loaded within the mesh, while the other textures are optional. However, using a texture that is not being filled will cause an error. Therefore, make sure to use textures if you have added them.");
+					ImGui::TextWrapped("* iParameter0, iParameter1, iParameter2, iParameter3");
+					ImGui::TextWrapped("\tThese are parameters that can be edited from the object_n interface. We have 4 available parameters that you can pass to the shader and use them. All of the parameters are normalized (0 to 1) floating numbers.");
+					ImGui::TreePop();
+				}// end Editting BRDFs panel
+				ImGui::TreePop();
+			}// Help Node
+
+			ImGui::Separator();
+
 			if (ImGui::TreeNode("Loaded BRDFs")){ // Loaded BRDFs
 				for (auto& it : m_loadedBrdfs)
 				{
@@ -1368,9 +1402,9 @@ namespace brdfa {
 						// Starting the section of the object
 						float bs = ImGui::GetFrameHeight();
 						float w = ImGui::GetColumnWidth();
-						ImGui::BeginChild(it.first.c_str(), ImVec2(0.0f, bs * 11.0f), true);
+						ImGui::BeginChild(it.first.c_str(), ImVec2(0.0f, bs * 10.0f), true);
 
-						ImGui::Text("struct BRDF_Output{ vec3 diffuse; vec3 specular;}");
+						//ImGui::Text("struct BRDF_Output{ vec3 diffuse; vec3 specular;}");
 
 						ImGui::SetWindowFontScale(1.4);
 						it.second.glslPanel.Render(it.first.c_str(), ImVec2(w, bs * 8.0f), true);
@@ -1442,7 +1476,7 @@ namespace brdfa {
 						float w = ImGui::GetColumnWidth();
 						ImGui::BeginChild(it.first.c_str(), ImVec2(0.0f, bs * 11.0f), true);
 
-						ImGui::Text("struct BRDF_Output{ vec3 diffuse; vec3 specular;}");
+						//ImGui::Text("struct BRDF_Output{ vec3 diffuse; vec3 specular;}");
 
 						ImGui::SetWindowFontScale(1.4);
 						it.second.glslPanel.Render(it.first.c_str(), ImVec2(w, bs * 8.0f), true);
@@ -1504,7 +1538,7 @@ namespace brdfa {
 				if (pressedB && strlen(name) > 0) {
 					BRDF_Panel panel;
 					panel.brdfName = name;
-					panel.glslPanel.SetText("BRDF_Output brdf(vec3 L, vec3 N, vec3 V){\n\n}");
+					panel.glslPanel.SetText("vec3 brdf(vec3 L, vec3 N, vec3 V, vec2 extra){\n\n}");
 					panel.tested = false;
 					
 					memset(name, '\0', 20);

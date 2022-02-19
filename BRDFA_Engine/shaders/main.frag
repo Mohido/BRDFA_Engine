@@ -29,17 +29,9 @@ layout(binding = 3) uniform sampler2D iTexture1;
 layout(binding = 4) uniform sampler2D iTexture2;
 layout(binding = 5) uniform sampler2D iTexture3;
 
-
-
-/*Structures*/
-struct BRDF_Output{
-	vec3 diffuse;
-	vec3 specular;
-};
-
 /*Functions*/
 //BRDF_Output brdf(vec3 L, vec3 N, vec3 V);
-BRDF_Output brdf(vec3 L, vec3 N, vec3 V, vec2 extra);
+vec3 brdf(vec3 L, vec3 N, vec3 V, vec2 extra);
 
 uint base_hash(uvec2 p);
 vec2 PseudoRandom2D(in int i);
@@ -77,11 +69,7 @@ void main() {
         vec2 hl = PseudoRandom2D(i);
         float ourV_sqrt = sqrt(1. -  hl.y* hl.y);
         vec3 L = normalize( axis * vec3( ourV_sqrt*cos(2.*PI *  hl.x), hl.y, ourV_sqrt*sin(2.*PI *  hl.x)));
-        float LN = dot(L,N);
-        vec3 envColor = texture(skybox, L).rgb;
-        vec3 L_c = LI*envColor;
-        BRDF_Output br = brdf(L, N, V, env.mat_p.xy);
-        accum += texcol.xyz*L_c*(br.specular + br.diffuse ); //cook_torrance_schlik_brdf(L,V,N)*L_c*LN;//; 
+        accum += brdf(L, N, V, env.mat_p.xy);   //texcol.xyz*L_c*(br.specular + br.diffuse ); //cook_torrance_schlik_brdf(L,V,N)*L_c*LN;//; 
     } 
 
     // Sphere colouring schemes

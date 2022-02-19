@@ -47,8 +47,8 @@ int main(int argc, char** argv) {
     brdfa::BRDFAEngineConfiguration conf;
     conf.height = WINDOW_HEIGHT;
     conf.width = static_cast<uint16_t>(WINDOW_HEIGHT / (9.0 / 16.0));
-    conf.hot_load = false;
-    conf.no_cache_load = false;
+    conf.hot_load = true;
+    conf.no_cache_load = true;
     for (int i = 0; i < argc; i++) {
         conf.hot_load = (strcmp(argv[i], "--hot-load") == 0) ? true : conf.hot_load;
         conf.no_cache_load = (strcmp(argv[i], "--no-cache-load") == 0) ? true : conf.no_cache_load;

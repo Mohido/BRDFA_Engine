@@ -50,17 +50,6 @@ namespace brdfa {
         bool    focused = true;
         bool    readFileWindowActive = false;
         bool    readSkymapWindowActive = false;
-
-        const char optionLabels[RenderOption::BRDFA_MAX_OPTIONS][30] = {
-                "RENDER TEXTURE"                ,
-                "RENDER NORMALS"                ,
-                "RENDER VIEW_ANGLE"             ,
-                "RENDER REFLECTION_ANGLE"       ,
-                "RENDER DIFFUSE"                ,
-                "RENDER REFECTION"              ,
-                "RENDER COOKTORRANCE"           ,
-                "RENDER PHONG"
-        };
     };
 
 
@@ -226,7 +215,7 @@ namespace brdfa {
 
     struct Mesh {
         uint32_t					uid;
-        Image						textureImage;				        // Holds the texture Image data.
+        std::vector<Image>						textureImages;				        // Holds the texture Image data.
 
         std::vector<Vertex>			vertices;					        // Vertices of the Mesh. Vertices can hold more than a position.
         std::vector<uint32_t>		indices;					        // Indices refering to the loaded vertices of the object.

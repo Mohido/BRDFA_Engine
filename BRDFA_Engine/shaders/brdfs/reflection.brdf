@@ -1,7 +1,5 @@
 
-BRDF_Output brdf(vec3 L, vec3 N, vec3 V, vec2 extra){
-	BRDF_Output s;
-	s.diffuse = vec3(0.);
-	s.specular = vec3(1.);
-	return s;
+vec3 brdf(vec3 L, vec3 N, vec3 V, vec2 extra){
+	vec3 envColor = texture(skybox, L).rgb;
+	return vec3(1.);
 }

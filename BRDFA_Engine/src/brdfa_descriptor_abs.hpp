@@ -136,25 +136,18 @@ namespace brdfa {
 
 
         for (size_t i = 0; i < descriptorObj.sets.size(); i++) {
-            Image texture = meshes[i / swapchain.images.size()].textureImage;
+            
+
+
+            std::vector<VkWriteDescriptorSet> descriptorWrites;
+            /*Mesh UBO uniform*/
+            descriptorWrites.push_back({});
 
             VkDescriptorBufferInfo bufferInfo{};
             bufferInfo.buffer = uniformBuffers[i].obj;
             bufferInfo.offset = 0;
             bufferInfo.range = sizeof(MVPMatrices);
 
-            VkDescriptorImageInfo imageInfo{};
-            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            imageInfo.imageView = texture.view;
-            imageInfo.sampler = texture.sampler;
-
-            VkDescriptorImageInfo skymapInfo{};
-            skymapInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            skymapInfo.imageView = skymap.view;
-            skymapInfo.sampler = skymap.sampler;
-
-            std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
-            /*Mesh UBO uniform*/
             descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             descriptorWrites[0].dstSet = descriptorObj.sets[i];
             descriptorWrites[0].dstBinding = 0;
@@ -163,23 +156,40 @@ namespace brdfa {
             descriptorWrites[0].descriptorCount = 1;
             descriptorWrites[0].pBufferInfo = &bufferInfo;
             
-            /*Mesh Texture uniform*/
+            /*Mesh Skymap uniform*/
+            descriptorWrites.push_back({});
+            VkDescriptorImageInfo skymapInfo{};
+            skymapInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            skymapInfo.imageView = skymap.view;
+            skymapInfo.sampler = skymap.sampler;
+
             descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             descriptorWrites[1].dstSet = descriptorObj.sets[i];
-            descriptorWrites[1].dstBinding = 2;
+            descriptorWrites[1].dstBinding = 1;
             descriptorWrites[1].dstArrayElement = 0;
             descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             descriptorWrites[1].descriptorCount = 1;
-            descriptorWrites[1].pImageInfo = &imageInfo;
+            descriptorWrites[1].pImageInfo = &skymapInfo;
 
-            /*Mesh Skymap uniform*/
-            descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrites[2].dstSet = descriptorObj.sets[i];
-            descriptorWrites[2].dstBinding = 1;
-            descriptorWrites[2].dstArrayElement = 0;
-            descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            descriptorWrites[2].descriptorCount = 1;
-            descriptorWrites[2].pImageInfo = &skymapInfo;
+            /*Mesh Texture uniform*/
+            std::vector<Image> textures = meshes[i / swapchain.images.size()].textureImages;
+            std::vector<VkDescriptorImageInfo> imageInfos;
+            imageInfos.resize(textures.size());
+
+            for (int j = 0; j < textures.size(); j++) {
+                descriptorWrites.push_back({});
+                imageInfos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                imageInfos[j].imageView = textures[j].view;
+                imageInfos[j].sampler = textures[j].sampler;
+
+                descriptorWrites[descriptorWrites.size() - 1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                descriptorWrites[descriptorWrites.size() - 1].dstSet = descriptorObj.sets[i];
+                descriptorWrites[descriptorWrites.size() - 1].dstBinding = 2 + j;
+                descriptorWrites[descriptorWrites.size() - 1].dstArrayElement = 0;
+                descriptorWrites[descriptorWrites.size() - 1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                descriptorWrites[descriptorWrites.size() - 1].descriptorCount = 1;
+                descriptorWrites[descriptorWrites.size() - 1].pImageInfo = &imageInfos[j];
+            }
 
             vkUpdateDescriptorSets(device.device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, VK_NULL_HANDLE);
         }
