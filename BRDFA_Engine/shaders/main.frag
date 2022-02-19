@@ -21,8 +21,15 @@ layout(binding = 0) uniform UniformBufferObject {
 	vec3 pos_c;				// camera position in space.
 	vec3 mat_p;				// material options (Roughness, anistropy)
 } env;
-layout(binding = 1) uniform sampler2D texSampler;
-layout(binding = 2) uniform samplerCube map;
+
+
+layout(binding = 1) uniform samplerCube skybox;
+layout(binding = 2) uniform sampler2D iTexture0;
+layout(binding = 3) uniform sampler2D iTexture1;
+layout(binding = 4) uniform sampler2D iTexture2;
+layout(binding = 5) uniform sampler2D iTexture3;
+
+
 
 /*Structures*/
 struct BRDF_Output{
@@ -34,19 +41,13 @@ struct BRDF_Output{
 //BRDF_Output brdf(vec3 L, vec3 N, vec3 V);
 BRDF_Output brdf(vec3 L, vec3 N, vec3 V, vec2 extra);
 
-
-//uint hash( uint x );
-//uint hash( uvec2 v ) { return hash( v.x ^ hash(v.y)); }
-//float floatConstruct( uint m );
-//float halton(int n, int base);
 uint base_hash(uvec2 p);
 vec2 PseudoRandom2D(in int i);
-//float random( vec2  v ) { return floatConstruct(hash(floatBitsToUint(v))); }
 
 /*Main*/
 void main() {
 	//outColor = vec4(normalize(ubo.pos_c), 1.0f);
-	outColor = texture(texSampler, fragTexCoord);
+	vec4 texcol = texture(iTexture0, fragTexCoord);
 	vec3 N = normalize(inNormal);
 	vec3 V = normalize(env.pos_c - vertPosition);
 	// vec3 L = -normalize(reflect(V, N));
@@ -69,7 +70,7 @@ void main() {
     mat3 inv_axis = transpose(axis);
 
 	// vec3 c = envColor * brdfo.specular;   
-    vec4 textureColor = texture(texSampler, fragTexCoord);
+    vec4 textureColor = texture(iTexture0, fragTexCoord);
 
 	for(int i = bias; i < scatterCount + bias; i++){
         /*Caculating Sample direction*/
@@ -77,18 +78,10 @@ void main() {
         float ourV_sqrt = sqrt(1. -  hl.y* hl.y);
         vec3 L = normalize( axis * vec3( ourV_sqrt*cos(2.*PI *  hl.x), hl.y, ourV_sqrt*sin(2.*PI *  hl.x)));
         float LN = dot(L,N);
-
-        // float theta = 2*PI*hl.x;
-        // z[i] = hl.y;
-        // x[i] = sqrt(1-z[i]*z[i])*cos(theta);
-        // y[i] = sqrt(1-z[i]*z[i])*sin(theta);
-
-        vec3 envColor = texture(map, L).rgb;
-
-        /*Shooting L*/ 
+        vec3 envColor = texture(skybox, L).rgb;
         vec3 L_c = LI*envColor;
         BRDF_Output br = brdf(L, N, V, env.mat_p.xy);
-        accum += (L_c)*(br.specular + br.diffuse );//cook_torrance_schlik_brdf(L,V,N)*L_c*LN;//; 
+        accum += texcol.xyz*L_c*(br.specular + br.diffuse ); //cook_torrance_schlik_brdf(L,V,N)*L_c*LN;//; 
     } 
 
     // Sphere colouring schemes
@@ -99,51 +92,6 @@ void main() {
 	//outColor = vec4(brdfo.specular, 1.);//vec4(texture(texSampler, fragTexCoord));
 	// outColor = vec4(brdfo.specular, 1.);
 }
-
-
-
-
-// A single iteration of Bob Jenkins' One-At-A-Time hashing algorithm.
-//uint hash( uint x ) {
-//    x += ( x << 10u );
-//    x ^= ( x >>  6u );
-//    x += ( x <<  3u );
-//    x ^= ( x >> 11u );
-//    x += ( x << 15u );
-//    return x;
-//}
-
-
-
-// Construct a float with half-open range [0:1] using low 23 bits.
-// All zeroes yields 0.0, all ones yields the next smallest representable value below 1.0.
-// float floatConstruct( uint m ) {
-//     const uint ieeeMantissa = 0x007FFFFFu; // binary32 mantissa bitmask
-//     const uint ieeeOne      = 0x3F800000u; // 1.0 in IEEE binary32
-// 
-//     m &= ieeeMantissa;                     // Keep only mantissa bits (fractional part)
-//     m |= ieeeOne;                          // Add fractional part to 1.0
-// 
-//     float  f = uintBitsToFloat( m );       // Range [1:2]
-//     return f - 1.0;                        // Range [0:1]
-// }
-
-/*
-Halton distribution implementation
-Source: https://rosettacode.org/wiki/Van_der_Corput_sequence#C.2B.2B
-*/
-// float halton(int n, int base){
-//     float vdc = 0.;
-//     int denom = 1;
-// 
-//     for (; n > 0;){
-//       denom *= base;
-//       vdc += float(n % base) / float(denom);
-//       n /= base; 
-//     }
-//        
-//     return vdc;
-// }
 
 /**
   Used for creating a bias from the given point.

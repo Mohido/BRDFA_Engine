@@ -7,8 +7,11 @@ layout(location = 2) in vec3 outNormal;
 //layout(location = 3) in vec3 eyeDirection;
 
 // Textures.
-layout(binding = 1) uniform sampler2D texSampler;
-layout(binding = 2) uniform samplerCube map;
+layout(binding = 1) uniform samplerCube skybox;
+layout(binding = 2) uniform sampler2D iTexture0;
+layout(binding = 3) uniform sampler2D iTexture1;
+layout(binding = 4) uniform sampler2D iTexture2;
+layout(binding = 5) uniform sampler2D iTexture3;
 
 // out variables
 layout(location = 0) out vec4 outColor;
@@ -19,5 +22,5 @@ void main() {
     //outColor = vec4(outNormal, 1.0f);
     //outColor = texture(map, outNormal);
 
-    outColor = texture(map, inUVW);
+    outColor = texture(skybox, inUVW);
 }

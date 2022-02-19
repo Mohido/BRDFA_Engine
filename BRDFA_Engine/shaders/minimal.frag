@@ -17,11 +17,15 @@ layout(binding = 0) uniform UniformBufferObject {
 	vec3 pos_c;				// camera position in space.
 	vec3 mat_p;				// material options (Roughness, anistropy)
 } env;
-layout(binding = 1) uniform sampler2D texSampler;
-layout(binding = 2) uniform samplerCube map;
+
+layout(binding = 1) uniform samplerCube skybox;
+layout(binding = 2) uniform sampler2D iTexture0;
+layout(binding = 3) uniform sampler2D iTexture1;
+layout(binding = 4) uniform sampler2D iTexture2;
+layout(binding = 5) uniform sampler2D iTexture3;
 
 
 /*Main*/
 void main() {
-	outColor = vec4(texture(texSampler, fragTexCoord));
+	outColor = vec4(texture(iTexture0, fragTexCoord));
 }
