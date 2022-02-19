@@ -173,12 +173,16 @@ namespace brdfa {
     /// <param name="commander"></param>
     /// <param name="device"></param>
     static void loadTexture(Mesh& mesh, Commander& commander, const Device& device, const std::string& texturePath) {
+        if (mesh.textureImages.size() >= 4) 
+            throw std::runtime_error("ERROR: We already have 4 textures loaded to this mesh");
+        
 
+        mesh.textureImages.push_back({});
         /*Loading Image data from file.*/
         int texWidth, texHeight, texChannels;
         stbi_uc* pixels = stbi_load(texturePath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
         VkDeviceSize imageSize = texWidth * texHeight * 4;
-        mesh.textureImage.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
+        mesh.textureImages[mesh.textureImages.size()-1].mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
         if (!pixels) {
             throw std::runtime_error("ERROR: failed to load texture image!");
         }
@@ -204,7 +208,7 @@ namespace brdfa {
         createImage(
             commander, device,
             texWidth, texHeight,
-            mesh.textureImage.mipLevels,
+            mesh.textureImages[mesh.textureImages.size() - 1].mipLevels,
             VK_SAMPLE_COUNT_1_BIT,
             VK_FORMAT_R8G8B8A8_SRGB,
             VK_IMAGE_TILING_OPTIMAL,
@@ -212,12 +216,12 @@ namespace brdfa {
             | VK_IMAGE_USAGE_TRANSFER_DST_BIT
             | VK_IMAGE_USAGE_SAMPLED_BIT,
             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-            mesh.textureImage);
+            mesh.textureImages[mesh.textureImages.size() - 1]);
 
 
         /*Transforming the created Image layout to receive data.*/
         transitionImageLayout(
-            mesh.textureImage,
+            mesh.textureImages[mesh.textureImages.size() - 1],
             commander, device,
             VK_FORMAT_R8G8B8A8_SRGB,
             VK_IMAGE_LAYOUT_UNDEFINED,
@@ -228,7 +232,7 @@ namespace brdfa {
             Transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps*/
         copyBufferToImage(
             commander, device,
-            staging, mesh.textureImage,
+            staging, mesh.textureImages[mesh.textureImages.size() - 1],
             static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
 
 
@@ -240,17 +244,17 @@ namespace brdfa {
         /*Generating Image mipmaps*/
         generateMipmaps(
             commander, device,
-            mesh.textureImage,
+            mesh.textureImages[mesh.textureImages.size() - 1],
             VK_FORMAT_R8G8B8A8_SRGB,
             texWidth, texHeight);
 
 
         /*Creating Image view for the texture.*/
-        mesh.textureImage.view = createImageView(
-            mesh.textureImage.obj, device.device,
+        mesh.textureImages[mesh.textureImages.size() - 1].view = createImageView(
+            mesh.textureImages[mesh.textureImages.size() - 1].obj, device.device,
             VK_FORMAT_R8G8B8A8_SRGB,
             VK_IMAGE_ASPECT_COLOR_BIT,
-            mesh.textureImage.mipLevels);
+            mesh.textureImages[mesh.textureImages.size() - 1].mipLevels);
 
 
         /*Create Texture sampler:*/
@@ -272,10 +276,10 @@ namespace brdfa {
         samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
         samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
         samplerInfo.minLod = 0.0f;
-        samplerInfo.maxLod = static_cast<float>(mesh.textureImage.mipLevels);
+        samplerInfo.maxLod = static_cast<float>(mesh.textureImages[mesh.textureImages.size() - 1].mipLevels);
         samplerInfo.mipLodBias = 0.0f;
 
-        if (vkCreateSampler(device.device, &samplerInfo, nullptr, &mesh.textureImage.sampler) != VK_SUCCESS) {
+        if (vkCreateSampler(device.device, &samplerInfo, nullptr, &mesh.textureImages[mesh.textureImages.size() - 1].sampler) != VK_SUCCESS) {
             throw std::runtime_error("ERROR: failed to create texture sampler!");
         }
     }
@@ -316,6 +320,26 @@ namespace brdfa {
 	}
 
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="commander"></param>
+    /// <param name="device"></param>
+    /// <param name="modelPath"></param>
+    /// <param name="texturePath"></param>
+    /// <returns></returns>
+    static Mesh loadMesh(Commander& commander, const Device& device, const std::string& modelPath, const std::vector<std::string>& texturePaths) {
+        Mesh mesh{};
+        loadVertices(mesh, commander, device, modelPath);
+        for (const std::string& path: texturePaths) {
+            if (path == "") continue;
+            loadTexture(mesh, commander, device, path);
+            vkDeviceWaitIdle(device.device);
+        }
+        
+        return mesh;
+    }
+
 
 
     /// <summary>
@@ -325,10 +349,13 @@ namespace brdfa {
     /// <param name="device"></param>
     void destroyMesh(Mesh& mesh, const Device& device) {
         /*Destroying Txture data*/
-        vkDestroySampler(device.device, mesh.textureImage.sampler, nullptr);
-        vkDestroyImageView(device.device, mesh.textureImage.view, nullptr);
-        vkDestroyImage(device.device, mesh.textureImage.obj, nullptr);
-        vkFreeMemory(device.device, mesh.textureImage.memory, nullptr);
+        for (Image& textureImage : mesh.textureImages) {
+            vkDestroySampler(device.device, textureImage.sampler, nullptr);
+            vkDestroyImageView(device.device, textureImage.view, nullptr);
+            vkDestroyImage(device.device, textureImage.obj, nullptr);
+            vkFreeMemory(device.device, textureImage.memory, nullptr);
+        }
+
 
         /*Destroying Vertices data*/
         vkDestroyBuffer(device.device, mesh.indexBuffer.obj, nullptr);

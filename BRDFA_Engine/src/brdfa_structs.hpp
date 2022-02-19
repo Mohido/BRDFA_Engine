@@ -50,17 +50,6 @@ namespace brdfa {
         bool    focused = true;
         bool    readFileWindowActive = false;
         bool    readSkymapWindowActive = false;
-
-        const char optionLabels[RenderOption::BRDFA_MAX_OPTIONS][30] = {
-                "RENDER TEXTURE"                ,
-                "RENDER NORMALS"                ,
-                "RENDER VIEW_ANGLE"             ,
-                "RENDER REFLECTION_ANGLE"       ,
-                "RENDER DIFFUSE"                ,
-                "RENDER REFECTION"              ,
-                "RENDER COOKTORRANCE"           ,
-                "RENDER PHONG"
-        };
     };
 
 
@@ -223,20 +212,35 @@ namespace brdfa {
     };
 
 
+
     struct Mesh {
         uint32_t					uid;
-        Image						textureImage;				        // Holds the texture Image data.
+        std::vector<Image>						textureImages;				        // Holds the texture Image data.
 
         std::vector<Vertex>			vertices;					        // Vertices of the Mesh. Vertices can hold more than a position.
         std::vector<uint32_t>		indices;					        // Indices refering to the loaded vertices of the object.
 
-        glm::mat4                   transformation = glm::mat4(1.0f);   // Holds the object transformation. Object to World transformation.
-        // uint8_t                     renderOption = BRDFA_TEXTURE;                       // Defines what rendering option this object will be rendered by.
+        float                       extra[2] = { 0, 0 };
+        int                         samples = 100;
 
-        std::string                 renderOption = "";
+        glm::vec3                   rotation = glm::vec3(0,0,0);        // Rotation of the object.
+        glm::mat4                   transformation = glm::mat4(1.0f);   // Holds the object transformation. Object to World transformation.
+
+        std::string                 renderOption = "None";
 
         Buffer						vertexBuffer;				        // Vulkan buffer of the vertices
         Buffer						indexBuffer;				        // Vulkan buffer of the Indices
+
+
+        glm::mat4 getFinalTransformation() {
+            glm::mat4 ret(transformation);
+            ret = glm::rotate(ret, glm::radians(rotation[0]), glm::vec3(1, 0, 0));
+            ret = glm::rotate(ret, glm::radians(rotation[1]), glm::vec3(0, 1, 0));
+            ret = glm::rotate(ret, glm::radians(rotation[2]), glm::vec3(0, 0, 1));
+            return ret;
+        }
+
+
     };
 
 

@@ -171,15 +171,15 @@ namespace brdfa {
 	/// Used to load objects dynamically into the engine. 
 	/// </summary>
 	/// <returns>If object is loaded successfully</returns>
-	bool BRDFA_Engine::loadObject(const std::string& object_path, const std::string& texture_path) {
-		if (object_path.size() == 0 || texture_path.size() == 0) {
+	bool BRDFA_Engine::loadObject(const std::string& object_path, const std::vector<std::string>& texture_paths) {
+		if (object_path.size() == 0 || texture_paths.size() == 0 || texture_paths[0].size() == 0) {
 			std::cout << "INFO: Object and texture paths must be given to load the model. We don't support texture-less models yet." << std::endl;
 			return false;
 		}
 		vkDeviceWaitIdle(m_device.device);
 		
 		/*Adding the new mesh*/
-		m_meshes.push_back(loadMesh(m_commander, m_device, object_path, texture_path));		// Loading veriaty of objects
+		m_meshes.push_back(loadMesh(m_commander, m_device, object_path, texture_paths));		// Loading veriaty of objects
 
 		/*Adding a new uniform buffer*/
 		size_t oldSize = m_uniformBuffers.size();
@@ -646,8 +646,10 @@ namespace brdfa {
 	{
 		/*Destroying old pipeline*/
 		vkDeviceWaitIdle(m_device.device);
-		if (m_graphicsPipelines.pipelines.find(brdfName) != m_graphicsPipelines.pipelines.end())
+		if (m_graphicsPipelines.pipelines.find(brdfName) != m_graphicsPipelines.pipelines.end())	// if found then destroy the old pipeline
 			vkDestroyPipeline(m_device.device, m_graphicsPipelines.pipelines.at(brdfName), nullptr);
+		else   // if not found then create a new one.
+			m_graphicsPipelines.pipelines.insert({ brdfName , VK_NULL_HANDLE });
 
 		/*Creating a new pipeline*/
 		createGraphicsPipeline(
@@ -707,29 +709,53 @@ namespace brdfa {
 		std::string mainShader_f = (SHADERS_PATH + "/main.frag");
 		std::string mainShader_v = (SHADERS_PATH + "/main.vert");
 		std::string brdfs = (SHADERS_PATH + "/brdfs");
+		std::string cache = (SHADERS_PATH + "/cache");
 
-		auto vert_main_shader_code = readFile(SHADERS_PATH + "/main.vert", false);
-		auto frag_main_shader_code = readFile(SHADERS_PATH + "/main.frag", false);
+		/*Loading the basic.spv (basic rendering.)*/
+		m_vertSpirv = readFile(SHADERS_PATH + "/vert.spv", true);
+		auto frag_main_shader_code = readFile(SHADERS_PATH + "/basic.spv", true);
+		m_graphicsPipelines.pipelines.insert({ "None" , {} });
+		createGraphicsPipeline(
+			m_graphicsPipelines.layout, m_graphicsPipelines.sceneRenderPass,
+			m_graphicsPipelines.pipelines.at("None"), m_skymap_pipeline,
+			m_device, m_swapChain, m_descriptorData, m_vertSpirv, frag_main_shader_code, false);
+
+		/*Loading the extra BRDFs*/
+		frag_main_shader_code.clear();
+		frag_main_shader_code = readFile(SHADERS_PATH + "/main.frag", false);
 		m_mainFragShader = std::string(frag_main_shader_code.begin(), frag_main_shader_code.end());
-		m_vertSpirv = compileShader(std::string(vert_main_shader_code.begin(), vert_main_shader_code.end()), true, "vertexShader");
-
 
 		for (const auto& entry : std::filesystem::directory_iterator(brdfs)) {
 			std::string temp = entry.path().string();
 			std::size_t found = temp.find_last_of("/\\");		// Finding splitters
 			std::string brdfFilePath = temp.substr(0, found);
 			std::string brdfFileName = temp.substr(found+1);
-			
 
-			printf("[INFO]: Loading file: %s\n", brdfFilePath.c_str());
+			printf("[INFO]: Loading file: %s\n", temp.c_str());
 			int extInd = brdfFileName.find(".brdf");
 			bool isbrdf = extInd != std::string::npos;
 			if (isbrdf) {
 				/*BRDF name as a key and the shader file path.*/
 				std::string brdfName(brdfFileName.begin() , brdfFileName.begin() + extInd);
 				std::string shaderPath = brdfFilePath + "/" + brdfFileName;
-
 				printf("[INFO]: Loading BRDF: %s\n", brdfFileName.c_str());
+
+				/*Check if current file exist in cache. And if it exists, load it from there.*/
+				bool loadCache = false;
+				for (const auto& entry_c : std::filesystem::directory_iterator(cache)) {
+					if (m_configuration.no_cache_load) break;
+					temp = entry_c.path().string();
+					found = temp.find_last_of("/\\");		// Finding splitters
+					std::string cacheFilePath = temp.substr(0, found);
+					std::string cacheFileName = temp.substr(found + 1);
+					extInd = cacheFileName.find(".spv");
+					std::string cacheName(cacheFileName.begin(), cacheFileName.begin() + extInd);
+					if (cacheName == brdfName) {
+						loadCache = true;
+						printf("[INFO]: Loading \"%s\" BRDF from its Cache\n", brdfName.c_str());
+						break;
+					}
+				}
 
 				/*Check if the pipeline with the name exists.*/
 				if (m_graphicsPipelines.pipelines.find(brdfName) != m_graphicsPipelines.pipelines.end()) {
@@ -750,15 +776,20 @@ namespace brdfa {
 				for (int i = 0; i < brdf_s.size(); i++)		
 					concat = (brdf_s[i] == '\0') ? concat : concat + brdf_s[i];
 
-				/*Compile the concatenated fragment shader.*/
-				auto frag_spirv = compileShader(concat, false, "FragmentSHader");
-
 				/*If we reach this point, it means that we will insert the loaded brdf into our loaded brdfs panel*/
+				std::vector<char> frag_spirv;
 				if (m_loadedBrdfs.find(brdfName) == m_loadedBrdfs.end()) {
 					BRDF_Panel	lp;
 					lp.brdfName = brdfName;
-					lp.latest_spir_v = frag_spirv;
 					lp.glslPanel.SetText(brdf_s);
+					if (m_configuration.hot_load) {
+						lp.tested = false;
+						m_loadedBrdfs.insert({ brdfName, lp });
+						continue;
+					}
+					std::string cacheFileName = cache + "/" + brdfName + ".spv";
+					frag_spirv = (loadCache)? readFile(cacheFileName): compileShader(concat, false, "FragmentSHader");
+					lp.latest_spir_v = frag_spirv;
 					m_loadedBrdfs.insert({ brdfName, lp });
 				}
 
@@ -947,13 +978,12 @@ namespace brdfa {
 
 		for (size_t i = 0; i < m_meshes.size(); i++) { // setup ubos for meshes
 			size_t ind = i * m_swapChain.images.size() + currentImage;
-			
 			MVPMatrices ubo{};
-			ubo.model = m_meshes[i].transformation;			//glm::rotate(modelTr, time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+			ubo.model = m_meshes[i].getFinalTransformation();			//glm::rotate(modelTr, time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 			ubo.view = m_camera.transformation;				//glm::lookAt(glm::vec3(0.0f, 3.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 			ubo.proj = m_camera.projection;					//glm::perspective(glm::radians(45.0f), m_swapChain.extent.width / (float)m_swapChain.extent.height, 0.1f, 10.0f);
 			ubo.pos_c = m_camera.position;
-			ubo.render_opt = glm::vec3(0.0f, 0.0f, 0.0f);
+			ubo.render_opt = glm::vec3(m_meshes[i].extra[0], m_meshes[i].extra[1], static_cast<float>(m_meshes[i].samples));
 
 			void* data;
 			vkMapMemory(m_device.device, m_uniformBuffers[ind].memory, 0, sizeof(ubo), 0, &data);
@@ -1033,6 +1063,9 @@ namespace brdfa {
 	void BRDFA_Engine::drawUI(uint32_t imageIndex) {
 		static char obj_path[100];				// Mesh path
 		static char tex_path[100];				// Texture path
+		static char extra_tex_paths[3][100];				// Texture path
+		static int extraTexturesCount = 0;
+
 
 		ImGui_ImplVulkan_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
@@ -1049,8 +1082,12 @@ namespace brdfa {
 			{
 				if (ImGui::MenuItem("Open..", "Ctrl+O")) { 
 					m_uistate.readFileWindowActive = true;
+					extraTexturesCount = 0;
 					memset(obj_path, '\0', 100);
 					memset(tex_path, '\0', 100);
+					memset(extra_tex_paths[0], '\0', 100);
+					memset(extra_tex_paths[1], '\0', 100);
+					memset(extra_tex_paths[2], '\0', 100);
 				}
 				if (ImGui::MenuItem("Save", "Ctrl+S")) { /* Do stuff */ }
 				if (ImGui::MenuItem("Close", "Ctrl+W")) { m_uistate.running = false; }
@@ -1070,9 +1107,24 @@ namespace brdfa {
 			ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
 			ImGui::Begin("File Reader", &m_uistate.readFileWindowActive, file_reader_flags);
 			ImGui::InputText("Object path", obj_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
-			ImGui::InputText("Texture path", tex_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
+			ImGui::InputText("iTexture0", tex_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
+			
+			for (int j = 0; j < extraTexturesCount; j++) {
+				std::string label = std::string("iTexture") + std::to_string(j+1);
+				ImGui::InputText(label.c_str() , extra_tex_paths[j], 100, ImGuiInputTextFlags_AlwaysOverwrite);
+			}
+
+			if (extraTexturesCount < 3 && ImGui::Button("+", ImVec2(50, 0)))
+				extraTexturesCount++;
+
 			if (ImGui::Button("Load File", ImVec2(100, 30))) {
-				this->loadObject(std::string(obj_path), std::string(tex_path));
+				std::vector<std::string> texture_paths;
+				texture_paths.resize(extraTexturesCount + 2);
+				texture_paths[0] = std::string(tex_path);
+				for (int j = 0; j < extraTexturesCount; j++)
+					texture_paths[j+1] = std::string(extra_tex_paths[j]);
+
+				this->loadObject(std::string(obj_path), texture_paths);
 				m_uistate.readFileWindowActive = false;
 			}
 			ImGui::End();
@@ -1238,7 +1290,7 @@ namespace brdfa {
 			const char* current_item = m_meshes[i].renderOption.c_str(); //m_uistate.optionLabels[m_meshes[i].renderOption];
 
 			// Starting the section of the object
-			ImGui::BeginChild(curObj.data(), ImVec2(0.0f, button_sz * 10.0f), false);
+			ImGui::BeginChild(curObj.data(), ImVec2(0.0f, button_sz * 11.0f), false);
 
 			{// Tab menu of the object
 				ImGui::BeginTabBar(curObj.data());
@@ -1269,33 +1321,35 @@ namespace brdfa {
 					ImGui::EndCombo();
 				}
 			} // Rendering_options rendered
+			ImGui::Separator();
 			{ // Object Translation option
 				float trans[3] = { m_meshes[i].transformation[3][0] , m_meshes[i].transformation[3][1], m_meshes[i].transformation[3][2] };
-				ImGui::InputFloat3("Translation", trans);
+				ImGui::DragFloat3("Translation", trans, 0.01f);
 				m_meshes[i].transformation[3][0] = trans[0];
 				m_meshes[i].transformation[3][1] = trans[1];
 				m_meshes[i].transformation[3][2] = trans[2];
 			} // Object Translation option
 			{ // Object Scale option
 				float trans[3] = { m_meshes[i].transformation[0][0] , m_meshes[i].transformation[1][1], m_meshes[i].transformation[2][2] };
-				ImGui::InputFloat3("Scale", trans);
+				ImGui::DragFloat3("Scaler", trans, 0.01f);
 				m_meshes[i].transformation[0][0] = trans[0];
 				m_meshes[i].transformation[1][1] = trans[1];
 				m_meshes[i].transformation[2][2] = trans[2];
 			} // Object scale option
-			ImGui::Separator();
 			{ // Object Scale option
+				float trans[3] = { m_meshes[i].rotation[0] , m_meshes[i].rotation[1], m_meshes[i].rotation[2] };
+				ImGui::DragFloat3("Rotation", trans, 0.05f);
+				m_meshes[i].rotation = glm::vec3(trans[0], trans[1], trans[2]);
+			} // Object scale option
+			ImGui::Separator();
+			{ // Object extra parameters
 				//float trans[3] = { m_meshes[i].transformation[0][0] , m_meshes[i].transformation[1][1], m_meshes[i].transformation[2][2] };
 				float iw = ImGui::CalcItemWidth();
 				ImGui::PushItemWidth(iw * 0.5);
-				float material[2] = { 0.5 };
-				ImGui::InputFloat2("Additional Parameters", material);
-				int samples = 100;
-				ImGui::InputInt("Light Samples", &samples, 1, 10);
+				ImGui::DragFloat2("Additional Parameters", m_meshes[i].extra, 0.001f, 0.0f, 1.0f, "%.4f", 1.0f);
+				ImGui::InputInt("Light Samples", &m_meshes[i].samples, 1, 10);
 				ImGui::PopItemWidth();
-			} // Object scale option
-
-
+			} // Object extra parameters
 			{ // Object deletion button
 				ImGui::NewLine();
 				if (ImGui::Button("Delete")) {
@@ -1318,16 +1372,34 @@ namespace brdfa {
 
 
 	/// <summary>
-	/// Draws the Advance panel. In advance panel, the user can insert new GLSL BRDFs, Test/Compile/Edit/Save them. 
+	///		Draws the Advance panel. In advance panel, the user can insert new GLSL BRDFs, Test/Compile/Edit/Save them. 
 	///		
 	/// </summary>
 	void BRDFA_Engine::drawUI_advance() {
 		// ImGui::ShowDemoWindow();
-
 		if (ImGui::CollapsingHeader("BRDFs Configuration")){
-
 			/*Draw Loaded BRDFs*/
 			ImGui::SetWindowFontScale(1.2);
+			if (ImGui::TreeNode("Help")) {
+				if (ImGui::TreeNode("Editting BRDFs")) {
+					ImGui::TextWrapped("Here you can create a new BRDF, or edit the pre-existing saved ones.");
+					ImGui::TextWrapped("\t* To create a new BRDF please click on the costum BRDF drop down.Then insert a new BRDF name and click the + button.After that, a temporary BRDF template will be created.The temporary BRDF will not be saved unless it is tested, then can be loaded to the main BRDFs. ");
+					ImGui::TextWrapped("\t* To edit an existed BRDF, you can open the Loaded BRDFs panel and edit the BRDF that you are interested in changing. The changes will not occur, unless you test them first. After testing them, you can view them (Update the Rendering Options). You can save the BRDF to a file and cache it with the save button. The files can be found in the \"./shaders/brdfs\"");
+					ImGui::TreePop();
+				}// end Editting BRDFs panel
+				if (ImGui::TreeNode("Globals")) {
+					ImGui::TextWrapped("We have some global uniform variables that you can use in the BRDF code. The variables are the following:");
+					ImGui::TextWrapped("* iTexture0, iTexture1, iTexture2, iTexture3");
+					ImGui::TextWrapped("\tThese are texture parameters that holds the values of the textures filled when the mesh is loaded. iTexture0 must be loaded within the mesh, while the other textures are optional. However, using a texture that is not being filled will cause an error. Therefore, make sure to use textures if you have added them.");
+					ImGui::TextWrapped("* iParameter0, iParameter1, iParameter2, iParameter3");
+					ImGui::TextWrapped("\tThese are parameters that can be edited from the object_n interface. We have 4 available parameters that you can pass to the shader and use them. All of the parameters are normalized (0 to 1) floating numbers.");
+					ImGui::TreePop();
+				}// end Editting BRDFs panel
+				ImGui::TreePop();
+			}// Help Node
+
+			ImGui::Separator();
+
 			if (ImGui::TreeNode("Loaded BRDFs")){ // Loaded BRDFs
 				for (auto& it : m_loadedBrdfs)
 				{
@@ -1336,9 +1408,9 @@ namespace brdfa {
 						// Starting the section of the object
 						float bs = ImGui::GetFrameHeight();
 						float w = ImGui::GetColumnWidth();
-						ImGui::BeginChild(it.first.c_str(), ImVec2(0.0f, bs * 11.0f), true);
+						ImGui::BeginChild(it.first.c_str(), ImVec2(0.0f, bs * 10.0f), true);
 
-						ImGui::Text("struct BRDF_Output{ vec3 diffuse; vec3 specular;}");
+						//ImGui::Text("struct BRDF_Output{ vec3 diffuse; vec3 specular;}");
 
 						ImGui::SetWindowFontScale(1.4);
 						it.second.glslPanel.Render(it.first.c_str(), ImVec2(w, bs * 8.0f), true);
@@ -1410,7 +1482,7 @@ namespace brdfa {
 						float w = ImGui::GetColumnWidth();
 						ImGui::BeginChild(it.first.c_str(), ImVec2(0.0f, bs * 11.0f), true);
 
-						ImGui::Text("struct BRDF_Output{ vec3 diffuse; vec3 specular;}");
+						//ImGui::Text("struct BRDF_Output{ vec3 diffuse; vec3 specular;}");
 
 						ImGui::SetWindowFontScale(1.4);
 						it.second.glslPanel.Render(it.first.c_str(), ImVec2(w, bs * 8.0f), true);
@@ -1472,7 +1544,7 @@ namespace brdfa {
 				if (pressedB && strlen(name) > 0) {
 					BRDF_Panel panel;
 					panel.brdfName = name;
-					panel.glslPanel.SetText("BRDF_Output brdf(vec3 L, vec3 N, vec3 V){\n\n}");
+					panel.glslPanel.SetText("vec3 brdf(vec3 L, vec3 N, vec3 V, vec2 extra){\n\n}");
 					panel.tested = false;
 					
 					memset(name, '\0', 20);
