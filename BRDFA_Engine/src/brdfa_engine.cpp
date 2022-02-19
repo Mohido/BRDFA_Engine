@@ -171,15 +171,15 @@ namespace brdfa {
 	/// Used to load objects dynamically into the engine. 
 	/// </summary>
 	/// <returns>If object is loaded successfully</returns>
-	bool BRDFA_Engine::loadObject(const std::string& object_path, const std::string& texture_path) {
-		if (object_path.size() == 0 || texture_path.size() == 0) {
+	bool BRDFA_Engine::loadObject(const std::string& object_path, const std::vector<std::string>& texture_paths) {
+		if (object_path.size() == 0 || texture_paths.size() == 0 || texture_paths[0].size() == 0) {
 			std::cout << "INFO: Object and texture paths must be given to load the model. We don't support texture-less models yet." << std::endl;
 			return false;
 		}
 		vkDeviceWaitIdle(m_device.device);
 		
 		/*Adding the new mesh*/
-		m_meshes.push_back(loadMesh(m_commander, m_device, object_path, texture_path));		// Loading veriaty of objects
+		m_meshes.push_back(loadMesh(m_commander, m_device, object_path, texture_paths));		// Loading veriaty of objects
 
 		/*Adding a new uniform buffer*/
 		size_t oldSize = m_uniformBuffers.size();
@@ -1118,7 +1118,13 @@ namespace brdfa {
 				extraTexturesCount++;
 
 			if (ImGui::Button("Load File", ImVec2(100, 30))) {
-				this->loadObject(std::string(obj_path), std::string(tex_path));
+				std::vector<std::string> texture_paths;
+				texture_paths.resize(extraTexturesCount + 2);
+				texture_paths[0] = std::string(tex_path);
+				for (int j = 0; j < extraTexturesCount; j++)
+					texture_paths[j+1] = std::string(extra_tex_paths[j]);
+
+				this->loadObject(std::string(obj_path), texture_paths);
 				m_uistate.readFileWindowActive = false;
 			}
 			ImGui::End();

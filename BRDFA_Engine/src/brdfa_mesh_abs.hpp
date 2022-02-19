@@ -320,6 +320,26 @@ namespace brdfa {
 	}
 
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="commander"></param>
+    /// <param name="device"></param>
+    /// <param name="modelPath"></param>
+    /// <param name="texturePath"></param>
+    /// <returns></returns>
+    static Mesh loadMesh(Commander& commander, const Device& device, const std::string& modelPath, const std::vector<std::string>& texturePaths) {
+        Mesh mesh{};
+        loadVertices(mesh, commander, device, modelPath);
+        for (const std::string& path: texturePaths) {
+            if (path == "") continue;
+            loadTexture(mesh, commander, device, path);
+            vkDeviceWaitIdle(device.device);
+        }
+        
+        return mesh;
+    }
+
 
 
     /// <summary>
