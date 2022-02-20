@@ -134,6 +134,15 @@ namespace brdfa {
     };
 
 
+    
+    struct Parameters {
+        alignas(16) glm::vec3           extra012 = glm::vec3(0.0, 0.0, 0.0);       // Extra parameters from 0 to 2
+        alignas(16) glm::vec3           extra345 = glm::vec3(0.0, 0.0, 0.0);       // Extra parameters from 3 to 5
+        alignas(16) glm::vec3           extra678 = glm::vec3(0.0, 0.0, 0.0);       // Extra parameters from 6 to 8
+    };
+
+
+
     struct SyncCollection {
         VkSemaphore                     s_imageAvailable;
         VkSemaphore                     s_renderFinished;
@@ -225,6 +234,11 @@ namespace brdfa {
 
         glm::vec3                   rotation = glm::vec3(0,0,0);        // Rotation of the object.
         glm::mat4                   transformation = glm::mat4(1.0f);   // Holds the object transformation. Object to World transformation.
+
+
+        Parameters                  params = {};                        // Parameters regarding this object
+        std::vector<Buffer>         paramsBuffer;                       // Holds the parameter buffers
+        int                         shownParameters = 0;                // The number of the shown extra parameters
 
         std::string                 renderOption = "None";
 

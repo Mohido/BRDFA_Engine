@@ -13,6 +13,13 @@ layout(binding = 3) uniform sampler2D iTexture1;
 layout(binding = 4) uniform sampler2D iTexture2;
 layout(binding = 5) uniform sampler2D iTexture3;
 
+layout(binding = 6) uniform Parameters {
+    vec3 extra012;
+    vec3 extra345;
+    vec3 extra678;
+} params;
+
+
 // out variables
 layout(location = 0) out vec4 outColor;
 

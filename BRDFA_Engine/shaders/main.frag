@@ -29,6 +29,25 @@ layout(binding = 3) uniform sampler2D iTexture1;
 layout(binding = 4) uniform sampler2D iTexture2;
 layout(binding = 5) uniform sampler2D iTexture3;
 
+layout(binding = 6) uniform Parameters {
+    vec3 extra012;
+    vec3 extra345;
+    vec3 extra678;
+} params;
+
+
+#define iParameter0 params.extra012.x
+#define iParameter1 params.extra012.y
+#define iParameter2 params.extra012.z
+#define iParameter3 params.extra345.x
+#define iParameter4 params.extra345.y
+#define iParameter5 params.extra345.z
+#define iParameter6 params.extra678.x
+#define iParameter7 params.extra678.y
+#define iParameter8 params.extra678.z
+
+
+
 /*Functions*/
 //BRDF_Output brdf(vec3 L, vec3 N, vec3 V);
 vec3 brdf(vec3 L, vec3 N, vec3 V, vec2 extra);
