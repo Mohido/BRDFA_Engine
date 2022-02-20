@@ -313,9 +313,19 @@ namespace brdfa {
 	/// <param name="modelPath"></param>
 	/// <param name="texturePath"></param>
 	/// <returns></returns>
-	static Mesh loadMesh(Commander& commander, const Device& device, const std::string& modelPath, const std::string& texturePath) {
+	static Mesh loadMesh(Commander& commander, const Device& device, const std::string& modelPath, const std::string& texturePath, const size_t& bufferCounts) {
         Mesh mesh{};
         populate(mesh, commander, device, modelPath, texturePath);
+        for (int i = 0; i < bufferCounts; i++) {
+            mesh.paramsBuffer.push_back({});
+            createBuffer(
+                commander, device, VkDeviceSize(sizeof(Parameters)),
+                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+                | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                mesh.paramsBuffer[i]);
+        }
+
         return mesh;
 	}
 
@@ -328,7 +338,7 @@ namespace brdfa {
     /// <param name="modelPath"></param>
     /// <param name="texturePath"></param>
     /// <returns></returns>
-    static Mesh loadMesh(Commander& commander, const Device& device, const std::string& modelPath, const std::vector<std::string>& texturePaths) {
+    static Mesh loadMesh(Commander& commander, const Device& device, const std::string& modelPath, const std::vector<std::string>& texturePaths, const size_t& bufferCounts) {
         Mesh mesh{};
         loadVertices(mesh, commander, device, modelPath);
         for (const std::string& path: texturePaths) {
@@ -336,7 +346,16 @@ namespace brdfa {
             loadTexture(mesh, commander, device, path);
             vkDeviceWaitIdle(device.device);
         }
-        
+        for (int i = 0; i < bufferCounts; i++) {
+            mesh.paramsBuffer.push_back({});
+            createBuffer(
+                commander, device, VkDeviceSize(sizeof(Parameters)),
+                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+                | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                mesh.paramsBuffer[i]);
+        }
+
         return mesh;
     }
 
@@ -356,6 +375,12 @@ namespace brdfa {
             vkFreeMemory(device.device, textureImage.memory, nullptr);
         }
 
+        /*Destroying Parameters buffer data.*/
+        for (int i = 0; i < mesh.paramsBuffer.size(); i++) {
+            vkDestroyBuffer(device.device, mesh.paramsBuffer[i].obj, nullptr);
+            vkFreeMemory(device.device, mesh.paramsBuffer[i].memory, nullptr);
+        }
+        mesh.paramsBuffer.clear();
 
         /*Destroying Vertices data*/
         vkDestroyBuffer(device.device, mesh.indexBuffer.obj, nullptr);

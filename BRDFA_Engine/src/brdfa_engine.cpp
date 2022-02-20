@@ -179,7 +179,7 @@ namespace brdfa {
 		vkDeviceWaitIdle(m_device.device);
 		
 		/*Adding the new mesh*/
-		m_meshes.push_back(loadMesh(m_commander, m_device, object_path, texture_paths));		// Loading veriaty of objects
+		m_meshes.push_back(loadMesh(m_commander, m_device, object_path, texture_paths, m_swapChain.images.size()));		// Loading veriaty of objects
 
 		/*Adding a new uniform buffer*/
 		size_t oldSize = m_uniformBuffers.size();
@@ -193,6 +193,9 @@ namespace brdfa {
 					| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 				m_uniformBuffers[i]);
 		}
+
+		
+
 		
 		/*Recreating the Descriptors sets*/
 		vkDestroyDescriptorPool(m_device.device, m_descriptorData.pool, nullptr);
@@ -866,7 +869,7 @@ namespace brdfa {
 		createSyncObjects(m_sync, m_imagesInFlight, m_device, m_swapChain, MAX_FRAMES_IN_FLIGHT);
 
 		/*SCENE Initalization. Related functionalities.*/
-		m_meshes.push_back(loadMesh(m_commander, m_device, MODEL_PATH, TEXTURE_PATH ));		// Loading veriaty of objects
+		m_meshes.push_back(loadMesh(m_commander, m_device, MODEL_PATH, TEXTURE_PATH, m_swapChain.images.size() ));		// Loading veriaty of objects
 		loadVertices(m_skymap_mesh, m_commander, m_device, CUBE_MODEL_PATH);				// Loading skymap vertices (CUBE)
 		loadEnvironmentMap(SKYMAP_PATHS);
 		m_camera = Camera(m_swapChain.extent.width, m_swapChain.extent.height, 0.1f, 10.0f, 45.0f);
@@ -989,6 +992,10 @@ namespace brdfa {
 			vkMapMemory(m_device.device, m_uniformBuffers[ind].memory, 0, sizeof(ubo), 0, &data);
 			memcpy(data, &ubo, sizeof(ubo));
 			vkUnmapMemory(m_device.device, m_uniformBuffers[ind].memory);
+
+			vkMapMemory(m_device.device, m_meshes[i].paramsBuffer[currentImage].memory, 0, sizeof(m_meshes[i].params), 0, &data);
+			memcpy(data, &m_meshes[i].params, sizeof(m_meshes[i].params));
+			vkUnmapMemory(m_device.device, m_meshes[i].paramsBuffer[currentImage].memory);
 		}// end setup ubos 
 		
 		lastTime = currentTime;
@@ -1290,7 +1297,8 @@ namespace brdfa {
 			const char* current_item = m_meshes[i].renderOption.c_str(); //m_uistate.optionLabels[m_meshes[i].renderOption];
 
 			// Starting the section of the object
-			ImGui::BeginChild(curObj.data(), ImVec2(0.0f, button_sz * 11.0f), false);
+			//
+			ImGui::BeginChild(curObj.data(), ImVec2(0.0f, button_sz * (12.0f + float(m_meshes[i].shownParameters)*1.2f)), false);
 
 			{// Tab menu of the object
 				ImGui::BeginTabBar(curObj.data());
@@ -1343,13 +1351,46 @@ namespace brdfa {
 			} // Object scale option
 			ImGui::Separator();
 			{ // Object extra parameters
-				//float trans[3] = { m_meshes[i].transformation[0][0] , m_meshes[i].transformation[1][1], m_meshes[i].transformation[2][2] };
+				float prms[9] = {
+						m_meshes[i].params.extra012.x, m_meshes[i].params.extra012.y, m_meshes[i].params.extra012.z,
+						m_meshes[i].params.extra345.x, m_meshes[i].params.extra345.y, m_meshes[i].params.extra345.z,
+						m_meshes[i].params.extra678.x, m_meshes[i].params.extra678.y, m_meshes[i].params.extra678.z
+				};
+
 				float iw = ImGui::CalcItemWidth();
 				ImGui::PushItemWidth(iw * 0.5);
-				ImGui::DragFloat2("Additional Parameters", m_meshes[i].extra, 0.001f, 0.0f, 1.0f, "%.4f", 1.0f);
+				/*Draw the extra parameters inputs*/
+				for (int j = 0; j < m_meshes[i].shownParameters; j++) {
+					std::string label = std::string("iParameter") + std::to_string(j);
+					ImGui::DragFloat(label.c_str(), &prms[j], 0.001f, 0.0f, 1.0f, "%.4f", 1.0f);
+				}
+
+				/*Add/delete parameters buttons*/
+				if (m_meshes[i].shownParameters > 0) {
+					if (ImGui::Button("-", ImVec2(50, 0))) {
+						prms[m_meshes[i].shownParameters - 1] = 0.0;
+						m_meshes[i].shownParameters--;
+					}
+				}
+				if (m_meshes[i].shownParameters > 0 && m_meshes[i].shownParameters < 9) 
+					ImGui::SameLine();
+				if (m_meshes[i].shownParameters < 9) {
+					if (ImGui::Button("+", ImVec2(50, 0)))
+						m_meshes[i].shownParameters++;
+				}
+				ImGui::SameLine();
+				ImGui::TextWrapped("Add/Delete Parameters Stack");
+
+				/* Copy back the added paramters*/
+				m_meshes[i].params.extra012.x = prms[0];	m_meshes[i].params.extra012.y = prms[1];	m_meshes[i].params.extra012.z = prms[2];
+				m_meshes[i].params.extra345.x = prms[3];	m_meshes[i].params.extra345.y = prms[4];	m_meshes[i].params.extra345.z = prms[5];
+				m_meshes[i].params.extra678.x = prms[6];	m_meshes[i].params.extra678.y = prms[7];	m_meshes[i].params.extra678.z = prms[8];
+			} // Object extra parameters
+			ImGui::Separator();
+			{
 				ImGui::InputInt("Light Samples", &m_meshes[i].samples, 1, 10);
 				ImGui::PopItemWidth();
-			} // Object extra parameters
+			}
 			{ // Object deletion button
 				ImGui::NewLine();
 				if (ImGui::Button("Delete")) {
