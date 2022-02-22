@@ -890,6 +890,7 @@ namespace brdfa {
 	/// </summary>
 	/// <returns></returns>
 	bool BRDFA_Engine::startImgui() {
+		
 		//1: create descriptor pool for IMGUI
 		// the size of the pool is very oversize, but it's copied from imgui demo itself.
 		VkDescriptorPoolSize pool_sizes[] =
@@ -920,7 +921,6 @@ namespace brdfa {
 		// 2: initialize imgui library
 		//this initializes the core structures of imgui
 		ImGui::CreateContext();
-
 		//this initializes imgui for GLFW_VULKAN
 		bool initGLFW_V = ImGui_ImplGlfw_InitForVulkan(m_window, true);
 		QueueFamilyIndices families = findQueueFamilies(m_device);
@@ -942,7 +942,6 @@ namespace brdfa {
 		VkCommandBuffer cmd = beginSingleTimeCommands(m_commander, m_device);
 		bool createTV = ImGui_ImplVulkan_CreateFontsTexture(cmd);
 		endSingleTimeCommands(m_commander, m_device);
-
 		return true;
 	}
 
@@ -1068,110 +1067,89 @@ namespace brdfa {
 	/// </summary>
 	/// <param name="imageIndex"></param>
 	void BRDFA_Engine::drawUI(uint32_t imageIndex) {
-		static char obj_path[100];				// Mesh path
-		static char tex_path[100];				// Texture path
-		static char extra_tex_paths[3][100];				// Texture path
-		static int extraTexturesCount = 0;
-
-
 		ImGui_ImplVulkan_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
 		/*Create the engine menu window*/
-		ImGui::SetNextWindowSize(ImVec2(400, 100), ImGuiCond_FirstUseEver);
-		ImGui::Begin("BRDFA Engine Menu", &m_uistate.running, ImGuiWindowFlags_MenuBar);
+		//ImGui::SetNextWindowSize(ImVec2(400, 100), ImGuiCond_FirstUseEver);
+		
+		
+		
 
-		// Rendering the Menu bar
-		if (ImGui::BeginMenuBar())
-		{
-			if (ImGui::BeginMenu("File"))
-			{
-				if (ImGui::MenuItem("Open..", "Ctrl+O")) { 
-					m_uistate.readFileWindowActive = true;
-					extraTexturesCount = 0;
-					memset(obj_path, '\0', 100);
-					memset(tex_path, '\0', 100);
-					memset(extra_tex_paths[0], '\0', 100);
-					memset(extra_tex_paths[1], '\0', 100);
-					memset(extra_tex_paths[2], '\0', 100);
-				}
-				if (ImGui::MenuItem("Save", "Ctrl+S")) { /* Do stuff */ }
-				if (ImGui::MenuItem("Close", "Ctrl+W")) { m_uistate.running = false; }
-				ImGui::EndMenu();
-			}
-			if (ImGui::BeginMenu("Edit"))
-			{
-				if (ImGui::MenuItem("Skymap..", "Ctrl+E")) {
-					m_uistate.readSkymapWindowActive = true;
-					memset(tex_path, '\0', 100);
-				}
-				ImGui::EndMenu();
-			}
-			ImGui::EndMenuBar();
-		}
-		if (m_uistate.readFileWindowActive) {// Object File loader Window	
-			ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
-			ImGui::Begin("File Reader", &m_uistate.readFileWindowActive, file_reader_flags);
-			ImGui::InputText("Object path", obj_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
-			ImGui::InputText("iTexture0", tex_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
-			
-			for (int j = 0; j < extraTexturesCount; j++) {
-				std::string label = std::string("iTexture") + std::to_string(j+1);
-				ImGui::InputText(label.c_str() , extra_tex_paths[j], 100, ImGuiInputTextFlags_AlwaysOverwrite);
-			}
+		/*Drawing the Sub windows*/
+		//if (m_uistate.objectLoaderWindowActive) {// Object File loader Window	
+		//	ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
+		//	ImGui::Begin("File Reader", &m_uistate.objectLoaderWindowActive, file_reader_flags);
+		//	ImGui::InputText("Object path", obj_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
+		//	ImGui::InputText("iTexture0", tex_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
+		//	
+		//	for (int j = 0; j < extraTexturesCount; j++) {
+		//		std::string label = std::string("iTexture") + std::to_string(j+1);
+		//		ImGui::InputText(label.c_str() , extra_tex_paths[j], 100, ImGuiInputTextFlags_AlwaysOverwrite);
+		//	}
+		//
+		//	if (extraTexturesCount < 3 && ImGui::Button("+", ImVec2(50, 0)))
+		//		extraTexturesCount++;
+		//
+		//	if (ImGui::Button("Load File", ImVec2(100, 30))) {
+		//		std::vector<std::string> texture_paths;
+		//		texture_paths.resize(extraTexturesCount + 2);
+		//		texture_paths[0] = std::string(tex_path);
+		//		for (int j = 0; j < extraTexturesCount; j++)
+		//			texture_paths[j+1] = std::string(extra_tex_paths[j]);
+		//
+		//		this->loadObject(std::string(obj_path), texture_paths);
+		//		m_uistate.objectLoaderWindowActive = false;
+		//	}
+		//	ImGui::End();
+		//}// Object File loader Window
+		//if (m_uistate.skymapLoaderWindowActive) {// Skymap File loader Window
+		//	ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
+		//	ImGui::Begin("File Reader", &m_uistate.skymapLoaderWindowActive, file_reader_flags);
+		//	ImGui::InputText("Skymap path", tex_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
+		//	if (ImGui::Button("Load File", ImVec2(100, 30))) {
+		//		this->reloadSkymap(std::string(tex_path));
+		//		m_uistate.skymapLoaderWindowActive = false;
+		//	}
+		//	ImGui::End();
+		//}// Skymap File loader Window
 
-			if (extraTexturesCount < 3 && ImGui::Button("+", ImVec2(50, 0)))
-				extraTexturesCount++;
+		this->drawUI_menubar();
+		this->drawUI_logger();
+		this->drawUI_objects();
+		this->drawUI_camera();
+		this->drawUI_tester();
+		this->drawUI_advance();
+		this->drawUI_comparer();
+		this->drawUI_frameSaver();
+		
 
-			if (ImGui::Button("Load File", ImVec2(100, 30))) {
-				std::vector<std::string> texture_paths;
-				texture_paths.resize(extraTexturesCount + 2);
-				texture_paths[0] = std::string(tex_path);
-				for (int j = 0; j < extraTexturesCount; j++)
-					texture_paths[j+1] = std::string(extra_tex_paths[j]);
+		// {
+		// 	ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
+		// 	if (ImGui::BeginTabBar("WindowTabs", tab_bar_flags))
+		// 	{
+		// 		if (ImGui::BeginTabItem("Objects"))
+		// 		{
+		// 			drawUI_objects();
+		// 			ImGui::EndTabItem();
+		// 		}
+		// 		if (ImGui::BeginTabItem("Camera"))
+		// 		{
+		// 			drawUI_camera();
+		// 			ImGui::EndTabItem();
+		// 		}
+		// 		if (ImGui::BeginTabItem("Advance"))
+		// 		{
+		// 			drawUI_advance();
+		// 			ImGui::EndTabItem();
+		// 		}
+		// 		ImGui::EndTabBar();
+		// 	}
+		// 	ImGui::Separator();
+		// }
 
-				this->loadObject(std::string(obj_path), texture_paths);
-				m_uistate.readFileWindowActive = false;
-			}
-			ImGui::End();
-		}// Object File loader Window
-
-		if (m_uistate.readSkymapWindowActive) {// Skymap File loader Window
-			ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
-			ImGui::Begin("File Reader", &m_uistate.readSkymapWindowActive, file_reader_flags);
-			ImGui::InputText("Skymap path", tex_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
-			if (ImGui::Button("Load File", ImVec2(100, 30))) {
-				this->reloadSkymap(std::string(tex_path));
-				m_uistate.readSkymapWindowActive = false;
-			}
-			ImGui::End();
-		}// Skymap File loader Window
-		{
-			ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
-			if (ImGui::BeginTabBar("WindowTabs", tab_bar_flags))
-			{
-				if (ImGui::BeginTabItem("Objects"))
-				{
-					drawUI_objects();
-					ImGui::EndTabItem();
-				}
-				if (ImGui::BeginTabItem("Camera"))
-				{
-					drawUI_camera();
-					ImGui::EndTabItem();
-				}
-				if (ImGui::BeginTabItem("Advance"))
-				{
-					drawUI_advance();
-					ImGui::EndTabItem();
-				}
-				ImGui::EndTabBar();
-			}
-			ImGui::Separator();
-		}
-
-		ImGui::End();		// "BRDFA engine menu" end()
+		
 		ImGui::Render();
 
 		// Update the m_uistate and checks if any of the imgui windows are focused.
@@ -1287,6 +1265,13 @@ namespace brdfa {
 	/// Draws the Objects Panel. The user can change the objects parameters here.
 	/// </summary>
 	void BRDFA_Engine::drawUI_objects() {
+		if (!m_uistate.objWindowActive)
+			return;
+
+
+		ImGui::SetNextWindowSize(ImVec2(this->m_configuration.width / 3, 0), ImGuiCond_Appearing);
+		ImGui::Begin("Object Viewer", &m_uistate.objWindowActive);
+
 		//ImGuiStyle& style = ImGui::GetStyle();
 		//float spacing = style.ItemInnerSpacing.x;
 		float button_sz = ImGui::GetFrameHeight();
@@ -1401,6 +1386,8 @@ namespace brdfa {
 
 			ImGui::EndChild();
 		} // For loop over objects
+
+		ImGui::End();
 	}
 
 
@@ -1409,6 +1396,8 @@ namespace brdfa {
 	/// and change the projection matrix
 	/// </summary>
 	void BRDFA_Engine::drawUI_camera() {
+		if (!m_uistate.camWindowActive)
+			return;
 	}
 
 
@@ -1417,7 +1406,12 @@ namespace brdfa {
 	///		
 	/// </summary>
 	void BRDFA_Engine::drawUI_advance() {
-		// ImGui::ShowDemoWindow();
+		if (!m_uistate.brdfEditorWindowActive)
+			return;
+
+		ImGui::SetNextWindowSize(ImVec2(this->m_configuration.width/3, 0), ImGuiCond_Appearing);
+		ImGui::Begin("BRDF Editor", &m_uistate.brdfEditorWindowActive);
+
 		if (ImGui::CollapsingHeader("BRDFs Configuration")){
 			/*Draw Loaded BRDFs*/
 			ImGui::SetWindowFontScale(1.2);
@@ -1600,10 +1594,82 @@ namespace brdfa {
 			ImGui::SetWindowFontScale(1.0);
 		}
 
-		/*TODO:: Implement Collapsing window.*/
-		if (ImGui::CollapsingHeader("Tests and Logs Configuration"))
-		{
-
-		}
+		ImGui::End();
 	}
+
+
+	void BRDFA_Engine::drawUI_logger(){
+		if (!m_uistate.logWindowActive)
+			return;
+	}
+
+
+	void BRDFA_Engine::drawUI_comparer(){
+		if (!m_uistate.brdfCompareWindowActive)
+			return;
+	}
+
+
+	void BRDFA_Engine::drawUI_frameSaver(){
+		if (!m_uistate.frameSaverWindowActive)
+			return;
+	}
+
+
+	void BRDFA_Engine::drawUI_tester(){
+		if (!m_uistate.testWindowActive)
+			return;
+
+	}
+
+
+
+	void BRDFA_Engine::drawUI_menubar() {
+		int h = ImGui::GetFrameHeight();
+		int w = 0; //this->m_configuration.width;
+
+		ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_Always);
+		ImGui::SetNextWindowPos(ImVec2(0,0), ImGuiCond_Always);
+		
+		ImGui::Begin("Menu", nullptr, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+		// Rendering the Menu bar										 
+		if (ImGui::BeginMenuBar())
+		{
+			if (ImGui::BeginMenu("File"))
+			{
+				if (ImGui::BeginMenu("Open")) {
+					if (ImGui::MenuItem("Object", "Ctrl+O")) {
+						m_uistate.objectLoaderWindowActive = true;
+						m_uistate.extraTexturesCount = 0;
+						memset(m_uistate.obj_path, '\0', 100);
+						memset(m_uistate.tex_path, '\0', 100);
+						memset(m_uistate.extra_tex_paths[0], '\0', 100);
+						memset(m_uistate.extra_tex_paths[1], '\0', 100);
+						memset(m_uistate.extra_tex_paths[2], '\0', 100);
+					}
+					if (ImGui::MenuItem("Skymap", "Ctrl+E")) {
+						m_uistate.skymapLoaderWindowActive = true;
+						memset(m_uistate.tex_path, '\0', 100);
+					}
+					ImGui::EndMenu();
+				}
+				if (ImGui::MenuItem("Close")) { m_uistate.running = false; }
+				ImGui::EndMenu();
+			}
+			if (ImGui::BeginMenu("Tools"))
+			{
+				if (ImGui::MenuItem("Objects Editor", "Ctrl+M")) m_uistate.objWindowActive = true;
+				if (ImGui::MenuItem("Camera Editor", "Ctrl+K")) m_uistate.camWindowActive = true;
+				if (ImGui::MenuItem("BRDF Editor", "Ctrl+B")) m_uistate.brdfEditorWindowActive = true;
+				if (ImGui::MenuItem("Log Window", "Ctrl+L")) m_uistate.logWindowActive = true;
+				if (ImGui::MenuItem("Test Window", "Ctrl+T")) m_uistate.testWindowActive= true;
+				if (ImGui::MenuItem("Comparison Generator", "Ctrl+G")) m_uistate.brdfCompareWindowActive = true;
+				if (ImGui::MenuItem("Frame Saver", "Ctrl+F")) m_uistate.frameSaverWindowActive = true;
+				ImGui::EndMenu();
+			}
+			ImGui::EndMenuBar();
+		}
+		ImGui::End();
+	}
+
 }

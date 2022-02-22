@@ -45,11 +45,26 @@ namespace brdfa {
     /// Holds the states of the UI buttons and options. For now we only have the rendering option.
     /// </summary>
     struct UIState {
-        uint8_t renderOption = RenderOption::BRDFA_TEXTURE; // render with textures
+        char obj_path[100];				// Mesh path
+        char tex_path[100];				// Texture path
+        char extra_tex_paths[3][100];	// Texture path
+        int extraTexturesCount = 0;
+
         bool    running = true;
         bool    focused = true;
-        bool    readFileWindowActive = false;
-        bool    readSkymapWindowActive = false;
+
+        /*File loading windows*/
+        bool    objectLoaderWindowActive = false;
+        bool    skymapLoaderWindowActive = false;
+        
+        /*Tools windows*/
+        bool    logWindowActive = false;
+        bool    objWindowActive = false;
+        bool    camWindowActive = false;
+        bool    testWindowActive = false;
+        bool    brdfEditorWindowActive = false;
+        bool    brdfCompareWindowActive = false;
+        bool    frameSaverWindowActive = false;
     };
 
 
