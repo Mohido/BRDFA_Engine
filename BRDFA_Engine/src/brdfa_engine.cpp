@@ -269,7 +269,6 @@ namespace brdfa {
 	}
 
 
-
 	/// <summary>
 	/// Loading an environment map that is seperated into 6 different files. Skymap is only supported.
 	/// </summary>
@@ -390,7 +389,6 @@ namespace brdfa {
 	}
 
 
-
 	/// <summary>
 	/// 
 	/// </summary>
@@ -401,7 +399,7 @@ namespace brdfa {
 		stbi_uc* textureData;
 		textureData = stbi_load(skyboxSides.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 		if (!textureData) {
-			throw std::runtime_error("ERROR: failed to load Environment Map image!: " + skyboxSides + " Does not exist!");
+			throw std::runtime_error("Failed to load image: [" + skyboxSides + "]");
 			return false; // we should not break the whole program if we don't find an image...
 		}
 		
@@ -526,7 +524,6 @@ namespace brdfa {
 	}
 
 
-
 	/// <summary>
 	/// checks if the engine is still active or closed.
 	/// </summary>
@@ -586,7 +583,6 @@ namespace brdfa {
 		}
 
 	}
-
 
 
 // ------------------------------------------------ MEMBER FUNCTIONS ---------------------------------------
@@ -818,7 +814,6 @@ namespace brdfa {
 	}
 
 
-
 	/// <summary>
 	/// Starts the GLFW window.
 	/// </summary>
@@ -1001,11 +996,6 @@ namespace brdfa {
 	}
 
 
-
-
-
-
-
 	/// <summary>
 	/// private member function to render.
 	/// </summary>
@@ -1061,7 +1051,6 @@ namespace brdfa {
 	}
 
 
-
 	/// <summary>
 	/// 
 	/// </summary>
@@ -1072,49 +1061,6 @@ namespace brdfa {
 		ImGui::NewFrame();
 
 		/*Create the engine menu window*/
-		//ImGui::SetNextWindowSize(ImVec2(400, 100), ImGuiCond_FirstUseEver);
-		
-		
-		
-
-		/*Drawing the Sub windows*/
-		//if (m_uistate.objectLoaderWindowActive) {// Object File loader Window	
-		//	ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
-		//	ImGui::Begin("File Reader", &m_uistate.objectLoaderWindowActive, file_reader_flags);
-		//	ImGui::InputText("Object path", obj_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
-		//	ImGui::InputText("iTexture0", tex_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
-		//	
-		//	for (int j = 0; j < extraTexturesCount; j++) {
-		//		std::string label = std::string("iTexture") + std::to_string(j+1);
-		//		ImGui::InputText(label.c_str() , extra_tex_paths[j], 100, ImGuiInputTextFlags_AlwaysOverwrite);
-		//	}
-		//
-		//	if (extraTexturesCount < 3 && ImGui::Button("+", ImVec2(50, 0)))
-		//		extraTexturesCount++;
-		//
-		//	if (ImGui::Button("Load File", ImVec2(100, 30))) {
-		//		std::vector<std::string> texture_paths;
-		//		texture_paths.resize(extraTexturesCount + 2);
-		//		texture_paths[0] = std::string(tex_path);
-		//		for (int j = 0; j < extraTexturesCount; j++)
-		//			texture_paths[j+1] = std::string(extra_tex_paths[j]);
-		//
-		//		this->loadObject(std::string(obj_path), texture_paths);
-		//		m_uistate.objectLoaderWindowActive = false;
-		//	}
-		//	ImGui::End();
-		//}// Object File loader Window
-		//if (m_uistate.skymapLoaderWindowActive) {// Skymap File loader Window
-		//	ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
-		//	ImGui::Begin("File Reader", &m_uistate.skymapLoaderWindowActive, file_reader_flags);
-		//	ImGui::InputText("Skymap path", tex_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
-		//	if (ImGui::Button("Load File", ImVec2(100, 30))) {
-		//		this->reloadSkymap(std::string(tex_path));
-		//		m_uistate.skymapLoaderWindowActive = false;
-		//	}
-		//	ImGui::End();
-		//}// Skymap File loader Window
-
 		this->drawUI_menubar();
 		this->drawUI_objectLoader();
 		this->drawUI_skymapLoader();
@@ -1158,12 +1104,6 @@ namespace brdfa {
 		m_uistate.focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow);
 		updateUICommandBuffers(m_commander, m_device, m_graphicsPipelines, m_swapChain, imageIndex);
 	}
-
-
-
-
-
-
 
 
 	/// <summary>
@@ -1224,7 +1164,6 @@ namespace brdfa {
 	}
 
 
-
 	/// <summary>
 	/// Recreates the whole engine at runtime. Cleans it up first then re-initializes the needed parts.
 	/// </summary>
@@ -1261,8 +1200,6 @@ namespace brdfa {
 		m_imagesInFlight.resize(m_swapChain.images.size(), VK_NULL_HANDLE);
 	}
 
-
-	
 
 	/// <summary>
 	/// Draws the Objects Panel. The user can change the objects parameters here.
@@ -1626,7 +1563,6 @@ namespace brdfa {
 	}
 
 
-
 	void BRDFA_Engine::drawUI_menubar() {
 		int h = ImGui::GetFrameHeight();
 		int w = 0; //this->m_configuration.width;
@@ -1652,7 +1588,7 @@ namespace brdfa {
 					}
 					if (ImGui::MenuItem("Skymap", "Ctrl+E")) {
 						m_uistate.skymapLoaderWindowActive = true;
-						memset(m_uistate.tex_path, '\0', 100);
+						memset(m_uistate.skymap_path, '\0', 100);
 					}
 					ImGui::EndMenu();
 				}
@@ -1677,7 +1613,6 @@ namespace brdfa {
 	}
 
 
-
 	void BRDFA_Engine::drawUI_objectLoader(){
 		if (!m_uistate.objectLoaderWindowActive)
 			return;
@@ -1685,10 +1620,12 @@ namespace brdfa {
 		static std::string logger = "";
 
 		ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
-		//ImGui::SetNextWindowSize(ImVec2(0,0), ImGuiCond_Always);
+		ImGui::SetNextWindowPos(ImVec2(100,100),ImGuiCond_Appearing);
+
 		ImGui::Begin("Object Loader", &m_uistate.objectLoaderWindowActive, file_reader_flags);
 		ImGui::InputText("Object path", m_uistate.obj_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
 		ImGui::InputText("iTexture0", m_uistate.tex_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
+
 
 		for (int j = 0; j < m_uistate.extraTexturesCount; j++) {
 			std::string label = std::string("iTexture") + std::to_string(j + 1);
@@ -1726,6 +1663,33 @@ namespace brdfa {
 		ImGui::End();
 	
 	}
-	void BRDFA_Engine::drawUI_skymapLoader(){}
+	
+	
+	void BRDFA_Engine::drawUI_skymapLoader(){
+		if (!m_uistate.skymapLoaderWindowActive)
+			return;
+
+		static std::string logger = "";
+
+		ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
+		ImGui::SetNextWindowPos(ImVec2(100, 100), ImGuiCond_Appearing);
+		ImGui::Begin("Skybox loader", &m_uistate.skymapLoaderWindowActive, file_reader_flags);
+		ImGui::InputText("Skymap path", m_uistate.skymap_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
+		if (ImGui::Button("Load File", ImVec2(100, 30))) {
+			try {
+				this->reloadSkymap(std::string(m_uistate.skymap_path));
+				m_uistate.skymapLoaderWindowActive = false;
+			}
+			catch (const std::exception& exp){
+				logger = exp.what();
+			}
+		}
+		if (logger.size() > 0) {
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 0, 0, 1));
+			ImGui::TextWrapped(logger.c_str());
+			ImGui::PopStyleColor();
+		}
+		ImGui::End();
+	}
 
 }
