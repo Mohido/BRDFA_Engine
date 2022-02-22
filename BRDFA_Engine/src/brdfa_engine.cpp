@@ -1116,6 +1116,8 @@ namespace brdfa {
 		//}// Skymap File loader Window
 
 		this->drawUI_menubar();
+		this->drawUI_objectLoader();
+		this->drawUI_skymapLoader();
 		this->drawUI_logger();
 		this->drawUI_objects();
 		this->drawUI_camera();
@@ -1260,6 +1262,7 @@ namespace brdfa {
 	}
 
 
+	
 
 	/// <summary>
 	/// Draws the Objects Panel. The user can change the objects parameters here.
@@ -1667,9 +1670,62 @@ namespace brdfa {
 				if (ImGui::MenuItem("Frame Saver", "Ctrl+F")) m_uistate.frameSaverWindowActive = true;
 				ImGui::EndMenu();
 			}
+			if ( ImGui::MenuItem("Help", "Ctrl+H"))  m_uistate.helpWindowActive = true;
 			ImGui::EndMenuBar();
 		}
 		ImGui::End();
 	}
+
+
+
+	void BRDFA_Engine::drawUI_objectLoader(){
+		if (!m_uistate.objectLoaderWindowActive)
+			return;
+
+		static std::string logger = "";
+
+		ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
+		//ImGui::SetNextWindowSize(ImVec2(0,0), ImGuiCond_Always);
+		ImGui::Begin("Object Loader", &m_uistate.objectLoaderWindowActive, file_reader_flags);
+		ImGui::InputText("Object path", m_uistate.obj_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
+		ImGui::InputText("iTexture0", m_uistate.tex_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
+
+		for (int j = 0; j < m_uistate.extraTexturesCount; j++) {
+			std::string label = std::string("iTexture") + std::to_string(j + 1);
+			ImGui::InputText(label.c_str(), m_uistate.extra_tex_paths[j], 100, ImGuiInputTextFlags_AlwaysOverwrite);
+		}
+
+		if (m_uistate.extraTexturesCount < 3 && ImGui::Button("+", ImVec2(50, 0)))
+			m_uistate.extraTexturesCount++;
+
+
+		if (ImGui::Button("Load File", ImVec2(100, 30))) {
+			std::vector<std::string> texture_paths;
+			texture_paths.resize(m_uistate.extraTexturesCount + 2);
+			texture_paths[0] = std::string(m_uistate.tex_path);
+			for (int j = 0; j < m_uistate.extraTexturesCount; j++)
+				texture_paths[j + 1] = std::string(m_uistate.extra_tex_paths[j]);
+
+			try {
+				if (!this->loadObject(std::string(m_uistate.obj_path), texture_paths)) 
+					logger = "Object can't be loaded: Make sure to have iTexture0 filled and object path is correct!";			
+				else 
+					m_uistate.objectLoaderWindowActive = false;
+			}
+			catch (const std::exception& exp) {
+				logger = exp.what();
+			}
+		}
+
+		if (logger.size() > 0) {
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 0, 0, 1));
+			ImGui::TextWrapped(logger.c_str());
+			ImGui::PopStyleColor();
+		}
+		
+		ImGui::End();
+	
+	}
+	void BRDFA_Engine::drawUI_skymapLoader(){}
 
 }
