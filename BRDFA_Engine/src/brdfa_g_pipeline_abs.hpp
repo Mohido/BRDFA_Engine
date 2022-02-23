@@ -12,6 +12,8 @@
 #include <algorithm>
 #include <fstream>
 #include <sstream>
+#include <cstdlib>
+#include <regex>
 
 namespace brdfa {
 
@@ -100,24 +102,51 @@ namespace brdfa {
         shaderc_compilation_status compilationStatus = shaderc_result_get_compilation_status(result);
 
         switch (compilationStatus) {
-        case shaderc_compilation_status_success:
-            std::cout << "[Shader Realtime Compiler]: INFO: Successfully compiled shader" << std::endl;
-            break;
-        default:
-            // std::cout << "[Shader Realtime Compiler]: " << shadername << "ERROR: Compilation error" << std::endl;
-            std::ostringstream ss;
-            ss << std::string("[Shader Realtime Compiler]: ");
-            ss << std::string(shadername);
-            ss << std::string("ERROR: Compilation error\n");
-            ss << std::string("Warnings: ");
-            //ss << std::to_string(shaderc_result_get_num_warnings(result));
-            ss << std::string("\nErrors: ");
-            //ss << std::to_string(shaderc_result_get_num_errors(result));
-            ss << std::string("\t\t");
-            ss << std::string(shaderc_result_get_error_message(result));
-            //std::runtime_error(ss.str());
-            throw std::exception("Wrong Wronnnn");
-            break;
+            case shaderc_compilation_status_success:
+                std::cout << "[Shader Realtime Compiler]: INFO: Successfully compiled shader" << std::endl;
+                break;
+            default:
+                std::ostringstream ss;
+                ss << std::string("Compilation Error in ");
+                ss << std::string(shadername);
+                ss << std::string(":\n\tErrors Count:\n\t\t");
+                ss << std::to_string(shaderc_result_get_num_errors(result));
+                ss << std::string("\n\tErrors:\n\t\t");
+            
+                /*Loging out the errors*/
+                std::string compilationError = std::string(shaderc_result_get_error_message(result));
+
+                /*Introducing tabs after each new line*/
+                size_t start_pos = 0;
+                std::string nld = "\n";
+                std::string told = "\n\t\t";
+                while ((start_pos = compilationError.find(nld, start_pos)) != std::string::npos) {
+                    compilationError.replace(start_pos, nld.length(), told);
+                    start_pos += told.length(); // Handles case where 'to' is a substring of 'from'
+                }
+
+                /*Changing the lines numbers*/
+                std::string finalOutput = compilationError;
+                std::regex reg(":[0-9]+:");   // matches words beginning by "sub"
+                std::regex_iterator<std::string::iterator> rit(compilationError.begin(), compilationError.end(), reg);
+                std::regex_iterator<std::string::iterator> rend;
+                while (rit != rend) {
+                    std::string lin = rit->str();
+                    std::regex line_e(lin.c_str());
+                    std::string newline = std::string(lin.begin() + 1, lin.end() - 1);
+                    newline = std::to_string(std::stoi(newline) - 118);
+                    newline = std::string(":") + newline + std::string(":");
+                    finalOutput = std::regex_replace(finalOutput, line_e, newline);
+                    ++rit;
+                }
+                ss << finalOutput;
+
+                // Releasing the compiled data.
+                shaderc_result_release(result);
+                shaderc_compiler_release(compiler);
+
+                throw std::exception(ss.str().c_str());
+                break;
         }
 
         // Do stuff with compilation results.

@@ -45,11 +45,32 @@ namespace brdfa {
     /// Holds the states of the UI buttons and options. For now we only have the rendering option.
     /// </summary>
     struct UIState {
-        uint8_t renderOption = RenderOption::BRDFA_TEXTURE; // render with textures
+        char    obj_path[100];				// Mesh path
+        char    tex_path[100];				// Texture path
+        char    extra_tex_paths[3][100];	// Texture path
+        int     extraTexturesCount = 0;     // The number of extra textures.
+        char    skymap_path[100];		    // Skymap texture
+
+
         bool    running = true;
         bool    focused = true;
-        bool    readFileWindowActive = false;
-        bool    readSkymapWindowActive = false;
+
+        /*File loading windows*/
+        bool    objectLoaderWindowActive = false;
+        bool    skymapLoaderWindowActive = false;
+        
+        /*Tools windows*/
+        bool    logWindowActive = false;
+        bool    objWindowActive = false;
+        bool    helpWindowActive = false;
+        bool    camWindowActive = false;
+        bool    testWindowActive = false;
+        bool    brdfEditorWindowActive = false;
+        bool    brdfCompareWindowActive = false;
+        bool    frameSaverWindowActive = false;
+
+        float   timePerFrame = 0.0;
+        
     };
 
 
@@ -466,6 +487,7 @@ namespace brdfa {
         std::string             brdfName;
         TextEditor              glslPanel;	/*IMGUI Text editor Addon: https://github.com/ELTE-IK-CG/Dragonfly/tree/master/include/ImGui-addons/imgui_text_editor*/
         std::vector<char>       latest_spir_v;
+        std::string             log_e = "";            // Holds the log of the last compilation
         bool                    tested = false;
     };
 

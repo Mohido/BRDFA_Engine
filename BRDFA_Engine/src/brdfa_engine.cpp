@@ -156,7 +156,6 @@ namespace brdfa {
 	}
 
 
-
 	/// <summary>
 	/// Saved for future usage.
 	/// </summary>
@@ -164,7 +163,6 @@ namespace brdfa {
 	bool BRDFA_Engine::interrupt() {
 		return true;
 	}
-
 
 
 	/// <summary>
@@ -208,7 +206,6 @@ namespace brdfa {
 	}
 
 
-
 	/// <summary>
 	/// Called to load that object from the ith object from the scene.
 	/// </summary>
@@ -245,7 +242,6 @@ namespace brdfa {
 	}
 
 
-
 	/// <summary>
 	/// This function can be called to reload a new skymap to the scene. It can be called only to reload skybox images.
 	/// </summary>
@@ -267,7 +263,6 @@ namespace brdfa {
 		recordCommandBuffers(m_commander, m_device, m_graphicsPipelines, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
 		return true;
 	}
-
 
 
 	/// <summary>
@@ -390,7 +385,6 @@ namespace brdfa {
 	}
 
 
-
 	/// <summary>
 	/// 
 	/// </summary>
@@ -401,7 +395,7 @@ namespace brdfa {
 		stbi_uc* textureData;
 		textureData = stbi_load(skyboxSides.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 		if (!textureData) {
-			throw std::runtime_error("ERROR: failed to load Environment Map image!: " + skyboxSides + " Does not exist!");
+			throw std::runtime_error("Failed to load image: [" + skyboxSides + "]");
 			return false; // we should not break the whole program if we don't find an image...
 		}
 		
@@ -526,7 +520,6 @@ namespace brdfa {
 	}
 
 
-
 	/// <summary>
 	/// checks if the engine is still active or closed.
 	/// </summary>
@@ -545,7 +538,6 @@ namespace brdfa {
 		this->m_frameBufferResized = true;
 		return this->m_frameBufferResized;
 	}
-
 
 
 	/// <summary>
@@ -586,7 +578,6 @@ namespace brdfa {
 		}
 
 	}
-
 
 
 // ------------------------------------------------ MEMBER FUNCTIONS ---------------------------------------
@@ -690,6 +681,7 @@ namespace brdfa {
 		/*Re record the scene objects*/
 		for (size_t j = 0; j < m_meshes.size(); j++) refreshObject(j);
 	}
+
 
 	/// <summary>
 	/// Load all the needed pipelines. 
@@ -818,7 +810,6 @@ namespace brdfa {
 	}
 
 
-
 	/// <summary>
 	/// Starts the GLFW window.
 	/// </summary>
@@ -890,6 +881,7 @@ namespace brdfa {
 	/// </summary>
 	/// <returns></returns>
 	bool BRDFA_Engine::startImgui() {
+		
 		//1: create descriptor pool for IMGUI
 		// the size of the pool is very oversize, but it's copied from imgui demo itself.
 		VkDescriptorPoolSize pool_sizes[] =
@@ -920,7 +912,6 @@ namespace brdfa {
 		// 2: initialize imgui library
 		//this initializes the core structures of imgui
 		ImGui::CreateContext();
-
 		//this initializes imgui for GLFW_VULKAN
 		bool initGLFW_V = ImGui_ImplGlfw_InitForVulkan(m_window, true);
 		QueueFamilyIndices families = findQueueFamilies(m_device);
@@ -942,7 +933,6 @@ namespace brdfa {
 		VkCommandBuffer cmd = beginSingleTimeCommands(m_commander, m_device);
 		bool createTV = ImGui_ImplVulkan_CreateFontsTexture(cmd);
 		endSingleTimeCommands(m_commander, m_device);
-
 		return true;
 	}
 
@@ -1002,16 +992,12 @@ namespace brdfa {
 	}
 
 
-
-
-
-
-
 	/// <summary>
 	/// private member function to render.
 	/// </summary>
 	/// <param name="imageIndex">The image Index currently being processed. (Inflag image)</param>
 	void BRDFA_Engine::render(uint32_t imageIndex) {
+		auto startTime = std::chrono::high_resolution_clock::now();
 		this->drawUI(imageIndex);
 		
 		if (m_imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
@@ -1059,8 +1045,11 @@ namespace brdfa {
 		else if (result != VK_SUCCESS) {
 			throw std::runtime_error("failed to present swap chain image!");
 		}
-	}
 
+		auto endtime = std::chrono::high_resolution_clock::now();
+		float time = std::chrono::duration<float, std::chrono::seconds::period>(endtime - startTime).count();
+		m_uistate.timePerFrame = (m_uistate.timePerFrame > 0.0f)? (m_uistate.timePerFrame + time * 1000.0f) / 2.0f : time * 1000.0f;
+	}
 
 
 	/// <summary>
@@ -1068,122 +1057,54 @@ namespace brdfa {
 	/// </summary>
 	/// <param name="imageIndex"></param>
 	void BRDFA_Engine::drawUI(uint32_t imageIndex) {
-		static char obj_path[100];				// Mesh path
-		static char tex_path[100];				// Texture path
-		static char extra_tex_paths[3][100];				// Texture path
-		static int extraTexturesCount = 0;
-
-
 		ImGui_ImplVulkan_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
 		/*Create the engine menu window*/
-		ImGui::SetNextWindowSize(ImVec2(400, 100), ImGuiCond_FirstUseEver);
-		ImGui::Begin("BRDFA Engine Menu", &m_uistate.running, ImGuiWindowFlags_MenuBar);
+		this->drawUI_menubar();
+		this->drawUI_objectLoader();
+		this->drawUI_skymapLoader();
+		this->drawUI_logger();
+		this->drawUI_objects();
+		this->drawUI_camera();
+		this->drawUI_tester();
+		this->drawUI_editorBRDF();
+		this->drawUI_comparer();
+		this->drawUI_frameSaver();
+		
 
-		// Rendering the Menu bar
-		if (ImGui::BeginMenuBar())
-		{
-			if (ImGui::BeginMenu("File"))
-			{
-				if (ImGui::MenuItem("Open..", "Ctrl+O")) { 
-					m_uistate.readFileWindowActive = true;
-					extraTexturesCount = 0;
-					memset(obj_path, '\0', 100);
-					memset(tex_path, '\0', 100);
-					memset(extra_tex_paths[0], '\0', 100);
-					memset(extra_tex_paths[1], '\0', 100);
-					memset(extra_tex_paths[2], '\0', 100);
-				}
-				if (ImGui::MenuItem("Save", "Ctrl+S")) { /* Do stuff */ }
-				if (ImGui::MenuItem("Close", "Ctrl+W")) { m_uistate.running = false; }
-				ImGui::EndMenu();
-			}
-			if (ImGui::BeginMenu("Edit"))
-			{
-				if (ImGui::MenuItem("Skymap..", "Ctrl+E")) {
-					m_uistate.readSkymapWindowActive = true;
-					memset(tex_path, '\0', 100);
-				}
-				ImGui::EndMenu();
-			}
-			ImGui::EndMenuBar();
-		}
-		if (m_uistate.readFileWindowActive) {// Object File loader Window	
-			ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
-			ImGui::Begin("File Reader", &m_uistate.readFileWindowActive, file_reader_flags);
-			ImGui::InputText("Object path", obj_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
-			ImGui::InputText("iTexture0", tex_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
-			
-			for (int j = 0; j < extraTexturesCount; j++) {
-				std::string label = std::string("iTexture") + std::to_string(j+1);
-				ImGui::InputText(label.c_str() , extra_tex_paths[j], 100, ImGuiInputTextFlags_AlwaysOverwrite);
-			}
+		// {
+		// 	ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
+		// 	if (ImGui::BeginTabBar("WindowTabs", tab_bar_flags))
+		// 	{
+		// 		if (ImGui::BeginTabItem("Objects"))
+		// 		{
+		// 			drawUI_objects();
+		// 			ImGui::EndTabItem();
+		// 		}
+		// 		if (ImGui::BeginTabItem("Camera"))
+		// 		{
+		// 			drawUI_camera();
+		// 			ImGui::EndTabItem();
+		// 		}
+		// 		if (ImGui::BeginTabItem("Advance"))
+		// 		{
+		// 			drawUI_editorBRDF();
+		// 			ImGui::EndTabItem();
+		// 		}
+		// 		ImGui::EndTabBar();
+		// 	}
+		// 	ImGui::Separator();
+		// }
 
-			if (extraTexturesCount < 3 && ImGui::Button("+", ImVec2(50, 0)))
-				extraTexturesCount++;
-
-			if (ImGui::Button("Load File", ImVec2(100, 30))) {
-				std::vector<std::string> texture_paths;
-				texture_paths.resize(extraTexturesCount + 2);
-				texture_paths[0] = std::string(tex_path);
-				for (int j = 0; j < extraTexturesCount; j++)
-					texture_paths[j+1] = std::string(extra_tex_paths[j]);
-
-				this->loadObject(std::string(obj_path), texture_paths);
-				m_uistate.readFileWindowActive = false;
-			}
-			ImGui::End();
-		}// Object File loader Window
-
-		if (m_uistate.readSkymapWindowActive) {// Skymap File loader Window
-			ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
-			ImGui::Begin("File Reader", &m_uistate.readSkymapWindowActive, file_reader_flags);
-			ImGui::InputText("Skymap path", tex_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
-			if (ImGui::Button("Load File", ImVec2(100, 30))) {
-				this->reloadSkymap(std::string(tex_path));
-				m_uistate.readSkymapWindowActive = false;
-			}
-			ImGui::End();
-		}// Skymap File loader Window
-		{
-			ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
-			if (ImGui::BeginTabBar("WindowTabs", tab_bar_flags))
-			{
-				if (ImGui::BeginTabItem("Objects"))
-				{
-					drawUI_objects();
-					ImGui::EndTabItem();
-				}
-				if (ImGui::BeginTabItem("Camera"))
-				{
-					drawUI_camera();
-					ImGui::EndTabItem();
-				}
-				if (ImGui::BeginTabItem("Advance"))
-				{
-					drawUI_advance();
-					ImGui::EndTabItem();
-				}
-				ImGui::EndTabBar();
-			}
-			ImGui::Separator();
-		}
-
-		ImGui::End();		// "BRDFA engine menu" end()
+		
 		ImGui::Render();
 
 		// Update the m_uistate and checks if any of the imgui windows are focused.
 		m_uistate.focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow);
 		updateUICommandBuffers(m_commander, m_device, m_graphicsPipelines, m_swapChain, imageIndex);
 	}
-
-
-
-
-
-
 
 
 	/// <summary>
@@ -1244,7 +1165,6 @@ namespace brdfa {
 	}
 
 
-
 	/// <summary>
 	/// Recreates the whole engine at runtime. Cleans it up first then re-initializes the needed parts.
 	/// </summary>
@@ -1282,11 +1202,17 @@ namespace brdfa {
 	}
 
 
-
 	/// <summary>
 	/// Draws the Objects Panel. The user can change the objects parameters here.
 	/// </summary>
 	void BRDFA_Engine::drawUI_objects() {
+		if (!m_uistate.objWindowActive)
+			return;
+
+
+		ImGui::SetNextWindowSize(ImVec2(this->m_configuration.width / 3, 0), ImGuiCond_Appearing);
+		ImGui::Begin("Object Viewer", &m_uistate.objWindowActive);
+
 		//ImGuiStyle& style = ImGui::GetStyle();
 		//float spacing = style.ItemInnerSpacing.x;
 		float button_sz = ImGui::GetFrameHeight();
@@ -1401,6 +1327,8 @@ namespace brdfa {
 
 			ImGui::EndChild();
 		} // For loop over objects
+
+		ImGui::End();
 	}
 
 
@@ -1409,6 +1337,8 @@ namespace brdfa {
 	/// and change the projection matrix
 	/// </summary>
 	void BRDFA_Engine::drawUI_camera() {
+		if (!m_uistate.camWindowActive)
+			return;
 	}
 
 
@@ -1416,44 +1346,56 @@ namespace brdfa {
 	///		Draws the Advance panel. In advance panel, the user can insert new GLSL BRDFs, Test/Compile/Edit/Save them. 
 	///		
 	/// </summary>
-	void BRDFA_Engine::drawUI_advance() {
-		// ImGui::ShowDemoWindow();
-		if (ImGui::CollapsingHeader("BRDFs Configuration")){
-			/*Draw Loaded BRDFs*/
+	void BRDFA_Engine::drawUI_editorBRDF() {
+		if (!m_uistate.brdfEditorWindowActive)
+			return;
+
+		
+		//ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoMove;// ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
+		ImGui::SetNextWindowPos(ImVec2(this->m_configuration.width - this->m_configuration.width / 3, 0), ImGuiCond_Appearing);
+		ImGui::SetNextWindowSize(ImVec2(this->m_configuration.width / 3, this->m_configuration.height), ImGuiCond_Appearing);
+		ImGui::Begin("BRDF Editor", &m_uistate.brdfEditorWindowActive);
+		/*Draw Loaded BRDFs*/
+		
+
+
+		if (ImGui::CollapsingHeader("Help")) {
 			ImGui::SetWindowFontScale(1.2);
-			if (ImGui::TreeNode("Help")) {
-				if (ImGui::TreeNode("Editting BRDFs")) {
-					ImGui::TextWrapped("Here you can create a new BRDF, or edit the pre-existing saved ones.");
-					ImGui::TextWrapped("\t* To create a new BRDF please click on the costum BRDF drop down.Then insert a new BRDF name and click the + button.After that, a temporary BRDF template will be created.The temporary BRDF will not be saved unless it is tested, then can be loaded to the main BRDFs. ");
-					ImGui::TextWrapped("\t* To edit an existed BRDF, you can open the Loaded BRDFs panel and edit the BRDF that you are interested in changing. The changes will not occur, unless you test them first. After testing them, you can view them (Update the Rendering Options). You can save the BRDF to a file and cache it with the save button. The files can be found in the \"./shaders/brdfs\"");
-					ImGui::TreePop();
-				}// end Editting BRDFs panel
-				if (ImGui::TreeNode("Globals")) {
-					ImGui::TextWrapped("We have some global uniform variables that you can use in the BRDF code. The variables are the following:");
-					ImGui::TextWrapped("* iTexture0, iTexture1, iTexture2, iTexture3");
-					ImGui::TextWrapped("\tThese are texture parameters that holds the values of the textures filled when the mesh is loaded. iTexture0 must be loaded within the mesh, while the other textures are optional. However, using a texture that is not being filled will cause an error. Therefore, make sure to use textures if you have added them.");
-					ImGui::TextWrapped("* iParameter0, iParameter1, iParameter2, iParameter3");
-					ImGui::TextWrapped("\tThese are parameters that can be edited from the object_n interface. We have 4 available parameters that you can pass to the shader and use them. All of the parameters are normalized (0 to 1) floating numbers.");
-					ImGui::TreePop();
-				}// end Editting BRDFs panel
+			if (ImGui::TreeNode("Editting BRDFs")) {
+				ImGui::TextWrapped("Here you can create a new BRDF, or edit the pre-existing saved ones.");
+				ImGui::TextWrapped("\t* To create a new BRDF please click on the costum BRDF drop down.Then insert a new BRDF name and click the + button.After that, a temporary BRDF template will be created.The temporary BRDF will not be saved unless it is tested, then can be loaded to the main BRDFs. ");
+				ImGui::TextWrapped("\t* To edit an existed BRDF, you can open the Loaded BRDFs panel and edit the BRDF that you are interested in changing. The changes will not occur, unless you test them first. After testing them, you can view them (Update the Rendering Options). You can save the BRDF to a file and cache it with the save button. The files can be found in the \"./shaders/brdfs\"");
 				ImGui::TreePop();
-			}// Help Node
-
-			ImGui::Separator();
-
+			}// end Editting BRDFs panel
+			if (ImGui::TreeNode("Shader Globals")) {
+				ImGui::TextWrapped("We have some global uniform variables that you can use in the BRDF code. The variables are the following:");
+				ImGui::TextWrapped("* iTexture0, iTexture1, iTexture2, iTexture3");
+				ImGui::TextWrapped("\tThese are texture parameters that holds the values of the textures filled when the mesh is loaded. iTexture0 must be loaded within the mesh, while the other textures are optional. However, using a texture that is not being filled will cause an error. Therefore, make sure to use textures if you have added them.");
+				ImGui::TextWrapped("* iParameter0, iParameter1, iParameter2, iParameter3");
+				ImGui::TextWrapped("\tThese are parameters that can be edited from the object_n interface. We have 4 available parameters that you can pass to the shader and use them. All of the parameters are normalized (0 to 1) floating numbers.");
+				ImGui::TreePop();
+			}
+			ImGui::SetWindowFontScale(1.0);
+		}
+		ImGui::Separator();
+		if (ImGui::CollapsingHeader("BRDFs Editor")){
+			
 			if (ImGui::TreeNode("Loaded BRDFs")){ // Loaded BRDFs
 				for (auto& it : m_loadedBrdfs)
 				{
+					ImGui::SetWindowFontScale(1.2);
 					if (ImGui::TreeNode(it.first.c_str()))
 					{
 						// Starting the section of the object
 						float bs = ImGui::GetFrameHeight();
 						float w = ImGui::GetColumnWidth();
-						ImGui::BeginChild(it.first.c_str(), ImVec2(0.0f, bs * 10.0f), true);
+						float len = (it.second.log_e.size() > 0) ? 12.0f : 10.0f;
+
+						ImGui::BeginChild(it.first.c_str(), ImVec2(0.0f, bs * len), true);
 
 						//ImGui::Text("struct BRDF_Output{ vec3 diffuse; vec3 specular;}");
 
-						ImGui::SetWindowFontScale(1.4);
+						ImGui::SetWindowFontScale(1.3);
 						it.second.glslPanel.Render(it.first.c_str(), ImVec2(w, bs * 8.0f), true);
 						ImGui::SetWindowFontScale(1.0);
 						ImGui::NewLine();
@@ -1461,8 +1403,8 @@ namespace brdfa {
 						if (it.second.glslPanel.IsTextChanged())
 							it.second.tested = false;
 						
+						/*Buttons rendering*/
 						ImVec4 col = (it.second.tested) ? ImVec4(0, 0.7, 0, 1) : ImVec4(0.7, 0, 0, 1);
-
 						ImGui::PushStyleColor(ImGuiCol_Button , col);
 						if(!it.second.tested) ImGui::PushStyleColor(ImGuiCol_ButtonHovered, col);
 						ImGui::SameLine(0, w / 20);
@@ -1474,6 +1416,12 @@ namespace brdfa {
 						ImGui::PopStyleColor();
 						if (!it.second.tested) ImGui::PopStyleColor();
 						
+						/*Logging the errors of the Test*/
+						if (it.second.log_e.size() > 0) {
+							ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 0, 0, 1));
+							ImGui::TextWrapped(it.second.log_e.c_str());
+							ImGui::PopStyleColor();
+						}
 
 						if (test) {
 							std::string concat;
@@ -1486,13 +1434,15 @@ namespace brdfa {
 
 							/*Compile the concatenated fragment shader.*/
 							try {
-								auto frag_spirv = compileShader(concat, false, "FragmentSHader");
+								auto frag_spirv = compileShader(concat, false, it.second.brdfName);
 								it.second.tested = true;
+								it.second.log_e = "";
 								it.second.latest_spir_v = frag_spirv;
 							}
-							catch (std::exception e) {
+							catch (const std::exception& exp) {
+								it.second.log_e = exp.what();
 								it.second.tested = false;
-								std::cout << "[ERROR]: Compilation Error for the given shader" << std::endl;
+								//std::cout << "[ERROR]: Compilation Error for the given shader" << std::endl;
 							}
 						}
 						if (push && it.second.tested) {
@@ -1513,34 +1463,41 @@ namespace brdfa {
 			ImGui::Separator();
 
 			if (ImGui::TreeNode("Costum BRDFs")){ // Costum BRDFs
-
 				std::vector<std::string> deletedInd;
-				for (auto& it : m_costumBrdfs){
+				for (auto& it : m_costumBrdfs){ // Costum brdfs nodes renderer
+					ImGui::SetWindowFontScale(1.2);
 					if (ImGui::TreeNode(it.first.c_str()))
 					{
 						// Starting the section of the object
 						float bs = ImGui::GetFrameHeight();
 						float w = ImGui::GetColumnWidth();
-						ImGui::BeginChild(it.first.c_str(), ImVec2(0.0f, bs * 11.0f), true);
 
-						//ImGui::Text("struct BRDF_Output{ vec3 diffuse; vec3 specular;}");
+						float len = (it.second.log_e.size() > 0) ? 12.0f : 10.0f;
+						ImGui::BeginChild(it.first.c_str(), ImVec2(0.0f, bs* len), true);
 
-						ImGui::SetWindowFontScale(1.4);
+						/*Code window*/
+						ImGui::SetWindowFontScale(1.3);
 						it.second.glslPanel.Render(it.first.c_str(), ImVec2(w, bs * 8.0f), true);
 						ImGui::SetWindowFontScale(1.0);
 						ImGui::NewLine();
-
 						if (it.second.glslPanel.IsTextChanged())
 							it.second.tested = false;
 
+						/*Buttons rendering*/
 						ImVec4 col = (it.second.tested) ? ImVec4(0, 0.7, 0, 1) : ImVec4(0.7, 0, 0, 1);
-
 						ImGui::SameLine(0, w / 9);
 						ImGui::PushStyleColor(ImGuiCol_Button, col);
 						bool test = ImGui::Button("Test", ImVec2(w / 3, 0));
 						ImGui::PopStyleColor();
 						ImGui::SameLine(0, w / 9);
 						bool add = ImGui::Button("Add", ImVec2(w / 3, 0));
+
+						/*Logging the errors of the Test*/
+						if (it.second.log_e.size() > 0) {
+							ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 0, 0, 1));
+							ImGui::TextWrapped(it.second.log_e.c_str());
+							ImGui::PopStyleColor();
+						}
 
 						if (test) {
 							std::string concat;
@@ -1553,13 +1510,15 @@ namespace brdfa {
 
 							/*Compile the concatenated fragment shader.*/
 							try {
-								auto frag_spirv = compileShader(concat, false, "FragmentSHader");
+								auto frag_spirv = compileShader(concat, false, it.second.brdfName);
 								it.second.tested = true;
+								it.second.log_e = "";
 								it.second.latest_spir_v = frag_spirv;
 							}
-							catch (std::exception e) {
+							catch (const std::exception& exp) {
 								it.second.tested = false;
-								std::cout << "[ERROR]: Compilation Error for the given shader" << std::endl;
+								it.second.log_e = exp.what();
+								//std::cout << "[ERROR]: Compilation Error for the given shader" << std::endl;
 							}
 						}
 						if (add && it.second.tested) {
@@ -1571,9 +1530,9 @@ namespace brdfa {
 						ImGui::EndChild();
 						ImGui::TreePop();
 					}
-				}
+				}// costum BRDFs Nodes rendering
 
-				/*Clearing the costum ones.*/
+				/*Clearing the costum list if they are added to the loaded brdfs*/
 				for (std::string& s : deletedInd) m_costumBrdfs.erase(s);
 
 				/*Adding a new costum BRDF to the system*/
@@ -1596,14 +1555,231 @@ namespace brdfa {
 
 				ImGui::TreePop();
 			} // Costum BRDFs
-
-			ImGui::SetWindowFontScale(1.0);
 		}
 
-		/*TODO:: Implement Collapsing window.*/
-		if (ImGui::CollapsingHeader("Tests and Logs Configuration"))
-		{
-
-		}
+		ImGui::SetWindowFontScale(1.0);
+		ImGui::End();
 	}
+
+
+	void BRDFA_Engine::drawUI_logger(){
+		if (!m_uistate.logWindowActive) return;
+		static VkPresentModeKHR presentMode = chooseSwapPresentMode(querySwapChainSupport(m_device).presentModes);
+		static int fps = 0;
+		static int lastfps = fps;
+		static auto startTime = std::chrono::high_resolution_clock::now();
+		auto endTime = std::chrono::high_resolution_clock::now();
+		float time = std::chrono::duration<float, std::chrono::seconds::period>(endTime - startTime).count();
+		if (time >= 1.0f) {
+			startTime = endTime;
+			lastfps = fps;
+			fps = 0;
+		}
+
+		static std::string logger = "";
+
+		ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize;
+		ImGui::SetNextWindowPos(ImVec2(100, 100), ImGuiCond_Appearing);
+		ImGui::Begin("Logs Window", &m_uistate.logWindowActive, file_reader_flags);
+
+		/*Times elapsed per frame render*/
+		ImGui::Text("Time Per Frame: %.2f ms", m_uistate.timePerFrame);
+
+		/*Frames per second*/
+		ImGui::Text("Frames Per Second: %d", lastfps);
+
+		/*Vertices Count*/
+		uint32_t vsum = this->m_skymap_mesh.vertices.size();
+		for (const auto& mesh : this->m_meshes) {
+			vsum += mesh.vertices.size();
+		}
+		ImGui::Text("Vertices Count: %d vertices", vsum);
+
+		/*Current Rendering mode*/
+		switch (presentMode) {
+		case VK_PRESENT_MODE_IMMEDIATE_KHR:
+			ImGui::Text("Buffer Strategy: Immediate");
+			break;
+		case VK_PRESENT_MODE_MAILBOX_KHR:
+			ImGui::Text("Buffer Strategy: Mailbox");
+			break;
+		case VK_PRESENT_MODE_FIFO_KHR:
+			ImGui::Text("Buffer Strategy: FIFO");
+			break;
+		case VK_PRESENT_MODE_FIFO_RELAXED_KHR:
+			ImGui::Text("Buffer Strategy: FIFO Relaxed");
+			break;
+		case VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR:
+			ImGui::Text("Buffer Strategy: Shared Demand Refresh");
+			break;
+		case VK_PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR:
+			ImGui::Text("Buffer Strategy: Shared Continous Refresh");
+			break;
+		default:
+			ImGui::Text("Buffer Strategy: Undefined");
+			break;
+		}
+
+		ImGui::End();
+		fps++;
+	}
+
+
+	void BRDFA_Engine::drawUI_comparer(){
+		if (!m_uistate.brdfCompareWindowActive)
+			return;
+	}
+
+
+	void BRDFA_Engine::drawUI_frameSaver(){
+		if (!m_uistate.frameSaverWindowActive)
+			return;
+	}
+
+
+	void BRDFA_Engine::drawUI_tester(){
+		if (!m_uistate.testWindowActive)
+			return;
+
+	}
+
+
+	/// <summary>
+	/// 
+	/// </summary>
+	void BRDFA_Engine::drawUI_menubar() {
+		int h = ImGui::GetFrameHeight();
+		int w = 0; //this->m_configuration.width;
+
+		ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_Always);
+		ImGui::SetNextWindowPos(ImVec2(0,0), ImGuiCond_Always);
+		
+		ImGui::Begin("Menu", nullptr, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+		// Rendering the Menu bar										 
+		if (ImGui::BeginMenuBar())
+		{
+			if (ImGui::BeginMenu("File"))
+			{
+				if (ImGui::BeginMenu("Open")) {
+					if (ImGui::MenuItem("Object", "Ctrl+O")) {
+						m_uistate.objectLoaderWindowActive = true;
+						m_uistate.extraTexturesCount = 0;
+						memset(m_uistate.obj_path, '\0', 100);
+						memset(m_uistate.tex_path, '\0', 100);
+						memset(m_uistate.extra_tex_paths[0], '\0', 100);
+						memset(m_uistate.extra_tex_paths[1], '\0', 100);
+						memset(m_uistate.extra_tex_paths[2], '\0', 100);
+					}
+					if (ImGui::MenuItem("Skymap", "Ctrl+E")) {
+						m_uistate.skymapLoaderWindowActive = true;
+						memset(m_uistate.skymap_path, '\0', 100);
+					}
+					ImGui::EndMenu();
+				}
+				if (ImGui::MenuItem("Close")) { m_uistate.running = false; }
+				ImGui::EndMenu();
+			}
+			if (ImGui::BeginMenu("Tools"))
+			{
+				if (ImGui::MenuItem("Objects Editor", "Ctrl+M")) m_uistate.objWindowActive = true;
+				if (ImGui::MenuItem("Camera Editor", "Ctrl+K")) m_uistate.camWindowActive = true;
+				if (ImGui::MenuItem("BRDF Editor", "Ctrl+B")) m_uistate.brdfEditorWindowActive = true;
+				if (ImGui::MenuItem("Log Window", "Ctrl+L")) m_uistate.logWindowActive = true;
+				if (ImGui::MenuItem("Test Window", "Ctrl+T")) m_uistate.testWindowActive= true;
+				if (ImGui::MenuItem("Comparison Generator", "Ctrl+G")) m_uistate.brdfCompareWindowActive = true;
+				if (ImGui::MenuItem("Frame Saver", "Ctrl+F")) m_uistate.frameSaverWindowActive = true;
+				ImGui::EndMenu();
+			}
+			if ( ImGui::MenuItem("Help", "Ctrl+H"))  m_uistate.helpWindowActive = true;
+			ImGui::EndMenuBar();
+		}
+		ImGui::End();
+	}
+
+
+	/// <summary>
+	/// 
+	/// </summary>
+	void BRDFA_Engine::drawUI_objectLoader(){
+		if (!m_uistate.objectLoaderWindowActive)
+			return;
+
+		static std::string logger = "";
+
+		ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
+		ImGui::SetNextWindowPos(ImVec2(100,100),ImGuiCond_Appearing);
+
+		ImGui::Begin("Object Loader", &m_uistate.objectLoaderWindowActive, file_reader_flags);
+		ImGui::InputText("Object path", m_uistate.obj_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
+		ImGui::InputText("iTexture0", m_uistate.tex_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
+
+
+		for (int j = 0; j < m_uistate.extraTexturesCount; j++) {
+			std::string label = std::string("iTexture") + std::to_string(j + 1);
+			ImGui::InputText(label.c_str(), m_uistate.extra_tex_paths[j], 100, ImGuiInputTextFlags_AlwaysOverwrite);
+		}
+
+		if (m_uistate.extraTexturesCount < 3 && ImGui::Button("+", ImVec2(50, 0)))
+			m_uistate.extraTexturesCount++;
+
+
+		if (ImGui::Button("Load File", ImVec2(100, 30))) {
+			std::vector<std::string> texture_paths;
+			texture_paths.resize(m_uistate.extraTexturesCount + 2);
+			texture_paths[0] = std::string(m_uistate.tex_path);
+			for (int j = 0; j < m_uistate.extraTexturesCount; j++)
+				texture_paths[j + 1] = std::string(m_uistate.extra_tex_paths[j]);
+
+			try {
+				if (!this->loadObject(std::string(m_uistate.obj_path), texture_paths)) 
+					logger = "Object can't be loaded: Make sure to have iTexture0 filled and object path is correct!";			
+				else 
+					m_uistate.objectLoaderWindowActive = false;
+			}
+			catch (const std::exception& exp) {
+				logger = exp.what();
+			}
+		}
+
+		if (logger.size() > 0) {
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 0, 0, 1));
+			ImGui::TextWrapped(logger.c_str());
+			ImGui::PopStyleColor();
+		}
+		
+		ImGui::End();
+	
+	}
+	
+
+	/// <summary>
+	/// 
+	/// </summary>
+	void BRDFA_Engine::drawUI_skymapLoader(){
+		if (!m_uistate.skymapLoaderWindowActive)
+			return;
+
+		static std::string logger = "";
+
+		ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
+		ImGui::SetNextWindowPos(ImVec2(100, 100), ImGuiCond_Appearing);
+		ImGui::Begin("Skybox loader", &m_uistate.skymapLoaderWindowActive, file_reader_flags);
+		ImGui::InputText("Skymap path", m_uistate.skymap_path, 100, ImGuiInputTextFlags_AlwaysOverwrite);
+		if (ImGui::Button("Load File", ImVec2(100, 30))) {
+			try {
+				this->reloadSkymap(std::string(m_uistate.skymap_path));
+				m_uistate.skymapLoaderWindowActive = false;
+			}
+			catch (const std::exception& exp){
+				logger = exp.what();
+			}
+		}
+		if (logger.size() > 0) {
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 0, 0, 1));
+			ImGui::TextWrapped(logger.c_str());
+			ImGui::PopStyleColor();
+		}
+		ImGui::End();
+	}
+
 }

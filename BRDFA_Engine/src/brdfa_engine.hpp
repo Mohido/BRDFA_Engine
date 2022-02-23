@@ -129,7 +129,15 @@ namespace brdfa {
 	private:
 		void drawUI_objects();
 		void drawUI_camera();
-		void drawUI_advance();
+		void drawUI_editorBRDF();
+		void drawUI_logger();
+		void drawUI_comparer();
+		void drawUI_frameSaver();
+		void drawUI_tester();
+		void drawUI_menubar();
+		void drawUI_objectLoader();
+		void drawUI_skymapLoader();
+
 
 		void refreshObject(const size_t& idx);													// Records the objects back again.
 		void addFragPipeline(const std::string&, const std::string&);							// This is used to add a pipeline to the scene. And refreshes the obejcts.
