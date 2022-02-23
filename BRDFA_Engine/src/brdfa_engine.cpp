@@ -687,6 +687,7 @@ namespace brdfa {
 		for (size_t j = 0; j < m_meshes.size(); j++) refreshObject(j);
 	}
 
+
 	/// <summary>
 	/// Load all the needed pipelines. 
 	///		* We load the cached BRDFs first. Cached means pre-compiled BRDFs.
@@ -1349,45 +1350,52 @@ namespace brdfa {
 		if (!m_uistate.brdfEditorWindowActive)
 			return;
 
-		ImGui::SetNextWindowSize(ImVec2(this->m_configuration.width/3, 0), ImGuiCond_Appearing);
+		
+		//ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoMove;// ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse;
+		ImGui::SetNextWindowPos(ImVec2(this->m_configuration.width - this->m_configuration.width / 3, 0), ImGuiCond_Appearing);
+		ImGui::SetNextWindowSize(ImVec2(this->m_configuration.width / 3, this->m_configuration.height), ImGuiCond_Appearing);
 		ImGui::Begin("BRDF Editor", &m_uistate.brdfEditorWindowActive);
+		/*Draw Loaded BRDFs*/
+		
 
-		if (ImGui::CollapsingHeader("BRDFs Configuration")){
-			/*Draw Loaded BRDFs*/
+
+		if (ImGui::CollapsingHeader("Help")) {
 			ImGui::SetWindowFontScale(1.2);
-			if (ImGui::TreeNode("Help")) {
-				if (ImGui::TreeNode("Editting BRDFs")) {
-					ImGui::TextWrapped("Here you can create a new BRDF, or edit the pre-existing saved ones.");
-					ImGui::TextWrapped("\t* To create a new BRDF please click on the costum BRDF drop down.Then insert a new BRDF name and click the + button.After that, a temporary BRDF template will be created.The temporary BRDF will not be saved unless it is tested, then can be loaded to the main BRDFs. ");
-					ImGui::TextWrapped("\t* To edit an existed BRDF, you can open the Loaded BRDFs panel and edit the BRDF that you are interested in changing. The changes will not occur, unless you test them first. After testing them, you can view them (Update the Rendering Options). You can save the BRDF to a file and cache it with the save button. The files can be found in the \"./shaders/brdfs\"");
-					ImGui::TreePop();
-				}// end Editting BRDFs panel
-				if (ImGui::TreeNode("Globals")) {
-					ImGui::TextWrapped("We have some global uniform variables that you can use in the BRDF code. The variables are the following:");
-					ImGui::TextWrapped("* iTexture0, iTexture1, iTexture2, iTexture3");
-					ImGui::TextWrapped("\tThese are texture parameters that holds the values of the textures filled when the mesh is loaded. iTexture0 must be loaded within the mesh, while the other textures are optional. However, using a texture that is not being filled will cause an error. Therefore, make sure to use textures if you have added them.");
-					ImGui::TextWrapped("* iParameter0, iParameter1, iParameter2, iParameter3");
-					ImGui::TextWrapped("\tThese are parameters that can be edited from the object_n interface. We have 4 available parameters that you can pass to the shader and use them. All of the parameters are normalized (0 to 1) floating numbers.");
-					ImGui::TreePop();
-				}// end Editting BRDFs panel
+			if (ImGui::TreeNode("Editting BRDFs")) {
+				ImGui::TextWrapped("Here you can create a new BRDF, or edit the pre-existing saved ones.");
+				ImGui::TextWrapped("\t* To create a new BRDF please click on the costum BRDF drop down.Then insert a new BRDF name and click the + button.After that, a temporary BRDF template will be created.The temporary BRDF will not be saved unless it is tested, then can be loaded to the main BRDFs. ");
+				ImGui::TextWrapped("\t* To edit an existed BRDF, you can open the Loaded BRDFs panel and edit the BRDF that you are interested in changing. The changes will not occur, unless you test them first. After testing them, you can view them (Update the Rendering Options). You can save the BRDF to a file and cache it with the save button. The files can be found in the \"./shaders/brdfs\"");
 				ImGui::TreePop();
-			}// Help Node
-
-			ImGui::Separator();
-
+			}// end Editting BRDFs panel
+			if (ImGui::TreeNode("Shader Globals")) {
+				ImGui::TextWrapped("We have some global uniform variables that you can use in the BRDF code. The variables are the following:");
+				ImGui::TextWrapped("* iTexture0, iTexture1, iTexture2, iTexture3");
+				ImGui::TextWrapped("\tThese are texture parameters that holds the values of the textures filled when the mesh is loaded. iTexture0 must be loaded within the mesh, while the other textures are optional. However, using a texture that is not being filled will cause an error. Therefore, make sure to use textures if you have added them.");
+				ImGui::TextWrapped("* iParameter0, iParameter1, iParameter2, iParameter3");
+				ImGui::TextWrapped("\tThese are parameters that can be edited from the object_n interface. We have 4 available parameters that you can pass to the shader and use them. All of the parameters are normalized (0 to 1) floating numbers.");
+				ImGui::TreePop();
+			}
+			ImGui::SetWindowFontScale(1.0);
+		}
+		ImGui::Separator();
+		if (ImGui::CollapsingHeader("BRDFs Editor")){
+			
 			if (ImGui::TreeNode("Loaded BRDFs")){ // Loaded BRDFs
 				for (auto& it : m_loadedBrdfs)
 				{
+					ImGui::SetWindowFontScale(1.2);
 					if (ImGui::TreeNode(it.first.c_str()))
 					{
 						// Starting the section of the object
 						float bs = ImGui::GetFrameHeight();
 						float w = ImGui::GetColumnWidth();
-						ImGui::BeginChild(it.first.c_str(), ImVec2(0.0f, bs * 10.0f), true);
+						float len = (it.second.log_e.size() > 0) ? 12.0f : 10.0f;
+
+						ImGui::BeginChild(it.first.c_str(), ImVec2(0.0f, bs * len), true);
 
 						//ImGui::Text("struct BRDF_Output{ vec3 diffuse; vec3 specular;}");
 
-						ImGui::SetWindowFontScale(1.4);
+						ImGui::SetWindowFontScale(1.3);
 						it.second.glslPanel.Render(it.first.c_str(), ImVec2(w, bs * 8.0f), true);
 						ImGui::SetWindowFontScale(1.0);
 						ImGui::NewLine();
@@ -1395,8 +1403,8 @@ namespace brdfa {
 						if (it.second.glslPanel.IsTextChanged())
 							it.second.tested = false;
 						
+						/*Buttons rendering*/
 						ImVec4 col = (it.second.tested) ? ImVec4(0, 0.7, 0, 1) : ImVec4(0.7, 0, 0, 1);
-
 						ImGui::PushStyleColor(ImGuiCol_Button , col);
 						if(!it.second.tested) ImGui::PushStyleColor(ImGuiCol_ButtonHovered, col);
 						ImGui::SameLine(0, w / 20);
@@ -1408,6 +1416,12 @@ namespace brdfa {
 						ImGui::PopStyleColor();
 						if (!it.second.tested) ImGui::PopStyleColor();
 						
+						/*Logging the errors of the Test*/
+						if (it.second.log_e.size() > 0) {
+							ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 0, 0, 1));
+							ImGui::TextWrapped(it.second.log_e.c_str());
+							ImGui::PopStyleColor();
+						}
 
 						if (test) {
 							std::string concat;
@@ -1420,13 +1434,15 @@ namespace brdfa {
 
 							/*Compile the concatenated fragment shader.*/
 							try {
-								auto frag_spirv = compileShader(concat, false, "FragmentSHader");
+								auto frag_spirv = compileShader(concat, false, it.second.brdfName);
 								it.second.tested = true;
+								it.second.log_e = "";
 								it.second.latest_spir_v = frag_spirv;
 							}
-							catch (std::exception e) {
+							catch (const std::exception& exp) {
+								it.second.log_e = exp.what();
 								it.second.tested = false;
-								std::cout << "[ERROR]: Compilation Error for the given shader" << std::endl;
+								//std::cout << "[ERROR]: Compilation Error for the given shader" << std::endl;
 							}
 						}
 						if (push && it.second.tested) {
@@ -1447,34 +1463,41 @@ namespace brdfa {
 			ImGui::Separator();
 
 			if (ImGui::TreeNode("Costum BRDFs")){ // Costum BRDFs
-
 				std::vector<std::string> deletedInd;
-				for (auto& it : m_costumBrdfs){
+				for (auto& it : m_costumBrdfs){ // Costum brdfs nodes renderer
+					ImGui::SetWindowFontScale(1.2);
 					if (ImGui::TreeNode(it.first.c_str()))
 					{
 						// Starting the section of the object
 						float bs = ImGui::GetFrameHeight();
 						float w = ImGui::GetColumnWidth();
-						ImGui::BeginChild(it.first.c_str(), ImVec2(0.0f, bs * 11.0f), true);
 
-						//ImGui::Text("struct BRDF_Output{ vec3 diffuse; vec3 specular;}");
+						float len = (it.second.log_e.size() > 0) ? 12.0f : 10.0f;
+						ImGui::BeginChild(it.first.c_str(), ImVec2(0.0f, bs* len), true);
 
-						ImGui::SetWindowFontScale(1.4);
+						/*Code window*/
+						ImGui::SetWindowFontScale(1.3);
 						it.second.glslPanel.Render(it.first.c_str(), ImVec2(w, bs * 8.0f), true);
 						ImGui::SetWindowFontScale(1.0);
 						ImGui::NewLine();
-
 						if (it.second.glslPanel.IsTextChanged())
 							it.second.tested = false;
 
+						/*Buttons rendering*/
 						ImVec4 col = (it.second.tested) ? ImVec4(0, 0.7, 0, 1) : ImVec4(0.7, 0, 0, 1);
-
 						ImGui::SameLine(0, w / 9);
 						ImGui::PushStyleColor(ImGuiCol_Button, col);
 						bool test = ImGui::Button("Test", ImVec2(w / 3, 0));
 						ImGui::PopStyleColor();
 						ImGui::SameLine(0, w / 9);
 						bool add = ImGui::Button("Add", ImVec2(w / 3, 0));
+
+						/*Logging the errors of the Test*/
+						if (it.second.log_e.size() > 0) {
+							ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 0, 0, 1));
+							ImGui::TextWrapped(it.second.log_e.c_str());
+							ImGui::PopStyleColor();
+						}
 
 						if (test) {
 							std::string concat;
@@ -1487,13 +1510,15 @@ namespace brdfa {
 
 							/*Compile the concatenated fragment shader.*/
 							try {
-								auto frag_spirv = compileShader(concat, false, "FragmentSHader");
+								auto frag_spirv = compileShader(concat, false, it.second.brdfName);
 								it.second.tested = true;
+								it.second.log_e = "";
 								it.second.latest_spir_v = frag_spirv;
 							}
-							catch (std::exception e) {
+							catch (const std::exception& exp) {
 								it.second.tested = false;
-								std::cout << "[ERROR]: Compilation Error for the given shader" << std::endl;
+								it.second.log_e = exp.what();
+								//std::cout << "[ERROR]: Compilation Error for the given shader" << std::endl;
 							}
 						}
 						if (add && it.second.tested) {
@@ -1505,9 +1530,9 @@ namespace brdfa {
 						ImGui::EndChild();
 						ImGui::TreePop();
 					}
-				}
+				}// costum BRDFs Nodes rendering
 
-				/*Clearing the costum ones.*/
+				/*Clearing the costum list if they are added to the loaded brdfs*/
 				for (std::string& s : deletedInd) m_costumBrdfs.erase(s);
 
 				/*Adding a new costum BRDF to the system*/
@@ -1530,10 +1555,9 @@ namespace brdfa {
 
 				ImGui::TreePop();
 			} // Costum BRDFs
-
-			ImGui::SetWindowFontScale(1.0);
 		}
 
+		ImGui::SetWindowFontScale(1.0);
 		ImGui::End();
 	}
 
@@ -1562,7 +1586,9 @@ namespace brdfa {
 
 	}
 
-
+	/// <summary>
+	/// 
+	/// </summary>
 	void BRDFA_Engine::drawUI_menubar() {
 		int h = ImGui::GetFrameHeight();
 		int w = 0; //this->m_configuration.width;
@@ -1612,7 +1638,9 @@ namespace brdfa {
 		ImGui::End();
 	}
 
-
+	/// <summary>
+	/// 
+	/// </summary>
 	void BRDFA_Engine::drawUI_objectLoader(){
 		if (!m_uistate.objectLoaderWindowActive)
 			return;
@@ -1664,7 +1692,9 @@ namespace brdfa {
 	
 	}
 	
-	
+	/// <summary>
+	/// 
+	/// </summary>
 	void BRDFA_Engine::drawUI_skymapLoader(){
 		if (!m_uistate.skymapLoaderWindowActive)
 			return;

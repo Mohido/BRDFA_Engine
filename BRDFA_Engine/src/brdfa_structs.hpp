@@ -484,6 +484,7 @@ namespace brdfa {
         std::string             brdfName;
         TextEditor              glslPanel;	/*IMGUI Text editor Addon: https://github.com/ELTE-IK-CG/Dragonfly/tree/master/include/ImGui-addons/imgui_text_editor*/
         std::vector<char>       latest_spir_v;
+        std::string             log_e = "";            // Holds the log of the last compilation
         bool                    tested = false;
     };
 
