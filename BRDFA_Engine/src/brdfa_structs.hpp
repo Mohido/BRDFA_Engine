@@ -68,6 +68,9 @@ namespace brdfa {
         bool    brdfEditorWindowActive = false;
         bool    brdfCompareWindowActive = false;
         bool    frameSaverWindowActive = false;
+
+        float   timePerFrame = 0.0;
+        
     };
 
 

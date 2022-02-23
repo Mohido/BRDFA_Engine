@@ -156,7 +156,6 @@ namespace brdfa {
 	}
 
 
-
 	/// <summary>
 	/// Saved for future usage.
 	/// </summary>
@@ -164,7 +163,6 @@ namespace brdfa {
 	bool BRDFA_Engine::interrupt() {
 		return true;
 	}
-
 
 
 	/// <summary>
@@ -208,7 +206,6 @@ namespace brdfa {
 	}
 
 
-
 	/// <summary>
 	/// Called to load that object from the ith object from the scene.
 	/// </summary>
@@ -243,7 +240,6 @@ namespace brdfa {
 		recordCommandBuffers(m_commander, m_device, m_graphicsPipelines, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
 		return true;
 	}
-
 
 
 	/// <summary>
@@ -542,7 +538,6 @@ namespace brdfa {
 		this->m_frameBufferResized = true;
 		return this->m_frameBufferResized;
 	}
-
 
 
 	/// <summary>
@@ -1002,6 +997,7 @@ namespace brdfa {
 	/// </summary>
 	/// <param name="imageIndex">The image Index currently being processed. (Inflag image)</param>
 	void BRDFA_Engine::render(uint32_t imageIndex) {
+		auto startTime = std::chrono::high_resolution_clock::now();
 		this->drawUI(imageIndex);
 		
 		if (m_imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
@@ -1049,6 +1045,10 @@ namespace brdfa {
 		else if (result != VK_SUCCESS) {
 			throw std::runtime_error("failed to present swap chain image!");
 		}
+
+		auto endtime = std::chrono::high_resolution_clock::now();
+		float time = std::chrono::duration<float, std::chrono::seconds::period>(endtime - startTime).count();
+		m_uistate.timePerFrame = (m_uistate.timePerFrame > 0.0f)? (m_uistate.timePerFrame + time * 1000.0f) / 2.0f : time * 1000.0f;
 	}
 
 
@@ -1069,7 +1069,7 @@ namespace brdfa {
 		this->drawUI_objects();
 		this->drawUI_camera();
 		this->drawUI_tester();
-		this->drawUI_advance();
+		this->drawUI_editorBRDF();
 		this->drawUI_comparer();
 		this->drawUI_frameSaver();
 		
@@ -1090,7 +1090,7 @@ namespace brdfa {
 		// 		}
 		// 		if (ImGui::BeginTabItem("Advance"))
 		// 		{
-		// 			drawUI_advance();
+		// 			drawUI_editorBRDF();
 		// 			ImGui::EndTabItem();
 		// 		}
 		// 		ImGui::EndTabBar();
@@ -1346,7 +1346,7 @@ namespace brdfa {
 	///		Draws the Advance panel. In advance panel, the user can insert new GLSL BRDFs, Test/Compile/Edit/Save them. 
 	///		
 	/// </summary>
-	void BRDFA_Engine::drawUI_advance() {
+	void BRDFA_Engine::drawUI_editorBRDF() {
 		if (!m_uistate.brdfEditorWindowActive)
 			return;
 
@@ -1563,8 +1563,65 @@ namespace brdfa {
 
 
 	void BRDFA_Engine::drawUI_logger(){
-		if (!m_uistate.logWindowActive)
-			return;
+		if (!m_uistate.logWindowActive) return;
+		static VkPresentModeKHR presentMode = chooseSwapPresentMode(querySwapChainSupport(m_device).presentModes);
+		static int fps = 0;
+		static int lastfps = fps;
+		static auto startTime = std::chrono::high_resolution_clock::now();
+		auto endTime = std::chrono::high_resolution_clock::now();
+		float time = std::chrono::duration<float, std::chrono::seconds::period>(endTime - startTime).count();
+		if (time >= 1.0f) {
+			startTime = endTime;
+			lastfps = fps;
+			fps = 0;
+		}
+
+		static std::string logger = "";
+
+		ImGuiWindowFlags file_reader_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize;
+		ImGui::SetNextWindowPos(ImVec2(100, 100), ImGuiCond_Appearing);
+		ImGui::Begin("Logs Window", &m_uistate.logWindowActive, file_reader_flags);
+
+		/*Times elapsed per frame render*/
+		ImGui::Text("Time Per Frame: %.2f ms", m_uistate.timePerFrame);
+
+		/*Frames per second*/
+		ImGui::Text("Frames Per Second: %d", lastfps);
+
+		/*Vertices Count*/
+		uint32_t vsum = this->m_skymap_mesh.vertices.size();
+		for (const auto& mesh : this->m_meshes) {
+			vsum += mesh.vertices.size();
+		}
+		ImGui::Text("Vertices Count: %d vertices", vsum);
+
+		/*Current Rendering mode*/
+		switch (presentMode) {
+		case VK_PRESENT_MODE_IMMEDIATE_KHR:
+			ImGui::Text("Buffer Strategy: Immediate");
+			break;
+		case VK_PRESENT_MODE_MAILBOX_KHR:
+			ImGui::Text("Buffer Strategy: Mailbox");
+			break;
+		case VK_PRESENT_MODE_FIFO_KHR:
+			ImGui::Text("Buffer Strategy: FIFO");
+			break;
+		case VK_PRESENT_MODE_FIFO_RELAXED_KHR:
+			ImGui::Text("Buffer Strategy: FIFO Relaxed");
+			break;
+		case VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR:
+			ImGui::Text("Buffer Strategy: Shared Demand Refresh");
+			break;
+		case VK_PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR:
+			ImGui::Text("Buffer Strategy: Shared Continous Refresh");
+			break;
+		default:
+			ImGui::Text("Buffer Strategy: Undefined");
+			break;
+		}
+
+		ImGui::End();
+		fps++;
 	}
 
 
@@ -1585,6 +1642,7 @@ namespace brdfa {
 			return;
 
 	}
+
 
 	/// <summary>
 	/// 
@@ -1637,6 +1695,7 @@ namespace brdfa {
 		}
 		ImGui::End();
 	}
+
 
 	/// <summary>
 	/// 
@@ -1692,6 +1751,7 @@ namespace brdfa {
 	
 	}
 	
+
 	/// <summary>
 	/// 
 	/// </summary>

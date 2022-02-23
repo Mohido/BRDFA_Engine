@@ -129,7 +129,7 @@ namespace brdfa {
 	private:
 		void drawUI_objects();
 		void drawUI_camera();
-		void drawUI_advance();
+		void drawUI_editorBRDF();
 		void drawUI_logger();
 		void drawUI_comparer();
 		void drawUI_frameSaver();
