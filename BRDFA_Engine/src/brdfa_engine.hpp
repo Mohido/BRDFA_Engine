@@ -129,6 +129,9 @@ namespace brdfa {
 
 
 	private:
+		//void threadAddSpirv(std::string cacheFileName, BRDF_Panel lp);
+		//void threadCompileGLSL(std::string concat, BRDF_Panel lp);
+
 		void drawUI_objects();
 		void drawUI_camera();
 		void drawUI_editorBRDF();

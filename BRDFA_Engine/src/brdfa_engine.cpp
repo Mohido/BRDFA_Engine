@@ -32,7 +32,7 @@
 #include <iostream>
 #include <chrono>
 #include <filesystem>
-
+#include <thread>
 
 
 
@@ -772,7 +772,7 @@ namespace brdfa {
 					concat = (brdf_s[i] == '\0') ? concat : concat + brdf_s[i];
 
 				/*If we reach this point, it means that we will insert the loaded brdf into our loaded brdfs panel*/
-				std::vector<char> frag_spirv;
+				
 				if (m_loadedBrdfs.find(brdfName) == m_loadedBrdfs.end()) {
 					BRDF_Panel	lp;
 					lp.brdfName = brdfName;
@@ -783,20 +783,32 @@ namespace brdfa {
 						continue;
 					}
 					std::string cacheFileName = cache + "/" + brdfName + ".spv";
-					frag_spirv = (loadCache)? readFile(cacheFileName): compileShader(concat, false, "FragmentSHader");
-					lp.latest_spir_v = frag_spirv;
-					m_loadedBrdfs.insert({ brdfName, lp });
+					/*Insert a new pipeline.*/
+					m_graphicsPipelines.pipelines.insert({ brdfName , {} });
+					if (loadCache) {
+						compilationPool.push_back(std::thread(threadAddSpirv, cacheFileName, lp, &m_loadedBrdfs));
+					}
+					else {
+						compilationPool.push_back(std::thread(threadCompileGLSL, concat, lp, &m_loadedBrdfs));
+					}
 				}
-
-				/*Insert a new pipeline.*/
-				m_graphicsPipelines.pipelines.insert({ brdfName , {} });
-				createGraphicsPipeline(
-					m_graphicsPipelines.layout, m_graphicsPipelines.sceneRenderPass,
-					m_graphicsPipelines.pipelines.at(brdfName), m_skymap_pipeline,
-					m_device, m_swapChain, m_descriptorData, m_vertSpirv, frag_spirv, false);
 			}
 		}
 			
+		for (auto & t : compilationPool) {
+			t.join();
+		}
+		compilationPool.clear();
+
+		for (const auto& it : m_loadedBrdfs) {
+			createGraphicsPipeline(
+				m_graphicsPipelines.layout, m_graphicsPipelines.sceneRenderPass,
+				m_graphicsPipelines.pipelines.at(it.second.brdfName), m_skymap_pipeline,
+				m_device, m_swapChain, m_descriptorData, m_vertSpirv, it.second.latest_spir_v, false);
+		}
+		
+
+
 		/*Creation of skymap pipelines*/
 		auto vert_sky_shader_code = readFile(SHADERS_PATH + "/skybox.vert.spv", true);
 		auto frag_sky_shader_code = readFile(SHADERS_PATH + "/skybox.frag.spv", true);
@@ -1198,6 +1210,7 @@ namespace brdfa {
 		/*Syncronization objects re-initialization.*/
 		m_imagesInFlight.resize(m_swapChain.images.size(), VK_NULL_HANDLE);
 	}
+
 
 
 	/// <summary>
