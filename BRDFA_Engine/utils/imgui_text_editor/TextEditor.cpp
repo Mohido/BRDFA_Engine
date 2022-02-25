@@ -2375,7 +2375,7 @@ void TextEditor::ColorizeInternal()
 
 	if (mColorRangeMin < mColorRangeMax)
 	{
-		const int increment = (mLanguageDefinition.mTokenize == nullptr) ? 4 : 32;	//changed tokenizer speed -> slower, effect unnoticable, but speed in debug mode improved.
+		const int increment = (mLanguageDefinition.mTokenize == nullptr) ? 4 : 32;	//changed tokenizer speed_t -> slower, effect unnoticable, but speed_t in debug mode improved.
 		const int to = std::min(mColorRangeMin + increment, mColorRangeMax);
 		ColorizeRange(mColorRangeMin, to);
 		mColorRangeMin = to;

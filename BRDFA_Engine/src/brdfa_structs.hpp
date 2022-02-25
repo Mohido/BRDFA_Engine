@@ -321,7 +321,7 @@ namespace brdfa {
         float                           aspectRatio;                // Camera aspect ratio: W/H
         float                           nPlane, fPlane;             // Near and Far clipping plane
         float                           angle;                      // Angle of the camera y-axis (Height)
-
+        float                           speed_t = 0.75f, speed_r = 0.75f;                // Camera movement speed.
 
         glm::vec3                       rotation = glm::vec3(0.0f);     // Holdes the accumalated rotation of the camera.
         glm::vec3                       position = glm::vec3(0.0f);     // Holds the current position of the camera. 
@@ -381,6 +381,13 @@ namespace brdfa {
         }
 
 
+        void updateDirection() {
+            direction.x = cos(glm::radians(rotation.x)) * cos(glm::radians(rotation.y));
+            direction.y = sin(glm::radians(rotation.y));
+            direction.z = sin(glm::radians(rotation.x)) * cos(glm::radians(rotation.y));
+            direction = glm::normalize(direction);
+        }
+
 
         void update(const KeyEvent& ke, float time, float translationSpeed, float rotationSpeed) {
             /*Zooming:*/
@@ -406,41 +413,42 @@ namespace brdfa {
         /// <param name="time"></param>
         /// <param name="translationSpeed"></param>
         /// <param name="rotationSpeed"></param>
-        void update(const KeyEvent& ke, MouseEvent& me, float time, float translationSpeed, float rotationSpeed) {
+        void update(const KeyEvent& ke, MouseEvent& me, float time) {
+
 
             /*Forward, backward*/
             if (ke.key == GLFW_KEY_W && ke.action != GLFW_RELEASE)
-                this->position += this->direction * time * translationSpeed;
+                this->position += this->direction * time * speed_t;
             if (ke.key == GLFW_KEY_S && ke.action != GLFW_RELEASE)
-                this->position -= this->direction * time * translationSpeed;
+                this->position -= this->direction * time * speed_t;
 
             /*right, left*/
             if (ke.key == GLFW_KEY_D && ke.action != GLFW_RELEASE) {
                 glm::vec3 rightDir = glm::cross(this->direction, glm::vec3(0, 1, 0));
-                this->position += rightDir * time * translationSpeed;
+                this->position += rightDir * time * speed_t;
                 //this->position += glm::vec3(this->transformation[0][0], this->transformation[0][1], this->transformation[0][2]) * time * translationSpeed;
             }
             if (ke.key == GLFW_KEY_A && ke.action != GLFW_RELEASE) {
                 glm::vec3 rightDir = glm::cross(this->direction, glm::vec3(0, 1, 0));
-                this->position -= rightDir * time * translationSpeed;
+                this->position -= rightDir * time * speed_t;
             }
 
             /*up, down*/
             if (ke.key == GLFW_KEY_Q && ke.action != GLFW_RELEASE) {
                 glm::vec3 rightDir = glm::cross(this->direction, glm::vec3(0, 1, 0));
                 glm::vec3 upDir = glm::cross(rightDir, this->direction);
-                this->position += upDir * time * translationSpeed;
+                this->position += upDir * time * speed_t;
             }
             if (ke.key == GLFW_KEY_E && ke.action != GLFW_RELEASE) {
                 glm::vec3 rightDir = glm::cross(this->direction, glm::vec3(0, 1, 0));
                 glm::vec3 upDir = glm::cross(rightDir, this->direction);
-                this->position -= upDir * time * translationSpeed;
+                this->position -= upDir * time * speed_t;
             }
 
 
 
             if (me.update) {
-                glm::vec2 temp = me.delta_cords * time * rotationSpeed;
+                glm::vec2 temp = me.delta_cords * time * speed_r;
                 temp.y *= -1.0f;    // For flipping the movement.
                 rotation += glm::vec3(temp, 0.0f);
 
