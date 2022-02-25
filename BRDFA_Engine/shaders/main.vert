@@ -27,7 +27,7 @@ void main() {
     outPosition = vec3(vertInWorld.xyz) / vertInWorld.w;
     gl_Position = ubo.proj * ubo.view * vertInWorld;
     
-    outNormal = mat3(transpose(inverse(ubo.model))) * inNormal;
+    outNormal = transpose(inverse(mat3(ubo.model))) * inNormal;
 
     outColor = inColor;
     fragTexCoord = inTexCoord;

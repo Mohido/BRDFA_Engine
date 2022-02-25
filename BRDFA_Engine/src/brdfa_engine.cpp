@@ -791,15 +791,13 @@ namespace brdfa {
 				/*Insert a new pipeline.*/
 				m_graphicsPipelines.pipelines.insert({ brdfName , {} });
 				createGraphicsPipeline(
-					m_graphicsPipelines.layout, m_graphicsPipelines.sceneRenderPass, 
-					m_graphicsPipelines.pipelines.at(brdfName), m_skymap_pipeline, 
+					m_graphicsPipelines.layout, m_graphicsPipelines.sceneRenderPass,
+					m_graphicsPipelines.pipelines.at(brdfName), m_skymap_pipeline,
 					m_device, m_swapChain, m_descriptorData, m_vertSpirv, frag_spirv, false);
 			}
 		}
 			
-
 		/*Creation of skymap pipelines*/
-
 		auto vert_sky_shader_code = readFile(SHADERS_PATH + "/skybox.vert.spv", true);
 		auto frag_sky_shader_code = readFile(SHADERS_PATH + "/skybox.frag.spv", true);
 		createGraphicsPipeline(
@@ -960,11 +958,11 @@ namespace brdfa {
 			if (updateKeysOnly) {
 				MouseEvent dull = m_mouseEvent;
 				dull.update = false;
-				m_camera.update(m_keyboardEvent, dull, timeDelta, 0.75f, 0.75f);
+				m_camera.update(m_keyboardEvent, dull, timeDelta);
 			}
 			else {
 				m_mouseEvent.delta_cords = temp;
-				m_camera.update(m_keyboardEvent, m_mouseEvent, timeDelta, 0.75f, 0.75f);
+				m_camera.update(m_keyboardEvent, m_mouseEvent, timeDelta);
 			}
 		} // end update camera system
 		
@@ -1333,12 +1331,44 @@ namespace brdfa {
 
 
 	/// <summary>
-	/// Drarws the Camera panel. The user can edit the camera parameters such as movement speed, zoom, rotate, 
+	/// Drarws the Camera panel. The user can edit the camera parameters such as movement speed_t, zoom, rotate, 
 	/// and change the projection matrix
 	/// </summary>
 	void BRDFA_Engine::drawUI_camera() {
 		if (!m_uistate.camWindowActive)
 			return;
+
+		ImGui::SetNextWindowSize(ImVec2(this->m_configuration.width / 3, 0), ImGuiCond_Appearing);
+		ImGui::Begin("Camera Editor", &m_uistate.camWindowActive, ImGuiWindowFlags_NoResize);
+
+		{// Tab menu just to look cool
+			ImGui::BeginTabBar("");
+			ImGui::BeginTabItem("Camera");
+			ImGui::EndTabItem();
+			ImGui::EndTabBar();
+		} // Tab menu of the object
+		{ // Position
+			float trans[3] = { m_camera.position[0] , m_camera.position[1], m_camera.position[2] };
+			ImGui::DragFloat3("Position", trans, 0.01f);
+			m_camera.position = glm::vec3(trans[0], trans[1], trans[2]);
+			m_camera.updateViewMatrix();
+		} // Position
+		ImGui::Separator();
+		{// Rotation
+			float trans[2] = { m_camera.rotation[0] , m_camera.rotation[1] };
+			ImGui::DragFloat2("Rotation", trans, 1.0f);
+			trans[1] = (trans[1] > 89.0f) ? 89.0f : trans[1];
+			trans[1] = (trans[1] < -89.0f) ? -89.0f : trans[1];
+			m_camera.rotation = glm::vec3(trans[0], trans[1], trans[2]);
+			m_camera.updateDirection();
+			m_camera.updateViewMatrix();
+		}// Rotation
+		ImGui::Separator();
+		{// Speed
+			ImGui::DragFloat("Movement Speed", &m_camera.speed_t, 0.01f, 0.05f, 5.0f);
+			ImGui::DragFloat("Rotation Speed", &m_camera.speed_r, 0.01f, 0.05f, 5.0f);
+		}// Speed
+		ImGui::End();
 	}
 
 

@@ -11,7 +11,7 @@
 #include <array>
 #include <queue>
 #include <vector>
-
+#include <thread>
 
 #include "brdfa_structs.hpp"
 
@@ -90,7 +90,9 @@ namespace brdfa {
 
 		const uint8_t									MAX_FRAMES_IN_FLIGHT = 2;
 
-	
+		std::vector<std::thread>						compilationPool;				// Holds all the threads that are being used to compile the glsl at the moment.
+
+
 	public:
 		BRDFA_Engine(const BRDFAEngineConfiguration& conf)
 			: m_configuration(conf), m_frameBufferResized(false)
