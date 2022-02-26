@@ -160,11 +160,24 @@ namespace brdfa {
     }
 
 
-    void threadCompileGLSL(const std::string& concat, BRDF_Panel lp, std::unordered_map<std::string, BRDF_Panel>* loadedBRDFs)
+    void threadCompileGLSL(const std::string& concat, BRDF_Panel& lp, std::unordered_map<std::string, BRDF_Panel>* loadedBRDFs, bool testing = false)
     {
-        lp.latest_spir_v = compileShader(concat, false, "FragmentSHader");;
-        loadedBRDFs->insert({ lp.brdfName, lp });
-        printf("[INFO]: compileShader thread completed: BRDF (%s) \n", lp.brdfName.c_str());
+        try {
+            std::vector<char> frag_spir = compileShader(concat, false,  lp.brdfName);
+            lp.latest_spir_v = frag_spir;
+            lp.tested = true;
+            lp.log_e = "";
+            if (!testing) loadedBRDFs->insert({ lp.brdfName, lp });
+            printf("[INFO]: compileShader thread completed: BRDF (%s) \n", lp.brdfName.c_str());
+        }
+        catch (const std::exception& exp) {
+            std::cout << exp.what() << std::endl;
+            lp.log_e = exp.what();
+        }
+
+        //lp.latest_spir_v = compileShader(concat, false, "FragmentSHader");;
+        //loadedBRDFs->insert({ lp.brdfName, lp });
+        //printf("[INFO]: compileShader thread completed: BRDF (%s) \n", lp.brdfName.c_str());
     }
   
 }

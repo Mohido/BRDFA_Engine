@@ -497,6 +497,7 @@ namespace brdfa {
         std::vector<char>       latest_spir_v;
         std::string             log_e = "";            // Holds the log of the last compilation
         bool                    tested = false;
+        bool                    requireTest = false;
     };
 
     
