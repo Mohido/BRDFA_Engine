@@ -12,7 +12,7 @@
 #include <queue>
 #include <vector>
 #include <thread>
-
+#include <future>
 #include "brdfa_structs.hpp"
 
 
@@ -91,7 +91,7 @@ namespace brdfa {
 		const uint8_t									MAX_FRAMES_IN_FLIGHT = 2;
 
 		std::vector<std::thread>						compilationPool;				// Holds all the threads that are being used to compile the glsl at the moment.
-
+		std::vector<std::future<bool>>					futurePool;						// Another threading utility for helping us create threads that return values
 
 	public:
 		BRDFA_Engine(const BRDFAEngineConfiguration& conf)
@@ -129,6 +129,9 @@ namespace brdfa {
 
 
 	private:
+		//void threadAddSpirv(std::string cacheFileName, BRDF_Panel lp);
+		//void threadCompileGLSL(std::string concat, BRDF_Panel lp);
+
 		void drawUI_objects();
 		void drawUI_camera();
 		void drawUI_editorBRDF();

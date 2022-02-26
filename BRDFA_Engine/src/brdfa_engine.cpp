@@ -32,8 +32,8 @@
 #include <iostream>
 #include <chrono>
 #include <filesystem>
-
-
+#include <thread>
+#include <future>
 
 
 
@@ -772,7 +772,7 @@ namespace brdfa {
 					concat = (brdf_s[i] == '\0') ? concat : concat + brdf_s[i];
 
 				/*If we reach this point, it means that we will insert the loaded brdf into our loaded brdfs panel*/
-				std::vector<char> frag_spirv;
+				
 				if (m_loadedBrdfs.find(brdfName) == m_loadedBrdfs.end()) {
 					BRDF_Panel	lp;
 					lp.brdfName = brdfName;
@@ -783,20 +783,32 @@ namespace brdfa {
 						continue;
 					}
 					std::string cacheFileName = cache + "/" + brdfName + ".spv";
-					frag_spirv = (loadCache)? readFile(cacheFileName): compileShader(concat, false, "FragmentSHader");
-					lp.latest_spir_v = frag_spirv;
-					m_loadedBrdfs.insert({ brdfName, lp });
+					/*Insert a new pipeline.*/
+					m_graphicsPipelines.pipelines.insert({ brdfName , {} });
+					if (loadCache) {
+						compilationPool.push_back(std::thread(threadAddSpirv, cacheFileName, lp, &m_loadedBrdfs));
+					}
+					else {
+						compilationPool.push_back(std::thread(threadCompileGLSL, concat, lp, &m_loadedBrdfs, false));
+					}
 				}
-
-				/*Insert a new pipeline.*/
-				m_graphicsPipelines.pipelines.insert({ brdfName , {} });
-				createGraphicsPipeline(
-					m_graphicsPipelines.layout, m_graphicsPipelines.sceneRenderPass,
-					m_graphicsPipelines.pipelines.at(brdfName), m_skymap_pipeline,
-					m_device, m_swapChain, m_descriptorData, m_vertSpirv, frag_spirv, false);
 			}
 		}
 			
+		for (auto & t : compilationPool) {
+			t.join();
+		}
+		compilationPool.clear();
+
+		for (const auto& it : m_loadedBrdfs) {
+			createGraphicsPipeline(
+				m_graphicsPipelines.layout, m_graphicsPipelines.sceneRenderPass,
+				m_graphicsPipelines.pipelines.at(it.second.brdfName), m_skymap_pipeline,
+				m_device, m_swapChain, m_descriptorData, m_vertSpirv, it.second.latest_spir_v, false);
+		}
+		
+
+
 		/*Creation of skymap pipelines*/
 		auto vert_sky_shader_code = readFile(SHADERS_PATH + "/skybox.vert.spv", true);
 		auto frag_sky_shader_code = readFile(SHADERS_PATH + "/skybox.frag.spv", true);
@@ -1198,6 +1210,7 @@ namespace brdfa {
 		/*Syncronization objects re-initialization.*/
 		m_imagesInFlight.resize(m_swapChain.images.size(), VK_NULL_HANDLE);
 	}
+
 
 
 	/// <summary>
@@ -1667,10 +1680,114 @@ namespace brdfa {
 	}
 
 
+	/// <summary>
+	/// Creates The testing window UI.
+	/// </summary>
 	void BRDFA_Engine::drawUI_tester(){
 		if (!m_uistate.testWindowActive)
 			return;
 
+		/*Variables that will be used*/
+		static bool testing = false;
+		static bool showLog = false;
+		ImVec2 ws = ImGui::GetWindowSize();
+		float fh = ImGui::GetFrameHeight();
+		ws.y = 0.0f;
+
+		/*If show log is tru, then the test log window is open*/
+		if (showLog) {
+			ImGui::SetNextWindowPos(ImVec2(this->m_configuration.width / 3, 150.0f), ImGuiCond_Appearing);
+			ImGui::SetNextWindowSize(ImVec2(this->m_configuration.width / 3, fh * 10.0f), ImGuiCond_Appearing);
+			ImGui::Begin("Test Result", &showLog);
+			ImGui::BulletText("BRDF Test Logs: ");
+			for (const auto& it : m_loadedBrdfs) {
+				std::string lg = it.second.brdfName;
+				ImGui::Text("\t[%s]:", lg.c_str());
+				lg = (it.second.log_e == "") ? std::string("is good and flawless!"): it.second.log_e;
+				ImGui::TextWrapped("\t%s\n", lg.c_str());
+				ImGui::Separator();
+			}
+			ImGui::End();
+		}
+
+		/*Window inititialization*/
+		ImGui::SetNextWindowPos(ImVec2( this->m_configuration.width / 3, 100.0f), ImGuiCond_Appearing);
+		ImGui::SetNextWindowSize(ImVec2(this->m_configuration.width / 3, 0.0f), ImGuiCond_Always);
+		ImGui::Begin("Test Window", &m_uistate.testWindowActive);
+
+
+		/*The selected brdfs that require testing*/
+		if (ImGui::CollapsingHeader("Editting BRDFs")) {
+			for (auto& it : m_loadedBrdfs) {
+				if (testing && it.second.requireTest)
+					ImGui::BulletText("TESTING: %s", it.first.c_str());
+				else if(!testing){
+					ImGui::Checkbox(it.first.c_str(), &it.second.requireTest);
+				}
+			}
+		}
+
+		ImGui::Separator();
+
+		/*If currently a test is going, draw progress bar and return*/
+		if (futurePool.size() > 0 && testing) {
+			int cur = 0;
+			int sum = futurePool.size();
+
+			/*Check the sum of the completed tests*/
+			for (auto& t : futurePool) {
+				std::future_status status = t.wait_for(std::chrono::milliseconds(0));
+				if (status == std::future_status::ready) {
+					cur++;
+				}
+			}
+
+			/*If all threads had terminated successfully, we terminate them.*/
+			if (cur == sum) {
+				for (auto& t : futurePool) t.get();
+				futurePool.clear();
+				testing = false;
+				showLog = true;
+			}
+
+			float frac = float(cur)/float(sum);
+			frac = std::clamp(frac, 0.2f, 1.0f);
+			ImGui::ProgressBar(frac, ImVec2(0.0f, 0.0f));
+
+			ImGui::End();
+			return;
+		}
+
+		/*Test button and testing*/
+		if (!testing && futurePool.size() == 0 && ImGui::Button("Test", ws)){
+			
+			for (auto& it : m_loadedBrdfs) {
+				if (!it.second.requireTest) continue;
+				testing = true;
+
+				std::string concat;
+				std::string brdf_s = it.second.glslPanel.GetText();
+				concat.reserve(brdf_s.length() + m_mainFragShader.length());
+				for (int i = 0; i < m_mainFragShader.size(); i++)
+					concat = (m_mainFragShader[i] == '\0') ? concat : concat + m_mainFragShader[i];
+				for (int i = 0; i < brdf_s.size(); i++)
+					concat = (brdf_s[i] == '\0') ? concat : concat + brdf_s[i];
+
+				/*Compiling the code asynchronysly*/
+				BRDF_Panel& lp = it.second;
+				auto loadedBRDFs = &m_loadedBrdfs;
+				futurePool.push_back(
+					std::async(std::launch::async, [concat, &lp, loadedBRDFs] {
+						threadCompileGLSL(concat, lp, loadedBRDFs, true);
+						return true;
+					})
+				);
+
+			}
+		}
+
+		//ImGui::ShowDemoWindow();
+		ImGui::End();
 	}
 
 
