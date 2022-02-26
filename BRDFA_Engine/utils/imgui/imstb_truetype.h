@@ -125,7 +125,7 @@
 //   coverage. Thus, anti-aliasing of intersecting shapes may look wrong. If
 //   this turns out to be a problem, you can re-enable the old rasterizer with
 //        #define STBTT_RASTERIZER_VERSION 1
-//   which will incur about a 15% speed hit.
+//   which will incur about a 15% speed_t hit.
 //
 // ADDITIONAL DOCUMENTATION
 //
@@ -745,7 +745,7 @@ STBTT_DEF int stbtt_InitFont(stbtt_fontinfo *info, const unsigned char *data, in
 
 STBTT_DEF int stbtt_FindGlyphIndex(const stbtt_fontinfo *info, int unicode_codepoint);
 // If you're going to perform multiple operations on the same character
-// and you want a speed-up, call this function with the character you're
+// and you want a speed_t-up, call this function with the character you're
 // going to process, then use glyph-based functions instead of the
 // codepoint-based functions.
 // Returns 0 if the character codepoint is not defined in the font.

@@ -45,11 +45,32 @@ namespace brdfa {
     /// Holds the states of the UI buttons and options. For now we only have the rendering option.
     /// </summary>
     struct UIState {
-        uint8_t renderOption = RenderOption::BRDFA_TEXTURE; // render with textures
+        char    obj_path[100];				// Mesh path
+        char    tex_path[100];				// Texture path
+        char    extra_tex_paths[3][100];	// Texture path
+        int     extraTexturesCount = 0;     // The number of extra textures.
+        char    skymap_path[100];		    // Skymap texture
+
+
         bool    running = true;
         bool    focused = true;
-        bool    readFileWindowActive = false;
-        bool    readSkymapWindowActive = false;
+
+        /*File loading windows*/
+        bool    objectLoaderWindowActive = false;
+        bool    skymapLoaderWindowActive = false;
+        
+        /*Tools windows*/
+        bool    logWindowActive = false;
+        bool    objWindowActive = false;
+        bool    helpWindowActive = false;
+        bool    camWindowActive = false;
+        bool    testWindowActive = false;
+        bool    brdfEditorWindowActive = false;
+        bool    brdfCompareWindowActive = false;
+        bool    frameSaverWindowActive = false;
+
+        float   timePerFrame = 0.0;
+        
     };
 
 
@@ -132,6 +153,15 @@ namespace brdfa {
         alignas(16) glm::vec3           pos_c;                          // Camera position in the world
         alignas(16) glm::vec3           render_opt;                     // This holds the rendering option, roughness, specularity and other data that are sent to the gpu.
     };
+
+
+    
+    struct Parameters {
+        alignas(16) glm::vec3           extra012 = glm::vec3(0.0, 0.0, 0.0);       // Extra parameters from 0 to 2
+        alignas(16) glm::vec3           extra345 = glm::vec3(0.0, 0.0, 0.0);       // Extra parameters from 3 to 5
+        alignas(16) glm::vec3           extra678 = glm::vec3(0.0, 0.0, 0.0);       // Extra parameters from 6 to 8
+    };
+
 
 
     struct SyncCollection {
@@ -226,6 +256,11 @@ namespace brdfa {
         glm::vec3                   rotation = glm::vec3(0,0,0);        // Rotation of the object.
         glm::mat4                   transformation = glm::mat4(1.0f);   // Holds the object transformation. Object to World transformation.
 
+
+        Parameters                  params = {};                        // Parameters regarding this object
+        std::vector<Buffer>         paramsBuffer;                       // Holds the parameter buffers
+        int                         shownParameters = 0;                // The number of the shown extra parameters
+
         std::string                 renderOption = "None";
 
         Buffer						vertexBuffer;				        // Vulkan buffer of the vertices
@@ -286,7 +321,7 @@ namespace brdfa {
         float                           aspectRatio;                // Camera aspect ratio: W/H
         float                           nPlane, fPlane;             // Near and Far clipping plane
         float                           angle;                      // Angle of the camera y-axis (Height)
-
+        float                           speed_t = 0.75f, speed_r = 0.75f;                // Camera movement speed.
 
         glm::vec3                       rotation = glm::vec3(0.0f);     // Holdes the accumalated rotation of the camera.
         glm::vec3                       position = glm::vec3(0.0f);     // Holds the current position of the camera. 
@@ -346,6 +381,13 @@ namespace brdfa {
         }
 
 
+        void updateDirection() {
+            direction.x = cos(glm::radians(rotation.x)) * cos(glm::radians(rotation.y));
+            direction.y = sin(glm::radians(rotation.y));
+            direction.z = sin(glm::radians(rotation.x)) * cos(glm::radians(rotation.y));
+            direction = glm::normalize(direction);
+        }
+
 
         void update(const KeyEvent& ke, float time, float translationSpeed, float rotationSpeed) {
             /*Zooming:*/
@@ -371,41 +413,42 @@ namespace brdfa {
         /// <param name="time"></param>
         /// <param name="translationSpeed"></param>
         /// <param name="rotationSpeed"></param>
-        void update(const KeyEvent& ke, MouseEvent& me, float time, float translationSpeed, float rotationSpeed) {
+        void update(const KeyEvent& ke, MouseEvent& me, float time) {
+
 
             /*Forward, backward*/
             if (ke.key == GLFW_KEY_W && ke.action != GLFW_RELEASE)
-                this->position += this->direction * time * translationSpeed;
+                this->position += this->direction * time * speed_t;
             if (ke.key == GLFW_KEY_S && ke.action != GLFW_RELEASE)
-                this->position -= this->direction * time * translationSpeed;
+                this->position -= this->direction * time * speed_t;
 
             /*right, left*/
             if (ke.key == GLFW_KEY_D && ke.action != GLFW_RELEASE) {
                 glm::vec3 rightDir = glm::cross(this->direction, glm::vec3(0, 1, 0));
-                this->position += rightDir * time * translationSpeed;
+                this->position += rightDir * time * speed_t;
                 //this->position += glm::vec3(this->transformation[0][0], this->transformation[0][1], this->transformation[0][2]) * time * translationSpeed;
             }
             if (ke.key == GLFW_KEY_A && ke.action != GLFW_RELEASE) {
                 glm::vec3 rightDir = glm::cross(this->direction, glm::vec3(0, 1, 0));
-                this->position -= rightDir * time * translationSpeed;
+                this->position -= rightDir * time * speed_t;
             }
 
             /*up, down*/
             if (ke.key == GLFW_KEY_Q && ke.action != GLFW_RELEASE) {
                 glm::vec3 rightDir = glm::cross(this->direction, glm::vec3(0, 1, 0));
                 glm::vec3 upDir = glm::cross(rightDir, this->direction);
-                this->position += upDir * time * translationSpeed;
+                this->position += upDir * time * speed_t;
             }
             if (ke.key == GLFW_KEY_E && ke.action != GLFW_RELEASE) {
                 glm::vec3 rightDir = glm::cross(this->direction, glm::vec3(0, 1, 0));
                 glm::vec3 upDir = glm::cross(rightDir, this->direction);
-                this->position -= upDir * time * translationSpeed;
+                this->position -= upDir * time * speed_t;
             }
 
 
 
             if (me.update) {
-                glm::vec2 temp = me.delta_cords * time * rotationSpeed;
+                glm::vec2 temp = me.delta_cords * time * speed_r;
                 temp.y *= -1.0f;    // For flipping the movement.
                 rotation += glm::vec3(temp, 0.0f);
 
@@ -452,7 +495,9 @@ namespace brdfa {
         std::string             brdfName;
         TextEditor              glslPanel;	/*IMGUI Text editor Addon: https://github.com/ELTE-IK-CG/Dragonfly/tree/master/include/ImGui-addons/imgui_text_editor*/
         std::vector<char>       latest_spir_v;
+        std::string             log_e = "";            // Holds the log of the last compilation
         bool                    tested = false;
+        bool                    requireTest = false;
     };
 
     

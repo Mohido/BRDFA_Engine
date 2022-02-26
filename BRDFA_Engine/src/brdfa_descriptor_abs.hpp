@@ -69,10 +69,20 @@ namespace brdfa {
         iTextureLayoutBinding4.pImmutableSamplers = nullptr;
         iTextureLayoutBinding4.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-        std::array<VkDescriptorSetLayoutBinding, 6> bindings = { 
+        /*Object Parameters variables.*/
+        VkDescriptorSetLayoutBinding extraParamsLayoutBinding{};
+        extraParamsLayoutBinding.binding = 6;
+        extraParamsLayoutBinding.descriptorCount = 1;
+        extraParamsLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        extraParamsLayoutBinding.pImmutableSamplers = nullptr;
+        extraParamsLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+
+        std::array<VkDescriptorSetLayoutBinding, 7> bindings = { 
             uboLayoutBinding, 
             skymapLayoutBinding, 
-            iTextureLayoutBinding1, iTextureLayoutBinding2, iTextureLayoutBinding3, iTextureLayoutBinding4 };
+            iTextureLayoutBinding1, iTextureLayoutBinding2, iTextureLayoutBinding3, iTextureLayoutBinding4,
+            extraParamsLayoutBinding };
 
         VkDescriptorSetLayoutCreateInfo layoutInfo{};
         layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -99,14 +109,15 @@ namespace brdfa {
 
         /*Descriptor Pool creation*/
         size_t descriptorCount = swapchain.images.size() * meshes.size(); // How many descriptors of this kind can be allocated through the whole sets
-        std::array<VkDescriptorPoolSize, 3> poolSizes{};
+        std::array<VkDescriptorPoolSize, 4> poolSizes{};
         poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;          // ubov
         poolSizes[0].descriptorCount = descriptorCount;
         poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;  // texture
         poolSizes[1].descriptorCount = descriptorCount * TEXTURE_COUNT;
         poolSizes[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;  // environment map
         poolSizes[2].descriptorCount = descriptorCount;
-
+        poolSizes[3].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;          // extra object parameters
+        poolSizes[3].descriptorCount = descriptorCount;
 
         VkDescriptorPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -136,9 +147,6 @@ namespace brdfa {
 
 
         for (size_t i = 0; i < descriptorObj.sets.size(); i++) {
-            
-
-
             std::vector<VkWriteDescriptorSet> descriptorWrites;
             /*Mesh UBO uniform*/
             descriptorWrites.push_back({});
@@ -190,6 +198,22 @@ namespace brdfa {
                 descriptorWrites[descriptorWrites.size() - 1].descriptorCount = 1;
                 descriptorWrites[descriptorWrites.size() - 1].pImageInfo = &imageInfos[j];
             }
+
+            /*Mesh UBO uniform*/
+            descriptorWrites.push_back({});
+
+            VkDescriptorBufferInfo paramsInfo{};
+            paramsInfo.buffer = meshes[i / swapchain.images.size()].paramsBuffer[i % swapchain.images.size()].obj;
+            paramsInfo.offset = 0;
+            paramsInfo.range = sizeof(Parameters);
+            descriptorWrites[descriptorWrites.size() - 1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrites[descriptorWrites.size() - 1].dstSet = descriptorObj.sets[i];
+            descriptorWrites[descriptorWrites.size() - 1].dstBinding = 6;
+            descriptorWrites[descriptorWrites.size() - 1].dstArrayElement = 0;
+            descriptorWrites[descriptorWrites.size() - 1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            descriptorWrites[descriptorWrites.size() - 1].descriptorCount = 1;
+            descriptorWrites[descriptorWrites.size() - 1].pBufferInfo = &paramsInfo;
+
 
             vkUpdateDescriptorSets(device.device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, VK_NULL_HANDLE);
         }

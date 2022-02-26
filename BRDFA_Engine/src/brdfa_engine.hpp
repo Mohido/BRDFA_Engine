@@ -11,8 +11,8 @@
 #include <array>
 #include <queue>
 #include <vector>
-
-
+#include <thread>
+#include <future>
 #include "brdfa_structs.hpp"
 
 
@@ -90,7 +90,9 @@ namespace brdfa {
 
 		const uint8_t									MAX_FRAMES_IN_FLIGHT = 2;
 
-	
+		std::vector<std::thread>						compilationPool;				// Holds all the threads that are being used to compile the glsl at the moment.
+		std::vector<std::future<bool>>					futurePool;						// Another threading utility for helping us create threads that return values
+
 	public:
 		BRDFA_Engine(const BRDFAEngineConfiguration& conf)
 			: m_configuration(conf), m_frameBufferResized(false)
@@ -127,9 +129,20 @@ namespace brdfa {
 
 
 	private:
+		//void threadAddSpirv(std::string cacheFileName, BRDF_Panel lp);
+		//void threadCompileGLSL(std::string concat, BRDF_Panel lp);
+
 		void drawUI_objects();
 		void drawUI_camera();
-		void drawUI_advance();
+		void drawUI_editorBRDF();
+		void drawUI_logger();
+		void drawUI_comparer();
+		void drawUI_frameSaver();
+		void drawUI_tester();
+		void drawUI_menubar();
+		void drawUI_objectLoader();
+		void drawUI_skymapLoader();
+
 
 		void refreshObject(const size_t& idx);													// Records the objects back again.
 		void addFragPipeline(const std::string&, const std::string&);							// This is used to add a pipeline to the scene. And refreshes the obejcts.
