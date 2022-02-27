@@ -191,9 +191,6 @@ namespace brdfa {
 					| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 				m_uniformBuffers[i]);
 		}
-
-		
-
 		
 		/*Recreating the Descriptors sets*/
 		vkDestroyDescriptorPool(m_device.device, m_descriptorData.pool, nullptr);
@@ -1036,6 +1033,9 @@ namespace brdfa {
 			throw std::runtime_error("failed to submit draw command buffer!");
 		}
 
+		if (this->saveShot)
+			record(m_currentFrame);
+
 		VkPresentInfoKHR presentInfo{};
 		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 		presentInfo.waitSemaphoreCount = 1;
@@ -1044,13 +1044,14 @@ namespace brdfa {
 		VkSwapchainKHR swapChains[] = { m_swapChain.swapChain };
 		presentInfo.swapchainCount = 1;
 		presentInfo.pSwapchains = swapChains;
-		presentInfo.pImageIndices = &imageIndex;
+		presentInfo.pImageIndices = &imageIndex;		
 
 		VkResult result = vkQueuePresentKHR(m_device.presentQueue, &presentInfo);
 		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_frameBufferResized) {
 			m_frameBufferResized = false;
 			recreate();
 		}
+
 
 		else if (result != VK_SUCCESS) {
 			throw std::runtime_error("failed to present swap chain image!");
@@ -1059,6 +1060,190 @@ namespace brdfa {
 		auto endtime = std::chrono::high_resolution_clock::now();
 		float time = std::chrono::duration<float, std::chrono::seconds::period>(endtime - startTime).count();
 		m_uistate.timePerFrame = (m_uistate.timePerFrame > 0.0f)? (m_uistate.timePerFrame + time * 1000.0f) / 2.0f : time * 1000.0f;
+	}
+
+	/// <summary>
+	///		Saves the current frame into a file. The file will be the saveFrameDir memeber variable set in the engine.
+	/// </summary>
+	/// <param name="imageIndex"></param>
+	void BRDFA_Engine::record(uint32_t imageIndex)
+	{
+		bool supportsBlit = true;
+
+		// Check blit support for source and destination
+		VkFormatProperties formatProps;
+
+		// Check if the device supports blitting from optimal images (the swapchain images are in optimal format)
+		vkGetPhysicalDeviceFormatProperties(m_device.physicalDevice, m_swapChain.format, &formatProps);
+		if (!(formatProps.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_SRC_BIT)) {
+			std::cerr << "Device does not support blitting from optimal tiled images, using copy instead of blit!" << std::endl;
+			supportsBlit = false;
+		}
+
+		// Check if the device supports blitting to linear images
+		vkGetPhysicalDeviceFormatProperties(m_device.physicalDevice, m_swapChain.format, &formatProps);
+		if (!(formatProps.linearTilingFeatures & VK_FORMAT_FEATURE_BLIT_DST_BIT)) {
+			std::cerr << "Device does not support blitting to linear tiled images, using copy instead of blit!" << std::endl;
+			supportsBlit = false;
+		}
+
+		// Source for the copy is the last rendered swapchain image
+		Image srcImage;
+		srcImage.obj = m_swapChain.images[imageIndex];
+		srcImage.width = m_swapChain.extent.width;
+		srcImage.height = m_swapChain.extent.height;
+		srcImage.mipLevels = 1;
+
+		// Create the image
+		Image dstImage;
+		createImage(
+			m_commander, m_device, m_swapChain.extent.width, m_swapChain.extent.height, 1, VK_SAMPLE_COUNT_1_BIT,
+			VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_LINEAR, VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, dstImage);
+
+		// Do the actual blit from the swapchain image to our host visible destination image
+		// Transition destination image to transfer destination layout
+		transitionImageLayout(dstImage, m_commander, m_device, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		transitionImageLayout(srcImage, m_commander, m_device, m_swapChain.format, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+		// If source and destination support blit we'll blit as this also does automatic format conversion (e.g. from BGR to RGB)
+		if (supportsBlit)
+		{
+			// Define the region to blit (we will blit the whole swapchain image)
+			VkOffset3D blitSize;
+			blitSize.x = m_swapChain.extent.width;
+			blitSize.y = m_swapChain.extent.height;
+			blitSize.z = 1;
+			VkImageBlit imageBlitRegion{};
+			imageBlitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			imageBlitRegion.srcSubresource.layerCount = 1;
+			imageBlitRegion.srcOffsets[1] = blitSize;
+			imageBlitRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			imageBlitRegion.dstSubresource.layerCount = 1;
+			imageBlitRegion.dstOffsets[1] = blitSize;
+
+			VkCommandBuffer copyCmd = beginSingleTimeCommands(m_commander, m_device);
+			// Issue the blit command
+			vkCmdBlitImage(
+				copyCmd,
+				srcImage.obj, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+				dstImage.obj, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				1,
+				&imageBlitRegion,
+				VK_FILTER_NEAREST);
+			endSingleTimeCommands(m_commander, m_device);
+		}
+		else
+		{
+			// Otherwise use image copy (requires us to manually flip components)
+			VkImageCopy imageCopyRegion{};
+			imageCopyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			imageCopyRegion.srcSubresource.layerCount = 1;
+			imageCopyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			imageCopyRegion.dstSubresource.layerCount = 1;
+			imageCopyRegion.extent.width = m_swapChain.extent.width;
+			imageCopyRegion.extent.height = m_swapChain.extent.height;
+			imageCopyRegion.extent.depth = 1;
+			VkCommandBuffer copyCmd = beginSingleTimeCommands(m_commander, m_device);
+			// Issue the copy command
+			vkCmdCopyImage(
+				copyCmd,
+				srcImage.obj, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+				dstImage.obj, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				1,
+				&imageCopyRegion);
+			endSingleTimeCommands(m_commander, m_device);
+		}
+
+		// Transition destination image to general layout, which is the required layout for mapping the image memory later on
+		transitionImageLayout(srcImage, m_commander, m_device, m_swapChain.format, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+		transitionImageLayout(dstImage, m_commander, m_device, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
+
+		// Get layout of the image (including row pitch)
+		VkImageSubresource subResource{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 0 };
+		VkSubresourceLayout subResourceLayout;
+		vkGetImageSubresourceLayout(m_device.device, dstImage.obj, &subResource, &subResourceLayout);
+
+
+		/*Save the image into a raw file*/
+		{
+			const char* data;
+			vkMapMemory(m_device.device, dstImage.memory, 0, VK_WHOLE_SIZE, 0, (void**)&data);
+			data += subResourceLayout.offset;
+			//std::ofstream rgbf("rgb.raw", std::ios::out);
+			std::ofstream file;
+		
+			try {
+				file.open(savedFramesDir, std::ios::out);
+			}
+			catch (std::exception& exp) {
+				std::cout << exp.what() << std::endl;
+				this->saveShot = false;
+				return;
+			}
+		
+			// ppm header
+			//file << "P6\n" << m_swapChain.extent.width << "\n" << m_swapChain.extent.height << "\n" << 255 << "\n";
+
+			// If source is BGR (destination is always RGB) and we can't use blit (which does automatic conversion), we'll have to manually swizzle color components
+			bool colorSwizzle = false;
+
+			// Check if source is BGR
+			// Note: Not complete, only contains most common and basic BGR surface formats for demonstration purposes
+			if (!supportsBlit)
+			{
+				std::vector<VkFormat> formatsBGR = { VK_FORMAT_B8G8R8A8_SRGB, VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_B8G8R8A8_SNORM };
+				colorSwizzle = (std::find(formatsBGR.begin(), formatsBGR.end(), m_swapChain.format) != formatsBGR.end());
+			}
+		
+			// ppm pixel data
+			std::stringstream ss;
+			for (uint32_t y = 0; y < m_swapChain.extent.height; y++)
+			{
+				unsigned int* row = (unsigned int*)data;
+				for (uint32_t x = 0; x < m_swapChain.extent.width; x++)
+				{
+					if (!(x == 0 && y == 0)) ss << " ";
+
+					if (colorSwizzle)
+					{
+						unsigned char* cp = (unsigned char*)row;
+						int ip[3] = {
+							int((unsigned char)cp[2]),
+							int((unsigned char)cp[1]),
+							int((unsigned char)cp[0]) };
+
+						ss << ip[0] << " " << ip[1] << " " << ip[2];
+					}
+					else
+					{
+						//ofs.write((char*)row, 3);
+						unsigned char* cp = (unsigned char*)row;
+						int ip[3] = { 
+							int((unsigned char)cp[0]), 
+							int((unsigned char)cp[1]), 
+							int((unsigned char)cp[2])};
+
+						ss << ip[0] << " " << ip[1] << " " << ip[2];
+					}
+					row++;
+				}
+				// ss << "\n";
+				data += subResourceLayout.rowPitch;
+			}
+			std::string ppmData = ss.str();
+			file << ppmData;
+			file.close();
+			//rgbf.close();
+			printf("[INFO]: [record]: Image saved at the path: %s\n", savedFramesDir.c_str());
+		
+			// Clean up resources
+			vkUnmapMemory(m_device.device, dstImage.memory);
+			vkFreeMemory(m_device.device, dstImage.memory, nullptr);
+			vkDestroyImage(m_device.device, dstImage.obj, nullptr);
+			this->saveShot = false;
+		
+		}
 	}
 
 
@@ -1081,7 +1266,7 @@ namespace brdfa {
 		this->drawUI_tester();
 		this->drawUI_editorBRDF();
 		this->drawUI_comparer();
-		this->drawUI_frameSaver();
+		this->drawUI_frameSaver(imageIndex);
 		
 
 		// {
@@ -1674,9 +1859,31 @@ namespace brdfa {
 	}
 
 
-	void BRDFA_Engine::drawUI_frameSaver(){
-		if (!m_uistate.frameSaverWindowActive)
+	void BRDFA_Engine::drawUI_frameSaver(uint32_t imageIndex){
+		static char buf[50];
+
+		if (!m_uistate.frameSaverWindowActive) {
+			memset(buf, '\0', 50);
 			return;
+		}
+
+		ImGui::SetNextWindowPos(ImVec2(this->m_configuration.width / 3, 0), ImGuiCond_Appearing);
+		ImGui::SetNextWindowSize(ImVec2(this->m_configuration.width / 4, 0), ImGuiCond_Appearing);
+		ImGui::Begin("Frame Saver Window", &m_uistate.frameSaverWindowActive, ImGuiWindowFlags_NoResize);
+
+		static int totalRegisteredFrames = 0;	// Current brdfs registered to be rendered.
+		ImVec2 ws = ImGui::GetWindowSize();
+		ws.y = 0;
+
+		ImGui::InputText("Save As", buf, 50);
+		ImGui::TextWrapped("- Click 'Record' to take a screen shot of the current display");
+		ImGui::Separator();
+		if (!this->saveShot && ImGui::Button("Record", ws)) {
+			this->savedFramesDir = std::string(buf);
+			this->saveShot = true;
+		}
+		ImGui::End();
+
 	}
 
 
