@@ -498,6 +498,7 @@ namespace brdfa {
         std::string             log_e = "";            // Holds the log of the last compilation
         bool                    tested = false;
         bool                    requireTest = false;
+        bool                    saveFrame = false;      // Used for saving the frame of the current brdf
     };
 
     

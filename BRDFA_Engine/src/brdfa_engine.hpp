@@ -90,8 +90,13 @@ namespace brdfa {
 
 		const uint8_t									MAX_FRAMES_IN_FLIGHT = 2;
 
+		/*Parallalism utilitities*/
 		std::vector<std::thread>						compilationPool;				// Holds all the threads that are being used to compile the glsl at the moment.
 		std::vector<std::future<bool>>					futurePool;						// Another threading utility for helping us create threads that return values
+
+		/*saving images Utilities.*/
+		std::string										savedFramesDir = "res/";		// The frames Directory.
+		bool											saveShot = false;
 
 	public:
 		BRDFA_Engine(const BRDFAEngineConfiguration& conf)
@@ -137,7 +142,7 @@ namespace brdfa {
 		void drawUI_editorBRDF();
 		void drawUI_logger();
 		void drawUI_comparer();
-		void drawUI_frameSaver();
+		void drawUI_frameSaver(uint32_t imageIndex);
 		void drawUI_tester();
 		void drawUI_menubar();
 		void drawUI_objectLoader();
@@ -155,6 +160,7 @@ namespace brdfa {
 		bool startImgui();																		// Starts the Imgui for vulkan and glfw
 		void update(uint32_t currentImage);														// Update function. Time dependent function.
 		void render(uint32_t imageIndex);														// Render the engine's scene.
+		void record(uint32_t imageIndex);														// Save the frame into a file.
 		void drawUI(uint32_t imageIndex);														// Draw the UI (ImGui)
 		void cleanup();																			// Clean up the swapchain and the Vulkan objects. Mostly used during window resizing
 		void recreate();																		// Cleans up the vulkan engine and recreate its objects. Called when the window is being resized.
