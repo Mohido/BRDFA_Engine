@@ -1772,7 +1772,7 @@ namespace brdfa {
 				if (pressedB && strlen(name) > 0) {
 					BRDF_Panel panel;
 					panel.brdfName = name;
-					panel.glslPanel.SetText("vec3 brdf(vec3 L, vec3 N, vec3 V, vec2 extra){\n\n}");
+					panel.glslPanel.SetText("vec3 render(vec3 L, vec3 N, vec3 V, vec2 tc){\n\n}");
 					panel.tested = false;
 					
 					memset(name, '\0', 20);

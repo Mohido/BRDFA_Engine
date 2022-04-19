@@ -1,0 +1,14 @@
+
+float cook_torrance_geometry(vec3 N, vec3 V, vec3 L){
+    L = reflect(-L, N);
+    vec3 h = normalize(V + L);
+    float nh = dot(N,h);
+    float nv = dot(N,V);
+    float vh = dot(V,h);
+    float nl = dot(N,L);
+    return min(1., min((2.*nh*nv) / vh, (2.*nh*nl) / vh));
+}
+
+vec3 render(vec3 L, vec3 N, vec3 V, vec2 textureCord, mat3 worldToLocal){
+	return vec3(cook_torrance_geometry(N,V,L));
+}

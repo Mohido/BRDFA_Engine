@@ -5,7 +5,7 @@
 
 
 /*Output variables. */
-layout(location = 0) out vec4 outColor;
+layout(location = 0) out vec4 outcolor;
 
 /*Incoming variables*/
 layout(location = 0) in vec3 fragColor;
@@ -50,14 +50,14 @@ layout(binding = 6) uniform Parameters {
 
 /*Functions*/
 //BRDF_Output brdf(vec3 L, vec3 N, vec3 V);
-vec3 brdf(vec3 L, vec3 N, vec3 V, vec2 extra);
+vec3 render(vec3 L, vec3 N, vec3 V, vec2 textureCord, mat3 worldToLocal);
 
 uint base_hash(uvec2 p);
 vec2 PseudoRandom2D(in int i);
 
 /*Main*/
 void main() {
-	//outColor = vec4(normalize(ubo.pos_c), 1.0f);
+	//outcolor = vec4(normalize(ubo.pos_c), 1.0f);
 	vec4 texcol = texture(iTexture0, fragTexCoord);
 	vec3 N = normalize(inNormal);
 	vec3 V = normalize(env.pos_c - vertPosition);
@@ -67,7 +67,7 @@ void main() {
 	// BRDF_Output brdfo = brdf(L, N, V);
 
 	/*Monte-Carlo Setup*/
-    vec3 accum = vec3(0.); // MonteCarlo accumalator
+    
     const int scatterCount = int(env.mat_p.z); // Ray samples 
     int bias = int(base_hash(floatBitsToUint(gl_FragCoord.xy))); // int(base_hash(floatBitsToUint(gl_FragCoord.xy)));
 
@@ -82,22 +82,22 @@ void main() {
 
 	// vec3 c = envColor * brdfo.specular;   
     vec4 textureColor = texture(iTexture0, fragTexCoord);
-
-	for(int i = bias; i < scatterCount + bias; i++){
+    vec3 accum = render(reflect(-V,N), N, V, fragTexCoord, inv_axis); // Starting of the accumalator with the perfect reflection direction.
+	for(int i = bias; i < scatterCount + bias - 1; i++){
         /*Caculating Sample direction*/
         vec2 hl = PseudoRandom2D(i);
         float ourV_sqrt = sqrt(1. -  hl.y* hl.y);
         vec3 L = normalize( axis * vec3( ourV_sqrt*cos(2.*PI *  hl.x), hl.y, ourV_sqrt*sin(2.*PI *  hl.x)));
-        accum += brdf(L, N, V, env.mat_p.xy);   //texcol.xyz*L_c*(br.specular + br.diffuse ); //cook_torrance_schlik_brdf(L,V,N)*L_c*LN;//; 
+        accum += render(L, N, V, fragTexCoord, inv_axis);   //texcol.xyz*L_c*(br.specular + br.diffuse ); //cook_torrance_schlik_brdf(L,V,N)*L_c*LN;//; 
     } 
 
     // Sphere colouring schemes
     accum /= (float(scatterCount));
-    outColor = vec4(accum, 1.0);
+    outcolor = vec4(accum, 1.0);
 
 
-	//outColor = vec4(brdfo.specular, 1.);//vec4(texture(texSampler, fragTexCoord));
-	// outColor = vec4(brdfo.specular, 1.);
+	//outcolor = vec4(brdfo.specular, 1.);//vec4(texture(texSampler, fragTexCoord));
+	// outcolor = vec4(brdfo.specular, 1.);
 }
 
 /**

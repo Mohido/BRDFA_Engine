@@ -1,0 +1,27 @@
+#define PI 3.14159265359
+
+vec3 render(vec3 L, vec3 N, vec3 V, vec2 textureCord, mat3 worldToLocal){
+	float sinThetaI = sqrt(1.-dot(V,N)*dot(V,N));
+	float sinThetaO = sqrt(1.-dot(L,N)*dot(L,N));
+	
+	float maxCos = 0.;
+	if(sinThetaI > 1e-4 && sinThetaO > 1e-4){
+		float sinPhiI = clamp(V.y/sinThetaI, -1, 1);
+		float sinPhiO = clamp(L.y/sinThetaO, -1, 1);
+		float cosPhiI = clamp(V.x/sinThetaI, -1, 1);
+		float cosPhiO = clamp(L.x/sinThetaO, -1, 1);
+		float dcos = cosPhiI*cosPhiO + sinPhiI*sinPhiO;
+		maxCos = max(0., dcos);
+	}
+	
+	float minZ = min(dot(L,N),dot(V,N));
+	float maxZ = max(dot(L,N),dot(V,N));
+	
+	float sinAlpha = sqrt(1. - minZ*minZ);
+	float tanBeta = sqrt(1.-maxZ*maxZ) / maxZ;
+	float r2 = iParameter0*iParameter0;
+	float A = 1. - 0.5*r2/(r2+0.33);
+	float B = 0.45*r2/(r2 + 0.09);
+	vec3 envColor = texture(skybox, L).rgb;
+	return (envColor*vec3(3.)*dot(L,N))*(A + B*maxCos*sinAlpha*tanBeta);
+}

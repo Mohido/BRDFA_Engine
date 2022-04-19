@@ -131,16 +131,16 @@ namespace brdfa {
 
 
         /*Allocating descriptor sets*/
-        size_t setCount = descriptorCount;          // swapchain.images.size() * meshCount;
-        std::vector<VkDescriptorSetLayout> layouts(setCount, descriptorObj.layout);
+        size_t setcount = descriptorCount;          // swapchain.images.size() * meshCount;
+        std::vector<VkDescriptorSetLayout> layouts(setcount, descriptorObj.layout);
         VkDescriptorSetAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         allocInfo.descriptorPool = descriptorObj.pool;
-        allocInfo.descriptorSetCount = static_cast<uint32_t>(setCount);
+        allocInfo.descriptorSetCount = static_cast<uint32_t>(setcount);
         allocInfo.pSetLayouts = layouts.data();
 
         // Every 2 consecutive sets are for an individual object in that frame.
-        descriptorObj.sets.resize(setCount);
+        descriptorObj.sets.resize(setcount);
         if (vkAllocateDescriptorSets(device.device, &allocInfo, descriptorObj.sets.data()) != VK_SUCCESS) {
             throw std::runtime_error("ERROR: failed to allocate descriptor sets!");
         }
