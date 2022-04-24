@@ -1,0 +1,12 @@
+
+float beckmann_distribution(vec3 N, vec3 H, float a){
+    float nh = dot(N,H);
+    float nom = exp((nh*nh - 1.)/(a*a*nh*nh));
+    float den = 4.*a*a*nh*nh*nh*nh;
+
+    return nom/den;
+}
+
+vec3 render(vec3 L, vec3 N, vec3 V, vec2 textureCord, mat3 worldToLocal){
+	return vec3(beckmann_distribution(N, normalize(V+L), iParameter0));
+}

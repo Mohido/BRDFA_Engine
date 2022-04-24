@@ -1,7 +1,7 @@
 #pragma once
 
-#include "brdfa_structs.hpp"
-#include "brdfa_cons.hpp"
+#include <brdfa_structs.hpp>
+#include <brdfa_cons.hpp>
 
 #include <vulkan/vulkan.h>
 #include <shaderc/shaderc.h> // For real time compilation.
@@ -23,7 +23,7 @@ namespace brdfa {
     /// </summary>
     /// <param name="filename"></param>
     /// <returns></returns>
-    static std::vector<char> readFile(const std::string& filename, const bool& binary = true) {
+    std::vector<char> readFile(const std::string& filename, const bool& binary = true) {
 
         if (binary) {
             std::ifstream file(filename, std::ios::ate | std::ios::binary);
@@ -65,7 +65,7 @@ namespace brdfa {
     /// </summary>
     /// <param name="code"></param>
     /// <returns></returns>
-    static VkShaderModule createShaderModule(const Device& device, const std::vector<char>& code) {
+    VkShaderModule createShaderModule(const Device& device, const std::vector<char>& code) {
         VkShaderModuleCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
         createInfo.codeSize = code.size();
@@ -87,7 +87,7 @@ namespace brdfa {
     /// <param name="device"></param>
     /// <param name="glslCode"></param>
     /// <returns></returns>
-    static std::vector<char> compileShader(const std::string& glslCode, const bool& vertexShader = true, const std::string& shadername = "realtimeShader") {
+    std::vector<char> compileShader(const std::string& glslCode, const bool& vertexShader = true, const std::string& shadername = "realtimeShader") {
 
         std::string glslC(glslCode.begin(), glslCode.end());
         //std::cout << glslCode.c_str() << std::endl;
@@ -168,7 +168,7 @@ namespace brdfa {
     /// <param name="gpipeline"></param>
     /// <param name="device"></param>
     /// <param name="swapchain"></param>
-    static void createRenderPass(GPipeline& gpipeline, const Device& device, const SwapChain& swapchain) {
+    void createRenderPass(GPipeline& gpipeline, const Device& device, const SwapChain& swapchain) {
 
         /*What depth attachment format the physical device support.*/
         std::vector<VkFormat> candidates = { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT };
@@ -342,7 +342,7 @@ namespace brdfa {
     /// <param name="gpipeline"></param>
     /// <param name="device"></param>
     /// <param name="descriptor"></param>
-    static void createPipelineLayout(GPipeline& gpipeline,  const Device& device, const Descriptor& descriptor) {
+    void createPipelineLayout(GPipeline& gpipeline,  const Device& device, const Descriptor& descriptor) {
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         pipelineLayoutInfo.setLayoutCount = 1;
@@ -361,7 +361,7 @@ namespace brdfa {
     /// <param name="device"></param>
     /// <param name="swapchain"></param>
     /// <param name="descriptor"></param>
-    static void createGraphicsPipeline(
+    void createGraphicsPipeline(
             const VkPipelineLayout& layout,     const VkRenderPass& sceneRenderPass, 
             VkPipeline& gpipeline,      VkPipeline& sky_map_pipeline, 
             const Device& device,       const SwapChain& swapchain, 

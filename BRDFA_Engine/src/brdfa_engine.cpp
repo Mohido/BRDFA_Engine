@@ -25,11 +25,20 @@
 // BRDFA_Engine Dependencies
 #include "brdfa_engine.hpp"
 #include "brdfa_cons.hpp"
-#include "brdfa_functions.hpp"
+#include <helpers/functions.hpp>
 #include "brdfa_callbacks.hpp"
+
+
+#include <stb/stb_image.h>
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb/stb_image_write.h>
+
+
 
 // STD Dependencies
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <chrono>
 #include <filesystem>
 #include <thread>
@@ -633,7 +642,7 @@ namespace brdfa {
 	/// </summary>
 	/// <param name="brdfName"></param>
 	/// <param name="fragSpirv"></param>
-	void BRDFA_Engine::recreatePipeline(const std::string& brdfName, const std::vector<char>& fragSpirv)
+	void BRDFA_Engine::recreatePipeline(const std::string& brdfName, const std::vector<char>& fragSpirv, const bool& refreshObj)
 	{
 		/*Destroying old pipeline*/
 		vkDeviceWaitIdle(m_device.device);
@@ -649,7 +658,7 @@ namespace brdfa {
 			m_device, m_swapChain, m_descriptorData, m_vertSpirv, fragSpirv, false);
 
 		/*Re record the scene objects*/
-		for (size_t j = 0; j < m_meshes.size(); j++)
+		for (size_t j = 0; j < m_meshes.size() & refreshObj; j++)
 			refreshObject(j);
 	}
 
@@ -870,7 +879,7 @@ namespace brdfa {
 		m_meshes.push_back(loadMesh(m_commander, m_device, MODEL_PATH, TEXTURE_PATH, m_swapChain.images.size() ));		// Loading veriaty of objects
 		loadVertices(m_skymap_mesh, m_commander, m_device, CUBE_MODEL_PATH);				// Loading skymap vertices (CUBE)
 		loadEnvironmentMap(SKYMAP_PATHS);
-		m_camera = Camera(m_swapChain.extent.width, m_swapChain.extent.height, 0.1f, 10.0f, 45.0f);
+		m_camera = Camera(m_swapChain.extent.width, m_swapChain.extent.height, 0.1f, 100.0f, 45.0f);
 
 		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
 		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
@@ -1033,9 +1042,6 @@ namespace brdfa {
 			throw std::runtime_error("failed to submit draw command buffer!");
 		}
 
-		if (this->saveShot)
-			record(m_currentFrame);
-
 		VkPresentInfoKHR presentInfo{};
 		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 		presentInfo.waitSemaphoreCount = 1;
@@ -1051,11 +1057,12 @@ namespace brdfa {
 			m_frameBufferResized = false;
 			recreate();
 		}
-
-
 		else if (result != VK_SUCCESS) {
 			throw std::runtime_error("failed to present swap chain image!");
 		}
+
+		if (this->saveShot)
+			record(m_currentFrame);
 
 		auto endtime = std::chrono::high_resolution_clock::now();
 		float time = std::chrono::duration<float, std::chrono::seconds::period>(endtime - startTime).count();
@@ -1068,6 +1075,7 @@ namespace brdfa {
 	/// <param name="imageIndex"></param>
 	void BRDFA_Engine::record(uint32_t imageIndex)
 	{
+		vkDeviceWaitIdle(m_device.device);
 		bool supportsBlit = true;
 
 		// Check blit support for source and destination
@@ -1170,21 +1178,7 @@ namespace brdfa {
 			const char* data;
 			vkMapMemory(m_device.device, dstImage.memory, 0, VK_WHOLE_SIZE, 0, (void**)&data);
 			data += subResourceLayout.offset;
-			//std::ofstream rgbf("rgb.raw", std::ios::out);
-			std::ofstream file;
-		
-			try {
-				file.open(savedFramesDir, std::ios::out);
-			}
-			catch (std::exception& exp) {
-				std::cout << exp.what() << std::endl;
-				this->saveShot = false;
-				return;
-			}
-		
-			// ppm header
-			//file << "P6\n" << m_swapChain.extent.width << "\n" << m_swapChain.extent.height << "\n" << 255 << "\n";
-
+	
 			// If source is BGR (destination is always RGB) and we can't use blit (which does automatic conversion), we'll have to manually swizzle color components
 			bool colorSwizzle = false;
 
@@ -1195,16 +1189,16 @@ namespace brdfa {
 				std::vector<VkFormat> formatsBGR = { VK_FORMAT_B8G8R8A8_SRGB, VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_B8G8R8A8_SNORM };
 				colorSwizzle = (std::find(formatsBGR.begin(), formatsBGR.end(), m_swapChain.format) != formatsBGR.end());
 			}
-		
-			// ppm pixel data
-			std::stringstream ss;
+
+
+			std::vector<char> rgbPixels;
+			rgbPixels.reserve(m_swapChain.extent.height * m_swapChain.extent.width * 3);
+
 			for (uint32_t y = 0; y < m_swapChain.extent.height; y++)
 			{
 				unsigned int* row = (unsigned int*)data;
 				for (uint32_t x = 0; x < m_swapChain.extent.width; x++)
 				{
-					if (!(x == 0 && y == 0)) ss << " ";
-
 					if (colorSwizzle)
 					{
 						unsigned char* cp = (unsigned char*)row;
@@ -1212,8 +1206,9 @@ namespace brdfa {
 							int((unsigned char)cp[2]),
 							int((unsigned char)cp[1]),
 							int((unsigned char)cp[0]) };
-
-						ss << ip[0] << " " << ip[1] << " " << ip[2];
+						rgbPixels.push_back(static_cast<char>(ip[0]));
+						rgbPixels.push_back(static_cast<char>(ip[1]));
+						rgbPixels.push_back(static_cast<char>(ip[2]));
 					}
 					else
 					{
@@ -1224,25 +1219,27 @@ namespace brdfa {
 							int((unsigned char)cp[1]), 
 							int((unsigned char)cp[2])};
 
-						ss << ip[0] << " " << ip[1] << " " << ip[2];
+						rgbPixels.push_back(static_cast<char>(ip[0]));
+						rgbPixels.push_back(static_cast<char>(ip[1]));
+						rgbPixels.push_back(static_cast<char>(ip[2]));
 					}
 					row++;
 				}
 				// ss << "\n";
 				data += subResourceLayout.rowPitch;
 			}
-			std::string ppmData = ss.str();
-			file << ppmData;
-			file.close();
+
+			std::string fullSaveName = (savedFramesDir + std::string("_stbi.bmp")).c_str();
+			stbi_write_bmp(fullSaveName.c_str(), m_swapChain.extent.width, m_swapChain.extent.height, 3, rgbPixels.data());
+
 			//rgbf.close();
-			printf("[INFO]: [record]: Image saved at the path: %s\n", savedFramesDir.c_str());
+			printf("[INFO]: [record]: Image saved at the path: %s\n", fullSaveName.c_str());
 		
 			// Clean up resources
 			vkUnmapMemory(m_device.device, dstImage.memory);
 			vkFreeMemory(m_device.device, dstImage.memory, nullptr);
 			vkDestroyImage(m_device.device, dstImage.obj, nullptr);
 			this->saveShot = false;
-		
 		}
 	}
 
@@ -1326,12 +1323,15 @@ namespace brdfa {
 
 		/*Deleting all the current allocated command buffers*/
 		vkFreeCommandBuffers(m_device.device, m_commander.pool, static_cast<uint32_t>(m_commander.sceneBuffers.size()), m_commander.sceneBuffers.data());
+		m_commander.sceneBuffers.clear();
 
 		/*Clearing the Graphics pipeline*/
 		for (auto& it : m_graphicsPipelines.pipelines) {
 			vkDestroyPipeline(m_device.device, it.second , nullptr);
 		}
 		m_graphicsPipelines.pipelines.clear();
+
+		vkDestroyPipeline(m_device.device, m_skymap_pipeline, nullptr);
 		
 		vkDestroyPipelineLayout(m_device.device, m_graphicsPipelines.layout, nullptr);
 		vkDestroyRenderPass(m_device.device, m_graphicsPipelines.sceneRenderPass, nullptr);
@@ -1383,14 +1383,44 @@ namespace brdfa {
 		// auto spirVShaderCode_vert = compileShader(vertShaderCode, true, "vertexShader");
 		// auto spirVShaderCode_frag = compileShader(fragShaderCode, false, "FragmentSHader");
 		// createGraphicsPipeline(m_graphicsPipeline, m_skymap_pipeline, m_device, m_swapChain, m_descriptorData, spirVShaderCode_vert, spirVShaderCode_frag);
-		loadPipelines();
+		// loadPipelines();
+		createPipelineLayout(m_graphicsPipelines, m_device, m_descriptorData);
 		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipelines);
+
 
 		/*Meshes dependent*/
 		loadEnvironmentMap(SKYMAP_PATHS);
 		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
 		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
+
+		/*Loading the main pipeline*/
+		m_vertSpirv = readFile(SHADERS_PATH + "/vert.spv", true);
+		auto frag_main_shader_code = readFile(SHADERS_PATH + "/basic.spv", true);
+		m_graphicsPipelines.pipelines.insert({ "None" , {} });
+		createGraphicsPipeline(
+			m_graphicsPipelines.layout, m_graphicsPipelines.sceneRenderPass,
+			m_graphicsPipelines.pipelines.at("None"), m_skymap_pipeline,
+			m_device, m_swapChain, m_descriptorData, m_vertSpirv, frag_main_shader_code, false);
+
+		/*Reloading the skymap pipeline*/
+		auto vert_sky_shader_code = readFile(SHADERS_PATH + "/skybox.vert.spv", true);
+		auto frag_sky_shader_code = readFile(SHADERS_PATH + "/skybox.frag.spv", true);
+		createGraphicsPipeline(
+			m_graphicsPipelines.layout, m_graphicsPipelines.sceneRenderPass,
+			m_graphicsPipelines.pipelines.begin()->second, m_skymap_pipeline,
+			m_device, m_swapChain, m_descriptorData,
+			vert_sky_shader_code, frag_sky_shader_code, true);
+
+		for (const auto& brdf : m_loadedBrdfs) {
+			recreatePipeline(brdf.first, brdf.second.latest_spir_v, false);
+		}
+		for (const auto& brdf : m_costumBrdfs) {
+			recreatePipeline(brdf.first, brdf.second.latest_spir_v, false);
+		}
+
 		recordCommandBuffers(m_commander, m_device, m_graphicsPipelines, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
+
+
 
 		/*Syncronization objects re-initialization.*/
 		m_imagesInFlight.resize(m_swapChain.images.size(), VK_NULL_HANDLE);
@@ -1453,18 +1483,18 @@ namespace brdfa {
 			} // Rendering_options rendered
 			ImGui::Separator();
 			{ // Object Translation option
-				float trans[3] = { m_meshes[i].transformation[3][0] , m_meshes[i].transformation[3][1], m_meshes[i].transformation[3][2] };
+				float trans[3] = { m_meshes[i].translation[0] , m_meshes[i].translation[1], m_meshes[i].translation[2] };
 				ImGui::DragFloat3("Translation", trans, 0.01f);
-				m_meshes[i].transformation[3][0] = trans[0];
-				m_meshes[i].transformation[3][1] = trans[1];
-				m_meshes[i].transformation[3][2] = trans[2];
+				m_meshes[i].translation[0] = trans[0];
+				m_meshes[i].translation[1] = trans[1];
+				m_meshes[i].translation[2] = trans[2];
 			} // Object Translation option
 			{ // Object Scale option
-				float trans[3] = { m_meshes[i].transformation[0][0] , m_meshes[i].transformation[1][1], m_meshes[i].transformation[2][2] };
+				float trans[3] = { m_meshes[i].scale[0] , m_meshes[i].scale[1], m_meshes[i].scale[2] };
 				ImGui::DragFloat3("Scaler", trans, 0.01f);
-				m_meshes[i].transformation[0][0] = trans[0];
-				m_meshes[i].transformation[1][1] = trans[1];
-				m_meshes[i].transformation[2][2] = trans[2];
+				m_meshes[i].scale[0] = trans[0];
+				m_meshes[i].scale[1] = trans[1];
+				m_meshes[i].scale[2] = trans[2];
 			} // Object scale option
 			{ // Object Scale option
 				float trans[3] = { m_meshes[i].rotation[0] , m_meshes[i].rotation[1], m_meshes[i].rotation[2] };
@@ -1772,7 +1802,7 @@ namespace brdfa {
 				if (pressedB && strlen(name) > 0) {
 					BRDF_Panel panel;
 					panel.brdfName = name;
-					panel.glslPanel.SetText("vec3 brdf(vec3 L, vec3 N, vec3 V, vec2 extra){\n\n}");
+					panel.glslPanel.SetText("vec3 render(vec3 L, vec3 N, vec3 V, vec2 tc){\n\n}");
 					panel.tested = false;
 					
 					memset(name, '\0', 20);

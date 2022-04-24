@@ -41,7 +41,7 @@ namespace brdfa {
 		VkDescriptorPool								m_imguiPool;
 
 		/*Engine configuration*/
-		const BRDFAEngineConfiguration					m_configuration;				// the engine initial configuration.
+		BRDFAEngineConfiguration						m_configuration;				// the engine initial configuration.
 		size_t											m_currentFrame = 0;				// The current frame being rendered.
 		bool											m_active;
 		uint32_t										m_width_w, m_height_w;	
@@ -132,6 +132,7 @@ namespace brdfa {
 
 		void fireMouseButtonEvent(int button, int action);					// adds the event to the mouse buttons
 
+		GLFWwindow* getWindow() { return this->m_window; }					// Returns the glfw window of the engine.
 
 	private:
 		//void threadAddSpirv(std::string cacheFileName, BRDF_Panel lp);
@@ -152,7 +153,7 @@ namespace brdfa {
 		void refreshObject(const size_t& idx);													// Records the objects back again.
 		void addFragPipeline(const std::string&, const std::string&);							// This is used to add a pipeline to the scene. And refreshes the obejcts.
 		void saveBRDF(const std::string& brdfName, const bool& cacheIt = true);					// Save the BRDF to the disk.
-		void recreatePipeline(const std::string&, const std::vector<char>&);					// Quickly recreates a specific pipeline.
+		void recreatePipeline(const std::string&, const std::vector<char>& , const bool & refreshObjs = true);					// Quickly recreates a specific pipeline.
 		void addPipeline(const std::string&, const std::vector<char>&);							// Add a new pipeline to the graphics pipelines.
 		void loadPipelines();																	// Load all pipelines needed by the program to run.
 		void startWindow();																		// Starts the GLFW window

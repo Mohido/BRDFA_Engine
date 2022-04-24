@@ -1,0 +1,18 @@
+float schlick_geometry_GGX(vec3 N, vec3 V, float k)
+{
+    float NdotV = max(dot(N, V), 0.0);
+    float nom   = NdotV;
+    float denom = NdotV * (1.0 - k) + k;
+	
+    return nom / denom;
+}
+  
+float smith_schlick_geometry(vec3 N, vec3 V, vec3 L, float k)
+{
+    return schlick_geometry_GGX(N,V,k) *  schlick_geometry_GGX(N,L,k);
+}
+
+vec3 render(vec3 L, vec3 N, vec3 V, vec2 textureCord, mat3 worldToLocal){
+    float k = iParameter0*iParameter0/2.;
+    return vec3(smith_schlick_geometry(N,V,L,k));
+}

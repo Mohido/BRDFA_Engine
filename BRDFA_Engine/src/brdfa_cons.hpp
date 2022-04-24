@@ -14,9 +14,9 @@ static const std::vector<const char*> deviceExtensions = {
 
 
 const std::string TEXTURE_PATH = "res/textures/viking_room.png";
-const std::string MODEL_PATH= "res/objects/viking_room.obj";
-const std::string  CUBE_MODEL_PATH = "res/objects/cube.obj";
-
+const std::string MODEL_PATH = "res/objects/viking_room.obj"; // "res/objects/sphere.obj";//"res/objects/cube.obj" ;//
+const std::string CUBE_MODEL_PATH = "res/objects/cube.obj";
+const std::string APP_NAME = "BRDFA Engine";
 
 
 

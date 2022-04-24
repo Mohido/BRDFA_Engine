@@ -1,0 +1,16 @@
+#define PI 3.14159265359
+const vec3 dl_dir = normalize(vec3(-1., -1., 0.));
+const vec3 dl_col = vec3(1.);
+
+vec3 render(vec3 L, vec3 N, vec3 V, vec2 textureCord, mat3 worldToLocal){
+	L = -dl_dir;
+	const int alpha = max(int(iParameter0 * 100.), 1);
+	
+	
+	const vec3 H = normalize(L + V);
+	const float k_s = pow(clamp(dot(H,N), 0., 1.), alpha);
+	
+	return  dl_col*k_s;//S_cd + S_cs;//vec3(C_i + k_s*spec);
+	
+}
+

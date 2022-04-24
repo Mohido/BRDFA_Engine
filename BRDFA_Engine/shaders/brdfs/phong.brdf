@@ -1,0 +1,11 @@
+#define PI 3.14159265359
+const vec3 dl_dir = normalize(vec3(-1., -1., 0.));
+const vec3 dl_col = vec3(1.);
+
+vec3 render(vec3 L, vec3 N, vec3 V, vec2 textureCord, mat3 worldToLocal){
+	L = -dl_dir;
+	int alpha = max(int(iParameter0 * 100.), 1);
+	vec3 R = reflect(-V,N);
+	float spec = pow(clamp(dot(L,R), 0., 1.), alpha);
+	return dl_col*spec;
+}

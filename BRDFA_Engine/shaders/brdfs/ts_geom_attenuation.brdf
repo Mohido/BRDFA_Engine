@@ -1,0 +1,48 @@
+
+float torrance_sparrow_abstraction(vec3 N, vec3 V, vec3 L){
+    float x = dot(L,N);       // incident direction projected to normal (cos(theta))
+    float y = dot(L, V);    // difference between incident direction to reflection direction
+
+    float nom = 2.*x*x + y - 1.;
+    float den = 2.*y*x*x - y + 1.;
+    float A = -(nom/den);
+
+    float G = 1. - (1.-sqrt(1.-A*A))/A;
+
+    return G;
+}
+
+
+float torrance_sparrow_geometry(vec3 N, vec3 V, vec3 L){
+    float theta = acos(dot(L,N));
+    float psi = acos(dot(V,N));
+    theta = sign(dot(V,L)) * theta; /// Sign is important in torrance-sparrow model
+
+    bool cond_1 = (psi <= PI/4.);
+    bool cond_2 = (PI/4. < psi &&  psi <= PI/2.);
+
+    float theta_a_n = ( psi - PI)/3.;
+    float theta_a_p = ( psi + PI)/3.;
+    float theta_aa = 3.*psi - PI;
+
+    bool return1Cond = (cond_1 &&  (theta_a_n <= theta && theta <= theta_a_p))
+                        ||
+                        (cond_2 && (theta_aa <= theta && theta <= theta_a_p));
+
+    bool returnInversed = cond_2 && -psi <= theta && theta <= theta_aa;
+
+    if(return1Cond)
+        return 1.;
+    else if(returnInversed)
+        return torrance_sparrow_abstraction(N,L,V);
+    else   
+         return torrance_sparrow_abstraction(N,V,L);
+}
+
+
+
+
+vec3 render(vec3 L, vec3 N, vec3 V, vec2 textureCord, mat3 worldToLocal){
+    vec3 rr = reflect(-V,N);
+    return vec3(torrance_sparrow_geometry(N,V,rr));
+}

@@ -1,13 +1,17 @@
 #pragma once
 
-#include "brdfa_structs.hpp"
-#include "brdfa_cons.hpp"
+#include <imgui/imgui.h>
+#include <imgui/imgui_impl_glfw.h>
+#include <imgui/imgui_impl_vulkan.h>
+
+#include <brdfa_structs.hpp>
+#include <brdfa_cons.hpp>
 
 #include <algorithm>
 #include <vulkan/vulkan.h>
 #include <iostream>
 
-
+#include <helpers/functions.hpp>
 
 namespace brdfa {
 
@@ -16,7 +20,7 @@ namespace brdfa {
     /// </summary>
     /// <param name="commander"></param>
     /// <param name="device"></param>
-    static void endSingleTimeCommands(Commander& commander, const Device& device) {
+    void endSingleTimeCommands(Commander& commander, const Device& device) {
         VkCommandBuffer commandBuffer = commander.sceneBuffers.back();
         vkEndCommandBuffer(commandBuffer);
 
@@ -41,7 +45,7 @@ namespace brdfa {
     /// <param name="commander"></param>
     /// <param name="device"></param>
     /// <returns></returns>
-    static VkCommandBuffer beginSingleTimeCommands(Commander& commander, const Device& device) {
+    VkCommandBuffer beginSingleTimeCommands(Commander& commander, const Device& device) {
         VkCommandBufferAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -75,7 +79,7 @@ namespace brdfa {
     /// <param name="properties"></param>
     /// <param name="image"></param>
     /// <param name="imageMemory"></param>
-    static void createImage(const Commander& commander, const Device& device, uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, Image& image, bool cubemap = false, VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED) {
+    void createImage(const Commander& commander, const Device& device, uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, Image& image, bool cubemap , VkImageLayout initialLayout ) {
         
         VkImageCreateInfo imageInfo{};
         imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -131,7 +135,7 @@ namespace brdfa {
     /// <param name="properties"></param>
     /// <param name="buffer"></param>
     /// <param name="bufferMemory"></param>
-    static void  createBuffer(Commander& commander, const Device& device , VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, Buffer& buffer) {
+    void  createBuffer(Commander& commander, const Device& device , VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, Buffer& buffer) {
         VkBufferCreateInfo bufferInfo{};
         bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
         bufferInfo.size = size;
@@ -168,7 +172,7 @@ namespace brdfa {
     /// <param name="srcBuffer"></param>
     /// <param name="dstBuffer"></param>
     /// <param name="size"></param>
-    static void copyBuffer(Commander& commander, const Device& device, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+    void copyBuffer(Commander& commander, const Device& device, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
         VkCommandBuffer commandBuffer = beginSingleTimeCommands(commander, device);
 
         VkBufferCopy copyRegion{};
@@ -177,8 +181,6 @@ namespace brdfa {
 
         endSingleTimeCommands(commander, device);
     }
-
-
 
 
 
@@ -191,7 +193,7 @@ namespace brdfa {
     /// <param name="image"></param>
     /// <param name="width"></param>
     /// <param name="height"></param>
-    static void copyBufferToImage(Commander& commander, const Device& device, Buffer& buffer, Image& image, uint32_t width, uint32_t height) {
+    void copyBufferToImage(Commander& commander, const Device& device, Buffer& buffer, Image& image, uint32_t width, uint32_t height) {
         VkCommandBuffer commandBuffer = beginSingleTimeCommands(commander, device);
 
         VkBufferImageCopy region{};
@@ -220,7 +222,7 @@ namespace brdfa {
     /// </summary>
     /// <param name="commandPool"></param>
     /// <param name="device"></param>
-    static void createCommandPool(VkCommandPool& commandPool, const Device& device) {
+    void createCommandPool(VkCommandPool& commandPool, const Device& device) {
         QueueFamilyIndices queueFamilyIndices = findQueueFamilies(device);
 
         VkCommandPoolCreateInfo poolInfo{};
@@ -242,7 +244,7 @@ namespace brdfa {
     /// <param name="gpipeline"></param>
     /// <param name="swapchain"></param>
     /// <param name="index"></param>
-    static void updateUICommandBuffers(Commander& commander, const Device& device, const GPipeline& gpipeline, const SwapChain& swapchain, const uint32_t index) {
+    void updateUICommandBuffers(Commander& commander, const Device& device, const GPipeline& gpipeline, const SwapChain& swapchain, const uint32_t index) {
 
         if (commander.uiBuffers.size() != swapchain.images.size()) {
             throw std::runtime_error("ERROR: You must intialize the commander Scene buffer first by calling createCommandBuffers() function.");
@@ -315,7 +317,7 @@ namespace brdfa {
     /// <param name="descriptorObj"></param>
     /// <param name="swapchain"></param>
     /// <param name="meshes"></param>
-    static void recordCommandBuffers(Commander& commander, const Device& device, const GPipeline& gpipeline, const Descriptor& descriptorObj ,const SwapChain& swapchain, std::vector<Mesh>& meshes, Mesh& skymap, VkPipeline& skymap_pipeline) {
+    void recordCommandBuffers(Commander& commander, const Device& device, const GPipeline& gpipeline, const Descriptor& descriptorObj ,const SwapChain& swapchain, std::vector<Mesh>& meshes, Mesh& skymap, VkPipeline& skymap_pipeline) {
         commander.sceneBuffers.resize(swapchain.framebuffers.size());
         commander.uiBuffers.resize(swapchain.framebuffers.size());
 
@@ -390,4 +392,6 @@ namespace brdfa {
             }
         }
     }
+
+
 }

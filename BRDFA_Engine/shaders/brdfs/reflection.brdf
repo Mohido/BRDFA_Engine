@@ -1,5 +1,5 @@
 
-vec3 brdf(vec3 L, vec3 N, vec3 V, vec2 extra){
+vec3 render(vec3 L, vec3 N, vec3 V, vec2 textureCord, mat3 worldToLocal){
 	vec3 envColor = texture(skybox, L).rgb;
 	return vec3(1.);
 }

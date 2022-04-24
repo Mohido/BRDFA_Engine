@@ -19,6 +19,9 @@
 #include <cmath>
 
 
+#include <glfw/glfw3.h>
+
+
 #include <iostream>
 
 namespace brdfa {
@@ -245,7 +248,7 @@ namespace brdfa {
 
     struct Mesh {
         uint32_t					uid;
-        std::vector<Image>						textureImages;				        // Holds the texture Image data.
+        std::vector<Image>			textureImages;				        // Holds the texture Image data.
 
         std::vector<Vertex>			vertices;					        // Vertices of the Mesh. Vertices can hold more than a position.
         std::vector<uint32_t>		indices;					        // Indices refering to the loaded vertices of the object.
@@ -254,8 +257,10 @@ namespace brdfa {
         int                         samples = 100;
 
         glm::vec3                   rotation = glm::vec3(0,0,0);        // Rotation of the object.
-        glm::mat4                   transformation = glm::mat4(1.0f);   // Holds the object transformation. Object to World transformation.
-
+       //  glm::vec3                   scale = glm::vec3(1);               // Holds the scale of the object along the axis
+        glm::vec3                   translation = glm::vec3(0,0,0);
+        // glm::mat4                   transformation = glm::mat4(1.f);   // Holds the object transformation. Object to World transformation.
+        glm::vec3                   scale = glm::vec3(1, 1, 1);         // Holds the object scale on x,y,z
 
         Parameters                  params = {};                        // Parameters regarding this object
         std::vector<Buffer>         paramsBuffer;                       // Holds the parameter buffers
@@ -268,10 +273,16 @@ namespace brdfa {
 
 
         glm::mat4 getFinalTransformation() {
-            glm::mat4 ret(transformation);
+            glm::mat4 ret = glm::mat4(1.f);
+            ret = glm::translate(ret, translation);
+            
+
             ret = glm::rotate(ret, glm::radians(rotation[0]), glm::vec3(1, 0, 0));
             ret = glm::rotate(ret, glm::radians(rotation[1]), glm::vec3(0, 1, 0));
             ret = glm::rotate(ret, glm::radians(rotation[2]), glm::vec3(0, 0, 1));
+            
+            ret = glm::scale(ret, scale);
+
             return ret;
         }
 
@@ -321,7 +332,7 @@ namespace brdfa {
         float                           aspectRatio;                // Camera aspect ratio: W/H
         float                           nPlane, fPlane;             // Near and Far clipping plane
         float                           angle;                      // Angle of the camera y-axis (Height)
-        float                           speed_t = 0.75f, speed_r = 0.75f;                // Camera movement speed.
+        float                           speed_t = 5.f, speed_r = 1.f;                // Camera movement speed.
 
         glm::vec3                       rotation = glm::vec3(0.0f);     // Holdes the accumalated rotation of the camera.
         glm::vec3                       position = glm::vec3(0.0f);     // Holds the current position of the camera. 
@@ -346,7 +357,7 @@ namespace brdfa {
             fPlane = fPlane;
             angle = yAngle;
             rotation = glm::vec3(-90.0f, 0.0f, 0.0f);
-            position = glm::vec3(0.0f, 0.0f, 2.0f);
+            position = glm::vec3(0.0f, 0.0f, 50.0f);
 
 
             direction.x = cos(glm::radians(rotation.x)) * cos(glm::radians(rotation.y));

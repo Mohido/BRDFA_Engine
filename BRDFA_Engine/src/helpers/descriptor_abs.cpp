@@ -1,7 +1,8 @@
 #pragma once
 
-#include "brdfa_structs.hpp"
-#include "brdfa_cons.hpp"
+#include <brdfa_structs.hpp>
+#include <brdfa_cons.hpp>
+
 
 #include <algorithm>
 #include <vulkan/vulkan.h>
@@ -23,7 +24,7 @@ namespace brdfa {
     /// <param name="descriptorObj"></param>
     /// <param name="device"></param>
     /// <param name="swapchain"></param>
-    static void createDescriptorSetLayout(Descriptor& descriptorObj, const Device& device, const SwapChain& swapchain) {
+    void createDescriptorSetLayout(Descriptor& descriptorObj, const Device& device, const SwapChain& swapchain) {
 
         /*Uniform variables.*/
         VkDescriptorSetLayoutBinding uboLayoutBinding{};
@@ -105,7 +106,7 @@ namespace brdfa {
    /// <param name="device">BRDFA Device object</param>
    /// <param name="swapchain">BRDFA SwapChain object</param>
    /// <param name="meshCount">Number of meshes needed to be rendered</param>
-    static void initDescriptors(Descriptor& descriptorObj, const Device& device, const SwapChain& swapchain, const std::vector<Buffer>& uniformBuffers, std::vector<Mesh>& meshes, Image& skymap) {
+    void initDescriptors(Descriptor& descriptorObj, const Device& device, const SwapChain& swapchain, const std::vector<Buffer>& uniformBuffers, std::vector<Mesh>& meshes, Image& skymap) {
 
         /*Descriptor Pool creation*/
         size_t descriptorCount = swapchain.images.size() * meshes.size(); // How many descriptors of this kind can be allocated through the whole sets
@@ -131,16 +132,16 @@ namespace brdfa {
 
 
         /*Allocating descriptor sets*/
-        size_t setCount = descriptorCount;          // swapchain.images.size() * meshCount;
-        std::vector<VkDescriptorSetLayout> layouts(setCount, descriptorObj.layout);
+        size_t setcount = descriptorCount;          // swapchain.images.size() * meshCount;
+        std::vector<VkDescriptorSetLayout> layouts(setcount, descriptorObj.layout);
         VkDescriptorSetAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         allocInfo.descriptorPool = descriptorObj.pool;
-        allocInfo.descriptorSetCount = static_cast<uint32_t>(setCount);
+        allocInfo.descriptorSetCount = static_cast<uint32_t>(setcount);
         allocInfo.pSetLayouts = layouts.data();
 
         // Every 2 consecutive sets are for an individual object in that frame.
-        descriptorObj.sets.resize(setCount);
+        descriptorObj.sets.resize(setcount);
         if (vkAllocateDescriptorSets(device.device, &allocInfo, descriptorObj.sets.data()) != VK_SUCCESS) {
             throw std::runtime_error("ERROR: failed to allocate descriptor sets!");
         }

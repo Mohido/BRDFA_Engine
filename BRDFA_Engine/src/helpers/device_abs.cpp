@@ -20,7 +20,7 @@ namespace brdfa {
     /// <param name="typeFilter"></param>
     /// <param name="properties"></param>
     /// <returns></returns>
-    static uint32_t findMemoryType(const Device& device, uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+    uint32_t findMemoryType(const Device& device, uint32_t typeFilter, VkMemoryPropertyFlags properties) {
         VkPhysicalDeviceMemoryProperties memProperties;
         vkGetPhysicalDeviceMemoryProperties(device.physicalDevice, &memProperties);
 
@@ -39,7 +39,7 @@ namespace brdfa {
     /// </summary>
     /// <param name="physicalDevice"></param>
     /// <returns></returns>
-    static VkSampleCountFlagBits getMaxUsableSampleCount(const VkPhysicalDevice& physicalDevice) {
+     VkSampleCountFlagBits getMaxUsableSampleCount(const VkPhysicalDevice& physicalDevice) {
         VkPhysicalDeviceProperties physicalDeviceProperties;
         vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
 
@@ -62,7 +62,7 @@ namespace brdfa {
     /// <param name="device"></param>
     /// <param name="surface"></param>
     /// <returns></returns>
-    static QueueFamilyIndices findQueueFamilies(const Device& device) {
+     QueueFamilyIndices findQueueFamilies(const Device& device) {
         QueueFamilyIndices indices;
 
         uint32_t queueFamilyCount = 0;
@@ -101,7 +101,7 @@ namespace brdfa {
     /// </summary>
     /// <param name="device"></param>
     /// <returns></returns>
-    static bool checkDeviceExtensionSupport(const VkPhysicalDevice& device) {
+     bool checkDeviceExtensionSupport(const VkPhysicalDevice& device) {
         uint32_t extensionCount;
         vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
 
@@ -125,7 +125,7 @@ namespace brdfa {
     /// </summary>
     /// <param name="device"></param>
     /// <returns></returns>
-    static SwapChainSupportDetails querySwapChainSupport(const Device& device) {
+     SwapChainSupportDetails querySwapChainSupport(const Device& device) {
         SwapChainSupportDetails details;
 
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device.physicalDevice, device.surface, &details.capabilities);
@@ -156,7 +156,7 @@ namespace brdfa {
     /// </summary>
     /// <param name="device"></param>
     /// <returns></returns>
-    static bool isDeviceSuitable(const Device& device) {
+     bool isDeviceSuitable(const Device& device) {
         QueueFamilyIndices indices = findQueueFamilies(device);
         bool extensionsSupported = checkDeviceExtensionSupport(device.physicalDevice);
 
@@ -180,7 +180,7 @@ namespace brdfa {
     /// <param name="surface"></param>
     /// <param name="device"></param>
     /// <param name="queues"></param>
-    static void pickPhysicalDevice(const VkInstance& instance, Device& device) {
+     void pickPhysicalDevice(const VkInstance& instance, Device& device) {
         uint32_t deviceCount = 0;
         vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
 
@@ -213,7 +213,7 @@ namespace brdfa {
     /// </summary>
     /// <param name="device"></param>
     /// <param name="enableValidationLayers"></param>
-    static void createLogicalDevice(Device& device, const bool& enableValidationLayers) {
+     void createLogicalDevice(Device& device, const bool& enableValidationLayers) {
         QueueFamilyIndices indices = findQueueFamilies(device);
 
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
