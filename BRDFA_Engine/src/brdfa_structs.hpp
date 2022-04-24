@@ -19,6 +19,9 @@
 #include <cmath>
 
 
+#include <glfw/glfw3.h>
+
+
 #include <iostream>
 
 namespace brdfa {

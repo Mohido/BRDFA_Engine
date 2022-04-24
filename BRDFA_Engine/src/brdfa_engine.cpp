@@ -25,11 +25,17 @@
 // BRDFA_Engine Dependencies
 #include "brdfa_engine.hpp"
 #include "brdfa_cons.hpp"
-#include "brdfa_functions.hpp"
+#include <helpers/functions.hpp>
 #include "brdfa_callbacks.hpp"
+
+#include <stb/stb_image.h>
+
+
 
 // STD Dependencies
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <chrono>
 #include <filesystem>
 #include <thread>

@@ -132,6 +132,7 @@ namespace brdfa {
 
 		void fireMouseButtonEvent(int button, int action);					// adds the event to the mouse buttons
 
+		GLFWwindow* getWindow() { return this->m_window; }					// Returns the glfw window of the engine.
 
 	private:
 		//void threadAddSpirv(std::string cacheFileName, BRDF_Panel lp);

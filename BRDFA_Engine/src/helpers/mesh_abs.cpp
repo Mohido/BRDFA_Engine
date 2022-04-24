@@ -1,7 +1,6 @@
 #pragma once
 #include "brdfa_structs.hpp"
-#include "brdfa_commander_abs.hpp"
-#include "brdfa_swap_image_abs.hpp"
+#include <helpers/functions.hpp>
 
 #include <string>
 #include <iostream>
@@ -39,7 +38,7 @@ namespace brdfa {
     /// <param name="commander"></param>
     /// <param name="device"></param>
     /// <param name="modelPath"></param>
-    static void loadVertices(Mesh& mesh, Commander& commander, const Device& device, const std::string& modelPath) {
+    void loadVertices(Mesh& mesh, Commander& commander, const Device& device, const std::string& modelPath) {
         mesh.vertices.clear();
         mesh.indices.clear();
 
@@ -161,18 +160,13 @@ namespace brdfa {
     }
 
 
-
-
-
-
-
     /// <summary>
     /// 
     /// </summary>
     /// <param name="texturePath"></param>
     /// <param name="commander"></param>
     /// <param name="device"></param>
-    static void loadTexture(Mesh& mesh, Commander& commander, const Device& device, const std::string& texturePath) {
+    void loadTexture(Mesh& mesh, Commander& commander, const Device& device, const std::string& texturePath) {
         if (mesh.textureImages.size() >= 4) 
             throw std::runtime_error("ERROR: We already have 4 textures loaded to this mesh");
         
@@ -285,9 +279,6 @@ namespace brdfa {
     }
 
 
-
-
-
     /// <summary>
     /// 
     /// </summary>
@@ -304,7 +295,6 @@ namespace brdfa {
     }
 
 
-
 	/// <summary>
 	/// 
 	/// </summary>
@@ -313,7 +303,7 @@ namespace brdfa {
 	/// <param name="modelPath"></param>
 	/// <param name="texturePath"></param>
 	/// <returns></returns>
-	static Mesh loadMesh(Commander& commander, const Device& device, const std::string& modelPath, const std::string& texturePath, const size_t& bufferCounts) {
+	Mesh loadMesh(Commander& commander, const Device& device, const std::string& modelPath, const std::string& texturePath, const size_t& bufferCounts) {
         Mesh mesh{};
         populate(mesh, commander, device, modelPath, texturePath);
         for (int i = 0; i < bufferCounts; i++) {
@@ -338,7 +328,7 @@ namespace brdfa {
     /// <param name="modelPath"></param>
     /// <param name="texturePath"></param>
     /// <returns></returns>
-    static Mesh loadMesh(Commander& commander, const Device& device, const std::string& modelPath, const std::vector<std::string>& texturePaths, const size_t& bufferCounts) {
+    Mesh loadMesh(Commander& commander, const Device& device, const std::string& modelPath, const std::vector<std::string>& texturePaths, const size_t& bufferCounts) {
         Mesh mesh{};
         loadVertices(mesh, commander, device, modelPath);
         for (const std::string& path: texturePaths) {
@@ -358,7 +348,6 @@ namespace brdfa {
 
         return mesh;
     }
-
 
 
     /// <summary>
@@ -388,4 +377,6 @@ namespace brdfa {
         vkDestroyBuffer(device.device, mesh.vertexBuffer.obj, nullptr);
         vkFreeMemory(device.device, mesh.vertexBuffer.memory, nullptr);
     }
+
+
 }

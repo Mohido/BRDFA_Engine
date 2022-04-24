@@ -1,7 +1,8 @@
 #pragma once
 
-#include "brdfa_structs.hpp"
-#include "brdfa_cons.hpp"
+#include <brdfa_structs.hpp>
+#include <brdfa_cons.hpp>
+
 
 #include <algorithm>
 #include <vulkan/vulkan.h>
@@ -23,7 +24,7 @@ namespace brdfa {
     /// <param name="descriptorObj"></param>
     /// <param name="device"></param>
     /// <param name="swapchain"></param>
-    static void createDescriptorSetLayout(Descriptor& descriptorObj, const Device& device, const SwapChain& swapchain) {
+    void createDescriptorSetLayout(Descriptor& descriptorObj, const Device& device, const SwapChain& swapchain) {
 
         /*Uniform variables.*/
         VkDescriptorSetLayoutBinding uboLayoutBinding{};
@@ -105,7 +106,7 @@ namespace brdfa {
    /// <param name="device">BRDFA Device object</param>
    /// <param name="swapchain">BRDFA SwapChain object</param>
    /// <param name="meshCount">Number of meshes needed to be rendered</param>
-    static void initDescriptors(Descriptor& descriptorObj, const Device& device, const SwapChain& swapchain, const std::vector<Buffer>& uniformBuffers, std::vector<Mesh>& meshes, Image& skymap) {
+    void initDescriptors(Descriptor& descriptorObj, const Device& device, const SwapChain& swapchain, const std::vector<Buffer>& uniformBuffers, std::vector<Mesh>& meshes, Image& skymap) {
 
         /*Descriptor Pool creation*/
         size_t descriptorCount = swapchain.images.size() * meshes.size(); // How many descriptors of this kind can be allocated through the whole sets

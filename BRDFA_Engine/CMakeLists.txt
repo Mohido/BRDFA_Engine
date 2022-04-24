@@ -27,10 +27,12 @@ file (GLOB IMGUI_SRC_ADDONS
 file ( GLOB BRDFA_ENGINE_SRC 
 			"src/brdfa*.hpp" 
 			"src/brdfa*.cpp"
+			"src/helpers/*.hpp"
+			"src/helpers/*.cpp"
 			)
 
 # Our built executable.
-add_executable (BRDFA_Engine "src/main.cpp" ${BRDFA_ENGINE_SRC} ${IMGUI_SRC} ${IMGUI_SRC_ADDONS} )
+add_executable (BRDFA_Engine "src/main.cpp" ${BRDFA_ENGINE_SRC} ${IMGUI_SRC} ${IMGUI_SRC_ADDONS}  "src/helpers/extra.cpp" "src/brdfa_callbacks.cpp")
 
 # ---------------------------- C++ "Include" directories
 include_directories(src) 

@@ -1,33 +1,8 @@
-#pragma once
 
-#include "brdfa_structs.hpp"
-#include "brdfa_cons.hpp"
-
-#include "brdfa_instance_abs.hpp"
-#include "brdfa_device_abs.hpp"
-#include "brdfa_swap_image_abs.hpp"
-#include "brdfa_g_pipeline_abs.hpp"
-#include "brdfa_commander_abs.hpp"
-#include "brdfa_descriptor_abs.hpp"
-#include "brdfa_mesh_abs.hpp"
-#include "brdfa_callbacks.hpp"
-
-#include <algorithm>
-#include <vulkan/vulkan.h>
-#include <iostream>
+#include <helpers/functions.hpp>
 
 
 namespace brdfa {
-
-    enum BoxSide {
-        RIGHT = 0, 
-        LEFT = 1, 
-        TOP = 2, 
-        BOTTOM = 3,
-        FRONT = 4,
-        BACK = 5
-    };
-
 
     /// <summary>
     /// Returns the data of one of the skymap sides. 
@@ -50,7 +25,7 @@ namespace brdfa {
             faceOff_y = faceHeight;
             break;
         case BACK:
-            faceOff_x = faceWidth*3;
+            faceOff_x = faceWidth * 3;
             faceOff_y = faceHeight;
             break;
         case LEFT:
@@ -62,7 +37,7 @@ namespace brdfa {
             faceOff_y = faceHeight;
             break;
         case TOP:
-            faceOff_x = faceWidth ;
+            faceOff_x = faceWidth;
             faceOff_y = 0;
             break;
         case BOTTOM:
@@ -73,7 +48,7 @@ namespace brdfa {
             throw std::runtime_error("ERROR: No such a face.");
         }
 
-        
+
         /* Copying the image data */
         char* imageData = new char[faceSize];
         for (int r = 0; r < faceHeight; r++) {
@@ -81,9 +56,9 @@ namespace brdfa {
             for (int c = 0; c < faceWidth; c++) {
                 int i = c * 4;
                 int imgX = (faceOff_x + c) * 4;
-                imageData[i + r * faceWidth * 4] = image[imgX + imgY*width*4];
-                imageData[i + 1 + r * faceWidth * 4] = image[imgX + imgY*width*4 + 1];
-                imageData[i + 2 + r * faceWidth * 4] =  image[imgX + imgY*width * 4 + 2];
+                imageData[i + r * faceWidth * 4] = image[imgX + imgY * width * 4];
+                imageData[i + 1 + r * faceWidth * 4] = image[imgX + imgY * width * 4 + 1];
+                imageData[i + 2 + r * faceWidth * 4] = image[imgX + imgY * width * 4 + 2];
                 imageData[i + 3 + r * faceWidth * 4] = image[imgX + imgY * width + 3];
             }
         }
@@ -100,8 +75,8 @@ namespace brdfa {
     /// <param name="device"></param>
     /// <param name="swapchain"></param>
     /// <param name="maxFramesInFlight"></param>
-    static void createSyncObjects( std::vector<SyncCollection>& syncs, std::vector<VkFence>& imagesInFlight, const Device& device, const SwapChain& swapchain, uint8_t maxFramesInFlight) {
-        
+    void createSyncObjects(std::vector<SyncCollection>& syncs, std::vector<VkFence>& imagesInFlight, const Device& device, const SwapChain& swapchain, uint8_t maxFramesInFlight) {
+
         syncs.resize(maxFramesInFlight);
         imagesInFlight.resize(swapchain.images.size(), VK_NULL_HANDLE);
 
@@ -111,7 +86,7 @@ namespace brdfa {
         VkFenceCreateInfo fenceInfo{};
         fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-         
+
         for (size_t i = 0; i < maxFramesInFlight; i++) {
             if (vkCreateSemaphore(device.device, &semaphoreInfo, nullptr, &syncs[i].s_imageAvailable) != VK_SUCCESS ||
                 vkCreateSemaphore(device.device, &semaphoreInfo, nullptr, &syncs[i].s_renderFinished) != VK_SUCCESS ||
@@ -135,16 +110,16 @@ namespace brdfa {
     /// <param name="device"></param>
     /// <param name="swapchain"></param>
     /// <param name="meshCount"></param>
-    static void createUniformBuffers(std::vector<Buffer>& uniformBuffers, Commander& commander, const Device& device, const SwapChain& swapchain, uint32_t meshCount) {
-        VkDeviceSize bufferSize = sizeof(MVPMatrices);       
-        uniformBuffers.resize(swapchain.images.size()*meshCount);       // Mesh Count can be of a maximum size to reduce the allocations
+    void createUniformBuffers(std::vector<Buffer>& uniformBuffers, Commander& commander, const Device& device, const SwapChain& swapchain, uint32_t meshCount) {
+        VkDeviceSize bufferSize = sizeof(MVPMatrices);
+        uniformBuffers.resize(swapchain.images.size() * meshCount);       // Mesh Count can be of a maximum size to reduce the allocations
         for (size_t i = 0; i < uniformBuffers.size(); i++) {
             createBuffer(
                 commander, device,
-                bufferSize, 
-                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT 
-                    | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
+                bufferSize,
+                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+                | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                 uniformBuffers[i]);
         }
     }
@@ -155,15 +130,15 @@ namespace brdfa {
     {
         std::vector<char> frag_spirv = readFile(cacheFileName);
         lp.latest_spir_v = frag_spirv;
-        loadedBRDFs -> insert({ lp.brdfName, lp });
+        loadedBRDFs->insert({ lp.brdfName, lp });
         printf("[INFO]: ReadFile thread completed: BRDF (%s) \n", lp.brdfName.c_str());
     }
 
 
-    void threadCompileGLSL(const std::string& concat, BRDF_Panel& lp, std::unordered_map<std::string, BRDF_Panel>* loadedBRDFs, bool testing = false)
+    void threadCompileGLSL(const std::string& concat, BRDF_Panel& lp, std::unordered_map<std::string, BRDF_Panel>* loadedBRDFs, bool testing)
     {
         try {
-            std::vector<char> frag_spir = compileShader(concat, false,  lp.brdfName);
+            std::vector<char> frag_spir = compileShader(concat, false, lp.brdfName);
             lp.latest_spir_v = frag_spir;
             lp.tested = true;
             lp.log_e = "";
@@ -179,5 +154,5 @@ namespace brdfa {
         //loadedBRDFs->insert({ lp.brdfName, lp });
         //printf("[INFO]: compileShader thread completed: BRDF (%s) \n", lp.brdfName.c_str());
     }
-  
+
 }

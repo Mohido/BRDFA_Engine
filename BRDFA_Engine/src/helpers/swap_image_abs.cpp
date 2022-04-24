@@ -1,7 +1,7 @@
 #pragma once
 #include "brdfa_structs.hpp"
 #include "brdfa_cons.hpp"
-#include "brdfa_commander_abs.hpp"
+#include <helpers/functions.hpp>
 
 
 #include <vulkan/vulkan.h>
@@ -18,7 +18,7 @@ namespace brdfa {
     /// </summary>
     /// <param name="availablePresentModes"></param>
     /// <returns></returns>
-    static VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) {
+     VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) {
         for (const auto& availablePresentMode : availablePresentModes) {
             if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
                 return availablePresentMode;
@@ -40,7 +40,7 @@ namespace brdfa {
     /// <param name="format"></param>
     /// <param name="oldLayout"></param>
     /// <param name="newLayout"></param>
-    static void transitionImageLayout(Image& image, Commander& commander, const Device& device, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
+     void transitionImageLayout(Image& image, Commander& commander, const Device& device, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
         VkCommandBuffer commandBuffer = beginSingleTimeCommands(commander, device);
 
         VkImageMemoryBarrier barrier{};
@@ -119,7 +119,7 @@ namespace brdfa {
     /// <param name="width"></param>
     /// <param name="height"></param>
     /// <returns></returns>
-    static VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, const uint32_t& width, const uint32_t& height) {
+     VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, const uint32_t& width, const uint32_t& height) {
         if (capabilities.currentExtent.width != UINT32_MAX) {
             return capabilities.currentExtent;
         }
@@ -148,7 +148,7 @@ namespace brdfa {
     /// <param name="imageFormat"></param>
     /// <param name="texWidth"></param>
     /// <param name="texHeight"></param>
-    static void generateMipmaps(Commander& commander, const Device& device, Image& image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight) {
+     void generateMipmaps(Commander& commander, const Device& device, Image& image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight) {
         // Check if image format supports linear blitting
         VkFormatProperties formatProperties;
         vkGetPhysicalDeviceFormatProperties(device.physicalDevice, imageFormat, &formatProperties);
@@ -242,7 +242,7 @@ namespace brdfa {
     /// </summary>
     /// <param name="availableFormats"></param>
     /// <returns></returns>
-    static VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
+     VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
         for (const auto& availableFormat : availableFormats) {
             if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
                 return availableFormat;
@@ -261,7 +261,7 @@ namespace brdfa {
     /// <param name="aspectFlags"></param>
     /// <param name="mipLevels"></param>
     /// <returns></returns>
-    static VkImageView createImageView(VkImage image, const VkDevice& device, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels, bool cubemap = false) {
+     VkImageView createImageView(VkImage image, const VkDevice& device, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels, bool cubemap) {
         VkImageViewCreateInfo viewInfo{};
         viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         viewInfo.image = image;
@@ -292,7 +292,7 @@ namespace brdfa {
     /// <param name="commander"></param>
     /// <param name="device"></param>
     /// <param name="swapchain"></param>
-    static void createColorResources(Image& image, Commander& commander, const Device& device, const SwapChain& swapchain) {
+     void createColorResources(Image& image, Commander& commander, const Device& device, const SwapChain& swapchain) {
         VkFormat colorFormat = swapchain.format;
 
         createImage(
@@ -324,7 +324,7 @@ namespace brdfa {
     /// <param name="commander"></param>
     /// <param name="device"></param>
     /// <param name="swapchain"></param>
-    static void createDepthResources(Image& image, Commander& commander, const Device& device, const SwapChain& swapchain) {
+     void createDepthResources(Image& image, Commander& commander, const Device& device, const SwapChain& swapchain) {
         /*What depth attachment format the physical device support.*/
         std::vector<VkFormat> candidates = { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT };
         VkFormat choosenFormat;
@@ -366,7 +366,7 @@ namespace brdfa {
     /// <param name="commander"></param>
     /// <param name="device"></param>
     /// <param name="gpipeline"></param>
-    static void createFramebuffers(SwapChain& swapchain, Commander& commander, const Device& device, const GPipeline& gpipeline) {
+     void createFramebuffers(SwapChain& swapchain, Commander& commander, const Device& device, const GPipeline& gpipeline) {
 
         createColorResources(swapchain.colorImage, commander, device, swapchain);
         createDepthResources(swapchain.depthImage, commander, device, swapchain);
@@ -405,7 +405,7 @@ namespace brdfa {
     /// <param name="swapchain"></param>
     /// <param name="width"></param>
     /// <param name="height"></param>
-    static void createSwapChain(SwapChain& swapchain, const Device& device, const uint32_t& width, const uint32_t& height) {
+     void createSwapChain(SwapChain& swapchain, const Device& device, const uint32_t& width, const uint32_t& height) {
         SwapChainSupportDetails swapChainSupport = querySwapChainSupport(device);
 
         VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);

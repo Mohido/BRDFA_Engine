@@ -17,7 +17,7 @@ namespace brdfa {
     /// <param name="pAllocator"></param>
     /// <param name="pDebugMessenger"></param>
     /// <returns></returns>
-    static VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
+    VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
         auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
         if (func != nullptr) {
             return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
@@ -33,7 +33,7 @@ namespace brdfa {
     /// 
     /// </summary>
     /// <param name="createInfo"></param>
-    static void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) {
+    void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) {
         createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
         createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
@@ -46,7 +46,7 @@ namespace brdfa {
     /// 
     /// </summary>
     /// <returns></returns>
-    static bool checkValidationLayerSupport() {
+    bool checkValidationLayerSupport() {
         uint32_t layerCount;
         vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
@@ -74,7 +74,7 @@ namespace brdfa {
     /// </summary>
     /// <param name="enableValidationLayers"></param>
     /// <returns></returns>
-    static std::vector<const char*> getRequiredExtensions(const bool& enableValidationLayers) {
+    std::vector<const char*> getRequiredExtensions(const bool& enableValidationLayers) {
         uint32_t glfwExtensionCount = 0;
         const char** glfwExtensions;
         glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
@@ -96,7 +96,7 @@ namespace brdfa {
     /// <param name="applicationName"></param>
     /// <param name="enableValidationLayers"></param>
     /// <param name="instance"></param>
-    static void createInstance(const char* applicationName, const bool& enableValidationLayers, Instance& instance) {
+    void createInstance(const char* applicationName, const bool& enableValidationLayers, Instance& instance) {
 
         if (enableValidationLayers && !checkValidationLayerSupport()) {
             throw std::runtime_error("ERROR: validation layers requested, but not available!\n\t\tTry to disable the validation layer in the engine configuration before creating it.");
@@ -139,5 +139,7 @@ namespace brdfa {
             throw std::runtime_error("ERROR: failed to set up debug messenger!");
         }
     }
+
+
 }
 
