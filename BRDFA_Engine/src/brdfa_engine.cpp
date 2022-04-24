@@ -879,7 +879,7 @@ namespace brdfa {
 		m_meshes.push_back(loadMesh(m_commander, m_device, MODEL_PATH, TEXTURE_PATH, m_swapChain.images.size() ));		// Loading veriaty of objects
 		loadVertices(m_skymap_mesh, m_commander, m_device, CUBE_MODEL_PATH);				// Loading skymap vertices (CUBE)
 		loadEnvironmentMap(SKYMAP_PATHS);
-		m_camera = Camera(m_swapChain.extent.width, m_swapChain.extent.height, 0.1f, 10.0f, 45.0f);
+		m_camera = Camera(m_swapChain.extent.width, m_swapChain.extent.height, 0.1f, 100.0f, 45.0f);
 
 		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
 		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
@@ -1041,8 +1041,6 @@ namespace brdfa {
 		if (vkQueueSubmit(m_device.graphicsQueue, 1, &submitInfo, m_sync[m_currentFrame].f_inFlight) != VK_SUCCESS) {
 			throw std::runtime_error("failed to submit draw command buffer!");
 		}
-
-	
 
 		VkPresentInfoKHR presentInfo{};
 		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -1485,18 +1483,18 @@ namespace brdfa {
 			} // Rendering_options rendered
 			ImGui::Separator();
 			{ // Object Translation option
-				float trans[3] = { m_meshes[i].transformation[3][0] , m_meshes[i].transformation[3][1], m_meshes[i].transformation[3][2] };
+				float trans[3] = { m_meshes[i].translation[0] , m_meshes[i].translation[1], m_meshes[i].translation[2] };
 				ImGui::DragFloat3("Translation", trans, 0.01f);
-				m_meshes[i].transformation[3][0] = trans[0];
-				m_meshes[i].transformation[3][1] = trans[1];
-				m_meshes[i].transformation[3][2] = trans[2];
+				m_meshes[i].translation[0] = trans[0];
+				m_meshes[i].translation[1] = trans[1];
+				m_meshes[i].translation[2] = trans[2];
 			} // Object Translation option
 			{ // Object Scale option
-				float trans[3] = { m_meshes[i].transformation[0][0] , m_meshes[i].transformation[1][1], m_meshes[i].transformation[2][2] };
+				float trans[3] = { m_meshes[i].scale[0] , m_meshes[i].scale[1], m_meshes[i].scale[2] };
 				ImGui::DragFloat3("Scaler", trans, 0.01f);
-				m_meshes[i].transformation[0][0] = trans[0];
-				m_meshes[i].transformation[1][1] = trans[1];
-				m_meshes[i].transformation[2][2] = trans[2];
+				m_meshes[i].scale[0] = trans[0];
+				m_meshes[i].scale[1] = trans[1];
+				m_meshes[i].scale[2] = trans[2];
 			} // Object scale option
 			{ // Object Scale option
 				float trans[3] = { m_meshes[i].rotation[0] , m_meshes[i].rotation[1], m_meshes[i].rotation[2] };
