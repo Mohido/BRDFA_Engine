@@ -1025,7 +1025,7 @@ namespace brdfa {
 		VkSemaphore signalSemaphores[] = { m_sync[m_currentFrame].s_renderFinished };
 		VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 
-		std::vector<VkCommandBuffer> commands = { m_commander.sceneBuffers[imageIndex]};
+		std::vector<VkCommandBuffer> commands = { m_commander.sceneBuffers[imageIndex], m_commander.uiBuffers[imageIndex] };
 
 		VkSubmitInfo submitInfo{};
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -1038,27 +1038,11 @@ namespace brdfa {
 		submitInfo.pSignalSemaphores = signalSemaphores;
 
 		vkResetFences(m_device.device, 1, &m_sync[m_currentFrame].f_inFlight);
-		if (vkQueueSubmit(m_device.graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
-			throw std::runtime_error("failed to submit draw command buffer!");
-		}
-
-		if (this->saveShot)
-			record(m_currentFrame);
-
-		waitSemaphores[0] = m_sync[m_currentFrame].s_renderFinished;
-		commands = {  m_commander.uiBuffers[imageIndex] };
-		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-		submitInfo.waitSemaphoreCount = 1;
-		submitInfo.pWaitSemaphores = waitSemaphores;
-		submitInfo.pWaitDstStageMask = waitStages;
-		submitInfo.commandBufferCount = static_cast<uint32_t>(commands.size());
-		submitInfo.pCommandBuffers = commands.data();
-		submitInfo.signalSemaphoreCount = 1;
-		submitInfo.pSignalSemaphores = waitSemaphores;
-
 		if (vkQueueSubmit(m_device.graphicsQueue, 1, &submitInfo, m_sync[m_currentFrame].f_inFlight) != VK_SUCCESS) {
 			throw std::runtime_error("failed to submit draw command buffer!");
 		}
+
+	
 
 		VkPresentInfoKHR presentInfo{};
 		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -1075,11 +1059,12 @@ namespace brdfa {
 			m_frameBufferResized = false;
 			recreate();
 		}
-
-
 		else if (result != VK_SUCCESS) {
 			throw std::runtime_error("failed to present swap chain image!");
 		}
+
+		if (this->saveShot)
+			record(m_currentFrame);
 
 		auto endtime = std::chrono::high_resolution_clock::now();
 		float time = std::chrono::duration<float, std::chrono::seconds::period>(endtime - startTime).count();
@@ -1092,6 +1077,7 @@ namespace brdfa {
 	/// <param name="imageIndex"></param>
 	void BRDFA_Engine::record(uint32_t imageIndex)
 	{
+		vkDeviceWaitIdle(m_device.device);
 		bool supportsBlit = true;
 
 		// Check blit support for source and destination
