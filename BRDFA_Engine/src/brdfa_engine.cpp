@@ -28,7 +28,10 @@
 #include <helpers/functions.hpp>
 #include "brdfa_callbacks.hpp"
 
+
 #include <stb/stb_image.h>
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb/stb_image_write.h>
 
 
 
@@ -1022,7 +1025,7 @@ namespace brdfa {
 		VkSemaphore signalSemaphores[] = { m_sync[m_currentFrame].s_renderFinished };
 		VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 
-		std::vector<VkCommandBuffer> commands = { m_commander.sceneBuffers[imageIndex], m_commander.uiBuffers[imageIndex] };
+		std::vector<VkCommandBuffer> commands = { m_commander.sceneBuffers[imageIndex]};
 
 		VkSubmitInfo submitInfo{};
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -1035,12 +1038,27 @@ namespace brdfa {
 		submitInfo.pSignalSemaphores = signalSemaphores;
 
 		vkResetFences(m_device.device, 1, &m_sync[m_currentFrame].f_inFlight);
-		if (vkQueueSubmit(m_device.graphicsQueue, 1, &submitInfo, m_sync[m_currentFrame].f_inFlight) != VK_SUCCESS) {
+		if (vkQueueSubmit(m_device.graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
 			throw std::runtime_error("failed to submit draw command buffer!");
 		}
 
 		if (this->saveShot)
 			record(m_currentFrame);
+
+		waitSemaphores[0] = m_sync[m_currentFrame].s_renderFinished;
+		commands = {  m_commander.uiBuffers[imageIndex] };
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submitInfo.waitSemaphoreCount = 1;
+		submitInfo.pWaitSemaphores = waitSemaphores;
+		submitInfo.pWaitDstStageMask = waitStages;
+		submitInfo.commandBufferCount = static_cast<uint32_t>(commands.size());
+		submitInfo.pCommandBuffers = commands.data();
+		submitInfo.signalSemaphoreCount = 1;
+		submitInfo.pSignalSemaphores = waitSemaphores;
+
+		if (vkQueueSubmit(m_device.graphicsQueue, 1, &submitInfo, m_sync[m_currentFrame].f_inFlight) != VK_SUCCESS) {
+			throw std::runtime_error("failed to submit draw command buffer!");
+		}
 
 		VkPresentInfoKHR presentInfo{};
 		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -1176,21 +1194,7 @@ namespace brdfa {
 			const char* data;
 			vkMapMemory(m_device.device, dstImage.memory, 0, VK_WHOLE_SIZE, 0, (void**)&data);
 			data += subResourceLayout.offset;
-			//std::ofstream rgbf("rgb.raw", std::ios::out);
-			std::ofstream file;
-		
-			try {
-				file.open(savedFramesDir, std::ios::out);
-			}
-			catch (std::exception& exp) {
-				std::cout << exp.what() << std::endl;
-				this->saveShot = false;
-				return;
-			}
-		
-			// ppm header
-			//file << "P6\n" << m_swapChain.extent.width << "\n" << m_swapChain.extent.height << "\n" << 255 << "\n";
-
+	
 			// If source is BGR (destination is always RGB) and we can't use blit (which does automatic conversion), we'll have to manually swizzle color components
 			bool colorSwizzle = false;
 
@@ -1201,16 +1205,16 @@ namespace brdfa {
 				std::vector<VkFormat> formatsBGR = { VK_FORMAT_B8G8R8A8_SRGB, VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_B8G8R8A8_SNORM };
 				colorSwizzle = (std::find(formatsBGR.begin(), formatsBGR.end(), m_swapChain.format) != formatsBGR.end());
 			}
-		
-			// ppm pixel data
-			std::stringstream ss;
+
+
+			std::vector<char> rgbPixels;
+			rgbPixels.reserve(m_swapChain.extent.height * m_swapChain.extent.width * 3);
+
 			for (uint32_t y = 0; y < m_swapChain.extent.height; y++)
 			{
 				unsigned int* row = (unsigned int*)data;
 				for (uint32_t x = 0; x < m_swapChain.extent.width; x++)
 				{
-					if (!(x == 0 && y == 0)) ss << " ";
-
 					if (colorSwizzle)
 					{
 						unsigned char* cp = (unsigned char*)row;
@@ -1218,8 +1222,9 @@ namespace brdfa {
 							int((unsigned char)cp[2]),
 							int((unsigned char)cp[1]),
 							int((unsigned char)cp[0]) };
-
-						ss << ip[0] << " " << ip[1] << " " << ip[2];
+						rgbPixels.push_back(static_cast<char>(ip[0]));
+						rgbPixels.push_back(static_cast<char>(ip[1]));
+						rgbPixels.push_back(static_cast<char>(ip[2]));
 					}
 					else
 					{
@@ -1230,25 +1235,27 @@ namespace brdfa {
 							int((unsigned char)cp[1]), 
 							int((unsigned char)cp[2])};
 
-						ss << ip[0] << " " << ip[1] << " " << ip[2];
+						rgbPixels.push_back(static_cast<char>(ip[0]));
+						rgbPixels.push_back(static_cast<char>(ip[1]));
+						rgbPixels.push_back(static_cast<char>(ip[2]));
 					}
 					row++;
 				}
 				// ss << "\n";
 				data += subResourceLayout.rowPitch;
 			}
-			std::string ppmData = ss.str();
-			file << ppmData;
-			file.close();
+
+			std::string fullSaveName = (savedFramesDir + std::string("_stbi.bmp")).c_str();
+			stbi_write_bmp(fullSaveName.c_str(), m_swapChain.extent.width, m_swapChain.extent.height, 3, rgbPixels.data());
+
 			//rgbf.close();
-			printf("[INFO]: [record]: Image saved at the path: %s\n", savedFramesDir.c_str());
+			printf("[INFO]: [record]: Image saved at the path: %s\n", fullSaveName.c_str());
 		
 			// Clean up resources
 			vkUnmapMemory(m_device.device, dstImage.memory);
 			vkFreeMemory(m_device.device, dstImage.memory, nullptr);
 			vkDestroyImage(m_device.device, dstImage.obj, nullptr);
 			this->saveShot = false;
-		
 		}
 	}
 

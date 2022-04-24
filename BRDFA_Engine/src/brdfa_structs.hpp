@@ -248,7 +248,7 @@ namespace brdfa {
 
     struct Mesh {
         uint32_t					uid;
-        std::vector<Image>						textureImages;				        // Holds the texture Image data.
+        std::vector<Image>			textureImages;				        // Holds the texture Image data.
 
         std::vector<Vertex>			vertices;					        // Vertices of the Mesh. Vertices can hold more than a position.
         std::vector<uint32_t>		indices;					        // Indices refering to the loaded vertices of the object.
@@ -257,6 +257,7 @@ namespace brdfa {
         int                         samples = 100;
 
         glm::vec3                   rotation = glm::vec3(0,0,0);        // Rotation of the object.
+       //  glm::vec3                   scale = glm::vec3(1);               // Holds the scale of the object along the axis
         glm::mat4                   transformation = glm::mat4(1.0f);   // Holds the object transformation. Object to World transformation.
 
 
