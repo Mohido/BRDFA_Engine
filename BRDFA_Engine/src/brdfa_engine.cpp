@@ -639,7 +639,7 @@ namespace brdfa {
 	/// </summary>
 	/// <param name="brdfName"></param>
 	/// <param name="fragSpirv"></param>
-	void BRDFA_Engine::recreatePipeline(const std::string& brdfName, const std::vector<char>& fragSpirv)
+	void BRDFA_Engine::recreatePipeline(const std::string& brdfName, const std::vector<char>& fragSpirv, const bool& refreshObj)
 	{
 		/*Destroying old pipeline*/
 		vkDeviceWaitIdle(m_device.device);
@@ -655,7 +655,7 @@ namespace brdfa {
 			m_device, m_swapChain, m_descriptorData, m_vertSpirv, fragSpirv, false);
 
 		/*Re record the scene objects*/
-		for (size_t j = 0; j < m_meshes.size(); j++)
+		for (size_t j = 0; j < m_meshes.size() & refreshObj; j++)
 			refreshObject(j);
 	}
 
@@ -1332,12 +1332,15 @@ namespace brdfa {
 
 		/*Deleting all the current allocated command buffers*/
 		vkFreeCommandBuffers(m_device.device, m_commander.pool, static_cast<uint32_t>(m_commander.sceneBuffers.size()), m_commander.sceneBuffers.data());
+		m_commander.sceneBuffers.clear();
 
 		/*Clearing the Graphics pipeline*/
 		for (auto& it : m_graphicsPipelines.pipelines) {
 			vkDestroyPipeline(m_device.device, it.second , nullptr);
 		}
 		m_graphicsPipelines.pipelines.clear();
+
+		vkDestroyPipeline(m_device.device, m_skymap_pipeline, nullptr);
 		
 		vkDestroyPipelineLayout(m_device.device, m_graphicsPipelines.layout, nullptr);
 		vkDestroyRenderPass(m_device.device, m_graphicsPipelines.sceneRenderPass, nullptr);
@@ -1389,14 +1392,44 @@ namespace brdfa {
 		// auto spirVShaderCode_vert = compileShader(vertShaderCode, true, "vertexShader");
 		// auto spirVShaderCode_frag = compileShader(fragShaderCode, false, "FragmentSHader");
 		// createGraphicsPipeline(m_graphicsPipeline, m_skymap_pipeline, m_device, m_swapChain, m_descriptorData, spirVShaderCode_vert, spirVShaderCode_frag);
-		loadPipelines();
+		// loadPipelines();
+		createPipelineLayout(m_graphicsPipelines, m_device, m_descriptorData);
 		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipelines);
+
 
 		/*Meshes dependent*/
 		loadEnvironmentMap(SKYMAP_PATHS);
 		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
 		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
+
+		/*Loading the main pipeline*/
+		m_vertSpirv = readFile(SHADERS_PATH + "/vert.spv", true);
+		auto frag_main_shader_code = readFile(SHADERS_PATH + "/basic.spv", true);
+		m_graphicsPipelines.pipelines.insert({ "None" , {} });
+		createGraphicsPipeline(
+			m_graphicsPipelines.layout, m_graphicsPipelines.sceneRenderPass,
+			m_graphicsPipelines.pipelines.at("None"), m_skymap_pipeline,
+			m_device, m_swapChain, m_descriptorData, m_vertSpirv, frag_main_shader_code, false);
+
+		/*Reloading the skymap pipeline*/
+		auto vert_sky_shader_code = readFile(SHADERS_PATH + "/skybox.vert.spv", true);
+		auto frag_sky_shader_code = readFile(SHADERS_PATH + "/skybox.frag.spv", true);
+		createGraphicsPipeline(
+			m_graphicsPipelines.layout, m_graphicsPipelines.sceneRenderPass,
+			m_graphicsPipelines.pipelines.begin()->second, m_skymap_pipeline,
+			m_device, m_swapChain, m_descriptorData,
+			vert_sky_shader_code, frag_sky_shader_code, true);
+
+		for (const auto& brdf : m_loadedBrdfs) {
+			recreatePipeline(brdf.first, brdf.second.latest_spir_v, false);
+		}
+		for (const auto& brdf : m_costumBrdfs) {
+			recreatePipeline(brdf.first, brdf.second.latest_spir_v, false);
+		}
+
 		recordCommandBuffers(m_commander, m_device, m_graphicsPipelines, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
+
+
 
 		/*Syncronization objects re-initialization.*/
 		m_imagesInFlight.resize(m_swapChain.images.size(), VK_NULL_HANDLE);
