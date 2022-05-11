@@ -2060,21 +2060,20 @@ namespace brdfa {
 					}
 					ImGui::EndMenu();
 				}
-				if (ImGui::MenuItem("Close")) { m_uistate.running = false; }
+				// if (ImGui::MenuItem("Close")) { m_uistate.running = false; }
 				ImGui::EndMenu();
 			}
 			if (ImGui::BeginMenu("Tools"))
 			{
-				if (ImGui::MenuItem("Objects Editor", "Ctrl+M")) m_uistate.objWindowActive = true;
-				if (ImGui::MenuItem("Camera Editor", "Ctrl+K")) m_uistate.camWindowActive = true;
-				if (ImGui::MenuItem("BRDF Editor", "Ctrl+B")) m_uistate.brdfEditorWindowActive = true;
-				if (ImGui::MenuItem("Log Window", "Ctrl+L")) m_uistate.logWindowActive = true;
-				if (ImGui::MenuItem("Test Window", "Ctrl+T")) m_uistate.testWindowActive= true;
-				if (ImGui::MenuItem("Comparison Generator", "Ctrl+G")) m_uistate.brdfCompareWindowActive = true;
-				if (ImGui::MenuItem("Frame Saver", "Ctrl+F")) m_uistate.frameSaverWindowActive = true;
+				if (ImGui::MenuItem("Objects Editor")) m_uistate.objWindowActive = true;
+				if (ImGui::MenuItem("Camera Editor")) m_uistate.camWindowActive = true;
+				if (ImGui::MenuItem("BRDF Editor")) m_uistate.brdfEditorWindowActive = true;
+				if (ImGui::MenuItem("Log Window")) m_uistate.logWindowActive = true;
+				if (ImGui::MenuItem("Test Window")) m_uistate.testWindowActive= true;
+				if (ImGui::MenuItem("Frame Saver")) m_uistate.frameSaverWindowActive = true;
 				ImGui::EndMenu();
 			}
-			if ( ImGui::MenuItem("Help", "Ctrl+H"))  m_uistate.helpWindowActive = true;
+			if ( ImGui::MenuItem("Help"))  m_uistate.helpWindowActive = true;
 			ImGui::EndMenuBar();
 		}
 		ImGui::End();
