@@ -72,7 +72,7 @@ namespace brdfa {
 		Mesh											m_skymap_mesh;					// Mesh that defines the skymap to be rendered. It is rendered on a seperate pipeline
 		Image											m_skymap;						// Skybox image
 		VkPipeline										m_skymap_pipeline;				// Pipeline that holds the Skymap Shaders info.
-
+		std::string										m_latest_skymap;				// Holds the latest loaded skymap. If null, then the default skymap is loaded
 
 		/*Event System.*/
 		KeyEvent										m_keyboardEvent;				// Events per updates.
