@@ -376,6 +376,7 @@ namespace brdfa {
         /// </summary>
         /// <param name="M"></param>
         void printTransformation() {
+
             for (int i = 0; i < 4; i++) {
                 std::cout << "[";
                 for (int j = 0; j < 4; j++) {
@@ -384,6 +385,7 @@ namespace brdfa {
                 }
                 std::cout << "]" << std::endl;
             }
+
         }
 
 
@@ -408,10 +410,11 @@ namespace brdfa {
                 this->position -= this->direction * time * translationSpeed;
 
             updateViewMatrix();
-
+#ifdef _DEBUG
             std::cout << "New Matrix transformation of the Camera is: " << std::endl;
             printTransformation();
             std::cout << std::endl;
+#endif
 
         }
 
@@ -485,7 +488,7 @@ namespace brdfa {
             }
 
             updateViewMatrix();
-
+#ifdef _DEBUG
             if (me.update) {
                 std::cout << "New Matrix transformation of the Camera is: " << std::endl;
                 printTransformation();
@@ -493,6 +496,7 @@ namespace brdfa {
                 printf("Camera direction: (%f, %f, %f)\n\n", direction.x, direction.y, direction.z);
                 std::cout << std::endl;
             }
+#endif
         }
     };
 

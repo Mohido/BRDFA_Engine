@@ -2124,8 +2124,10 @@ namespace brdfa {
 			try {
 				if (!this->loadObject(std::string(m_uistate.obj_path), texture_paths)) 
 					logger = "Object can't be loaded: Make sure to have iTexture0 filled and object path is correct!";			
-				else 
+				else {
 					m_uistate.objectLoaderWindowActive = false;
+					logger = "";
+				}
 			}
 			catch (const std::exception& exp) {
 				logger = exp.what();
@@ -2159,6 +2161,7 @@ namespace brdfa {
 		if (ImGui::Button("Load File", ImVec2(100, 30))) {
 			try {
 				this->reloadSkymap(std::string(m_uistate.skymap_path));
+				logger = "";
 				m_uistate.skymapLoaderWindowActive = false;
 			}
 			catch (const std::exception& exp){
