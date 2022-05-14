@@ -7,7 +7,7 @@ set (CMAKE_CXX_STANDARD 17) # C++ 17
 # Project name and .o file
 project ("BRDFA_Engine")
 
-
+message("BUILDING IN: ${CMAKE_BUILD_TYPE} MODE")
 
 # IMGUI source files
 file (GLOB IMGUI_SRC 
@@ -73,10 +73,15 @@ IF(WIN32)
 		ENDIF()
 	ENDIF()
 	#find_library(shaderc_LIBRARY NAMES shaderc_combinedd HINTS "$ENV{VULKAN_SDK}/lib/shaderc_combinedd.lib" "${CMAKE_SOURCE_DIR}/libs/shaderc_combinedd.lib" REQUIRED)
-	find_library(shaderc_d_LIBRARY NAMES shaderc_combinedd HINTS "$ENV{VULKAN_SDK}/lib" "${CMAKE_SOURCE_DIR}/libs/shaderc_combinedd.lib" REQUIRED)
-	find_library(shaderc_LIBRARY NAMES shaderc_combined HINTS "$ENV{VULKAN_SDK}/lib" "${CMAKE_SOURCE_DIR}/libs/shaderc_combined.lib" REQUIRED)
+
+	IF(CMAKE_BUILD_TYPE STREQUAL "Release")
+		message("Rlease Mode")
+		find_library(shaderc_LIBRARY NAMES shaderc_combined HINTS "$ENV{VULKAN_SDK}/lib" "${CMAKE_SOURCE_DIR}/libs/shaderc_combined.lib" REQUIRED)
+	ELSE()
+		message("Debug Mode")
+		find_library(shaderc_LIBRARY NAMES shaderc_combinedd HINTS "$ENV{VULKAN_SDK}/lib" "${CMAKE_SOURCE_DIR}/libs/shaderc_combinedd.lib" REQUIRED)
+	ENDIF()
 	message("[win32] vulkan library: ${Vulkan_LIBRARY}")
-	message("[win32] shaderc library: ${shaderc_d_LIBRARY}")
 	message("[win32] shaderc library: ${shaderc_LIBRARY}")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_USE_PLATFORM_WIN32_KHR")
 ELSEIF(LINUX)
@@ -163,7 +168,7 @@ ENDIF(MSVC)
 
 IF(WIN32)
 	message("Linked: ${XCB_LIBRARIES} ${Vulkan_LIBRARY} ${shaderc_LIBRARY} ${DIRECTFB_LIBRARIES} ${WAYLAND_CLIENT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT}" )
-	link_libraries(${XCB_LIBRARIES} ${Vulkan_LIBRARY} ${shaderc_d_LIBRARY} ${DIRECTFB_LIBRARIES} ${WAYLAND_CLIENT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+	link_libraries(${XCB_LIBRARIES} ${Vulkan_LIBRARY} ${shaderc_LIBRARY} ${DIRECTFB_LIBRARIES} ${WAYLAND_CLIENT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 ELSEIF(APPLE)
 	link_libraries(${Vulkan_LIBRARY} "-framework AppKit" "-framework QuartzCore")
 ELSE(WIN32)
@@ -181,7 +186,7 @@ IF (Vulkan_FOUND)
 	MESSAGE("Using bundled Vulkan library version, ${Vulkan_LIBRARY}")
 	MESSAGE("Using bundled Shaderc library version, ${shaderc_LIBRARY}")
 	target_link_libraries(BRDFA_Engine "${CMAKE_SOURCE_DIR}/libs/glfw3.lib")
-	target_link_libraries(BRDFA_Engine "${shaderc_d_LIBRARY}")
+	target_link_libraries(BRDFA_Engine "${shaderc_LIBRARY}")
 	target_link_libraries(BRDFA_Engine "${Vulkan_LIBRARY}")
 ENDIF()
 

@@ -35,6 +35,7 @@ void printHelp() {
 /// <param name="argv"></param>
 /// <returns></returns>
 int main(int argc, char** argv) {
+
     /*Print the help command.*/
     for (int i = 0; i < argc; i++) {
         if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
