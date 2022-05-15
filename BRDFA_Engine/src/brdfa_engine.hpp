@@ -41,7 +41,7 @@ namespace brdfa {
 		VkDescriptorPool								m_imguiPool;
 
 		/*Engine configuration*/
-		const BRDFAEngineConfiguration					m_configuration;				// the engine initial configuration.
+		BRDFAEngineConfiguration						m_configuration;				// the engine initial configuration.
 		size_t											m_currentFrame = 0;				// The current frame being rendered.
 		bool											m_active;
 		uint32_t										m_width_w, m_height_w;	
@@ -72,7 +72,7 @@ namespace brdfa {
 		Mesh											m_skymap_mesh;					// Mesh that defines the skymap to be rendered. It is rendered on a seperate pipeline
 		Image											m_skymap;						// Skybox image
 		VkPipeline										m_skymap_pipeline;				// Pipeline that holds the Skymap Shaders info.
-
+		std::string										m_latest_skymap;				// Holds the latest loaded skymap. If null, then the default skymap is loaded
 
 		/*Event System.*/
 		KeyEvent										m_keyboardEvent;				// Events per updates.
@@ -90,8 +90,13 @@ namespace brdfa {
 
 		const uint8_t									MAX_FRAMES_IN_FLIGHT = 2;
 
+		/*Parallalism utilitities*/
 		std::vector<std::thread>						compilationPool;				// Holds all the threads that are being used to compile the glsl at the moment.
 		std::vector<std::future<bool>>					futurePool;						// Another threading utility for helping us create threads that return values
+
+		/*saving images Utilities.*/
+		std::string										savedFramesDir = "res/";		// The frames Directory.
+		bool											saveShot = false;
 
 	public:
 		BRDFA_Engine(const BRDFAEngineConfiguration& conf)
@@ -127,6 +132,7 @@ namespace brdfa {
 
 		void fireMouseButtonEvent(int button, int action);					// adds the event to the mouse buttons
 
+		GLFWwindow* getWindow() { return this->m_window; }					// Returns the glfw window of the engine.
 
 	private:
 		//void threadAddSpirv(std::string cacheFileName, BRDF_Panel lp);
@@ -137,7 +143,7 @@ namespace brdfa {
 		void drawUI_editorBRDF();
 		void drawUI_logger();
 		void drawUI_comparer();
-		void drawUI_frameSaver();
+		void drawUI_frameSaver(uint32_t imageIndex);
 		void drawUI_tester();
 		void drawUI_menubar();
 		void drawUI_objectLoader();
@@ -147,7 +153,7 @@ namespace brdfa {
 		void refreshObject(const size_t& idx);													// Records the objects back again.
 		void addFragPipeline(const std::string&, const std::string&);							// This is used to add a pipeline to the scene. And refreshes the obejcts.
 		void saveBRDF(const std::string& brdfName, const bool& cacheIt = true);					// Save the BRDF to the disk.
-		void recreatePipeline(const std::string&, const std::vector<char>&);					// Quickly recreates a specific pipeline.
+		void recreatePipeline(const std::string&, const std::vector<char>& , const bool & refreshObjs = true);					// Quickly recreates a specific pipeline.
 		void addPipeline(const std::string&, const std::vector<char>&);							// Add a new pipeline to the graphics pipelines.
 		void loadPipelines();																	// Load all pipelines needed by the program to run.
 		void startWindow();																		// Starts the GLFW window
@@ -155,6 +161,7 @@ namespace brdfa {
 		bool startImgui();																		// Starts the Imgui for vulkan and glfw
 		void update(uint32_t currentImage);														// Update function. Time dependent function.
 		void render(uint32_t imageIndex);														// Render the engine's scene.
+		void record(uint32_t imageIndex);														// Save the frame into a file.
 		void drawUI(uint32_t imageIndex);														// Draw the UI (ImGui)
 		void cleanup();																			// Clean up the swapchain and the Vulkan objects. Mostly used during window resizing
 		void recreate();																		// Cleans up the vulkan engine and recreate its objects. Called when the window is being resized.

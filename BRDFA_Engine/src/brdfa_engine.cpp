@@ -25,11 +25,20 @@
 // BRDFA_Engine Dependencies
 #include "brdfa_engine.hpp"
 #include "brdfa_cons.hpp"
-#include "brdfa_functions.hpp"
+#include <helpers/functions.hpp>
 #include "brdfa_callbacks.hpp"
+
+
+#include <stb/stb_image.h>
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb/stb_image_write.h>
+
+
 
 // STD Dependencies
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <chrono>
 #include <filesystem>
 #include <thread>
@@ -191,9 +200,6 @@ namespace brdfa {
 					| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 				m_uniformBuffers[i]);
 		}
-
-		
-
 		
 		/*Recreating the Descriptors sets*/
 		vkDestroyDescriptorPool(m_device.device, m_descriptorData.pool, nullptr);
@@ -405,6 +411,8 @@ namespace brdfa {
 		VkDeviceSize imageSize = faceWidth * faceHeight * 4 * 6;				// Full buffer size (The size of all the images.)
 		VkDeviceSize layerSize = faceWidth * faceHeight * 4;			// Size per layer
 
+		m_latest_skymap = skyboxSides;
+
 		/*Populating the staging buffer in the RAM*/
 		Buffer staging;
 		createBuffer(
@@ -517,6 +525,8 @@ namespace brdfa {
 		if (vkCreateSampler(m_device.device, &samplerInfo, nullptr, &m_skymap.sampler) != VK_SUCCESS) {
 			throw std::runtime_error("ERROR: failed to create texture sampler!");
 		}
+
+		this->m_latest_skymap = skyboxSides;
 	}
 
 
@@ -636,7 +646,7 @@ namespace brdfa {
 	/// </summary>
 	/// <param name="brdfName"></param>
 	/// <param name="fragSpirv"></param>
-	void BRDFA_Engine::recreatePipeline(const std::string& brdfName, const std::vector<char>& fragSpirv)
+	void BRDFA_Engine::recreatePipeline(const std::string& brdfName, const std::vector<char>& fragSpirv, const bool& refreshObj)
 	{
 		/*Destroying old pipeline*/
 		vkDeviceWaitIdle(m_device.device);
@@ -652,7 +662,7 @@ namespace brdfa {
 			m_device, m_swapChain, m_descriptorData, m_vertSpirv, fragSpirv, false);
 
 		/*Re record the scene objects*/
-		for (size_t j = 0; j < m_meshes.size(); j++)
+		for (size_t j = 0; j < m_meshes.size() & refreshObj; j++)
 			refreshObject(j);
 	}
 
@@ -873,7 +883,7 @@ namespace brdfa {
 		m_meshes.push_back(loadMesh(m_commander, m_device, MODEL_PATH, TEXTURE_PATH, m_swapChain.images.size() ));		// Loading veriaty of objects
 		loadVertices(m_skymap_mesh, m_commander, m_device, CUBE_MODEL_PATH);				// Loading skymap vertices (CUBE)
 		loadEnvironmentMap(SKYMAP_PATHS);
-		m_camera = Camera(m_swapChain.extent.width, m_swapChain.extent.height, 0.1f, 10.0f, 45.0f);
+		m_camera = Camera(m_swapChain.extent.width, m_swapChain.extent.height, 0.1f, 100.0f, 45.0f);
 
 		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
 		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
@@ -1044,21 +1054,197 @@ namespace brdfa {
 		VkSwapchainKHR swapChains[] = { m_swapChain.swapChain };
 		presentInfo.swapchainCount = 1;
 		presentInfo.pSwapchains = swapChains;
-		presentInfo.pImageIndices = &imageIndex;
+		presentInfo.pImageIndices = &imageIndex;		
 
 		VkResult result = vkQueuePresentKHR(m_device.presentQueue, &presentInfo);
 		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_frameBufferResized) {
 			m_frameBufferResized = false;
 			recreate();
 		}
-
 		else if (result != VK_SUCCESS) {
 			throw std::runtime_error("failed to present swap chain image!");
 		}
 
+		if (this->saveShot)
+			record(m_currentFrame);
+
 		auto endtime = std::chrono::high_resolution_clock::now();
 		float time = std::chrono::duration<float, std::chrono::seconds::period>(endtime - startTime).count();
 		m_uistate.timePerFrame = (m_uistate.timePerFrame > 0.0f)? (m_uistate.timePerFrame + time * 1000.0f) / 2.0f : time * 1000.0f;
+	}
+
+	/// <summary>
+	///		Saves the current frame into a file. The file will be the saveFrameDir memeber variable set in the engine.
+	/// </summary>
+	/// <param name="imageIndex"></param>
+	void BRDFA_Engine::record(uint32_t imageIndex)
+	{
+		vkDeviceWaitIdle(m_device.device);
+		bool supportsBlit = true;
+
+		// Check blit support for source and destination
+		VkFormatProperties formatProps;
+
+		// Check if the device supports blitting from optimal images (the swapchain images are in optimal format)
+		vkGetPhysicalDeviceFormatProperties(m_device.physicalDevice, m_swapChain.format, &formatProps);
+		if (!(formatProps.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_SRC_BIT)) {
+			std::cerr << "Device does not support blitting from optimal tiled images, using copy instead of blit!" << std::endl;
+			supportsBlit = false;
+		}
+
+		// Check if the device supports blitting to linear images
+		vkGetPhysicalDeviceFormatProperties(m_device.physicalDevice, m_swapChain.format, &formatProps);
+		if (!(formatProps.linearTilingFeatures & VK_FORMAT_FEATURE_BLIT_DST_BIT)) {
+			std::cerr << "Device does not support blitting to linear tiled images, using copy instead of blit!" << std::endl;
+			supportsBlit = false;
+		}
+
+		// Source for the copy is the last rendered swapchain image
+		Image srcImage;
+		srcImage.obj = m_swapChain.images[imageIndex];
+		srcImage.width = m_swapChain.extent.width;
+		srcImage.height = m_swapChain.extent.height;
+		srcImage.mipLevels = 1;
+
+		// Create the image
+		Image dstImage;
+		createImage(
+			m_commander, m_device, m_swapChain.extent.width, m_swapChain.extent.height, 1, VK_SAMPLE_COUNT_1_BIT,
+			VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_LINEAR, VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, dstImage);
+
+		// Do the actual blit from the swapchain image to our host visible destination image
+		// Transition destination image to transfer destination layout
+		transitionImageLayout(dstImage, m_commander, m_device, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		transitionImageLayout(srcImage, m_commander, m_device, m_swapChain.format, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+		// If source and destination support blit we'll blit as this also does automatic format conversion (e.g. from BGR to RGB)
+		if (supportsBlit)
+		{
+			// Define the region to blit (we will blit the whole swapchain image)
+			VkOffset3D blitSize;
+			blitSize.x = m_swapChain.extent.width;
+			blitSize.y = m_swapChain.extent.height;
+			blitSize.z = 1;
+			VkImageBlit imageBlitRegion{};
+			imageBlitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			imageBlitRegion.srcSubresource.layerCount = 1;
+			imageBlitRegion.srcOffsets[1] = blitSize;
+			imageBlitRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			imageBlitRegion.dstSubresource.layerCount = 1;
+			imageBlitRegion.dstOffsets[1] = blitSize;
+
+			VkCommandBuffer copyCmd = beginSingleTimeCommands(m_commander, m_device);
+			// Issue the blit command
+			vkCmdBlitImage(
+				copyCmd,
+				srcImage.obj, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+				dstImage.obj, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				1,
+				&imageBlitRegion,
+				VK_FILTER_NEAREST);
+			endSingleTimeCommands(m_commander, m_device);
+		}
+		else
+		{
+			// Otherwise use image copy (requires us to manually flip components)
+			VkImageCopy imageCopyRegion{};
+			imageCopyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			imageCopyRegion.srcSubresource.layerCount = 1;
+			imageCopyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			imageCopyRegion.dstSubresource.layerCount = 1;
+			imageCopyRegion.extent.width = m_swapChain.extent.width;
+			imageCopyRegion.extent.height = m_swapChain.extent.height;
+			imageCopyRegion.extent.depth = 1;
+			VkCommandBuffer copyCmd = beginSingleTimeCommands(m_commander, m_device);
+			// Issue the copy command
+			vkCmdCopyImage(
+				copyCmd,
+				srcImage.obj, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+				dstImage.obj, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				1,
+				&imageCopyRegion);
+			endSingleTimeCommands(m_commander, m_device);
+		}
+
+		// Transition destination image to general layout, which is the required layout for mapping the image memory later on
+		transitionImageLayout(srcImage, m_commander, m_device, m_swapChain.format, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+		transitionImageLayout(dstImage, m_commander, m_device, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
+
+		// Get layout of the image (including row pitch)
+		VkImageSubresource subResource{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 0 };
+		VkSubresourceLayout subResourceLayout;
+		vkGetImageSubresourceLayout(m_device.device, dstImage.obj, &subResource, &subResourceLayout);
+
+
+		/*Save the image into a raw file*/
+		{
+			const char* data;
+			vkMapMemory(m_device.device, dstImage.memory, 0, VK_WHOLE_SIZE, 0, (void**)&data);
+			data += subResourceLayout.offset;
+	
+			// If source is BGR (destination is always RGB) and we can't use blit (which does automatic conversion), we'll have to manually swizzle color components
+			bool colorSwizzle = false;
+
+			// Check if source is BGR
+			// Note: Not complete, only contains most common and basic BGR surface formats for demonstration purposes
+			if (!supportsBlit)
+			{
+				std::vector<VkFormat> formatsBGR = { VK_FORMAT_B8G8R8A8_SRGB, VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_B8G8R8A8_SNORM };
+				colorSwizzle = (std::find(formatsBGR.begin(), formatsBGR.end(), m_swapChain.format) != formatsBGR.end());
+			}
+
+
+			std::vector<char> rgbPixels;
+			rgbPixels.reserve(m_swapChain.extent.height * m_swapChain.extent.width * 3);
+
+			for (uint32_t y = 0; y < m_swapChain.extent.height; y++)
+			{
+				unsigned int* row = (unsigned int*)data;
+				for (uint32_t x = 0; x < m_swapChain.extent.width; x++)
+				{
+					if (colorSwizzle)
+					{
+						unsigned char* cp = (unsigned char*)row;
+						int ip[3] = {
+							int((unsigned char)cp[2]),
+							int((unsigned char)cp[1]),
+							int((unsigned char)cp[0]) };
+						rgbPixels.push_back(static_cast<char>(ip[0]));
+						rgbPixels.push_back(static_cast<char>(ip[1]));
+						rgbPixels.push_back(static_cast<char>(ip[2]));
+					}
+					else
+					{
+						//ofs.write((char*)row, 3);
+						unsigned char* cp = (unsigned char*)row;
+						int ip[3] = { 
+							int((unsigned char)cp[0]), 
+							int((unsigned char)cp[1]), 
+							int((unsigned char)cp[2])};
+
+						rgbPixels.push_back(static_cast<char>(ip[0]));
+						rgbPixels.push_back(static_cast<char>(ip[1]));
+						rgbPixels.push_back(static_cast<char>(ip[2]));
+					}
+					row++;
+				}
+				// ss << "\n";
+				data += subResourceLayout.rowPitch;
+			}
+
+			std::string fullSaveName = (savedFramesDir + std::string("_stbi.bmp")).c_str();
+			stbi_write_bmp(fullSaveName.c_str(), m_swapChain.extent.width, m_swapChain.extent.height, 3, rgbPixels.data());
+
+			//rgbf.close();
+			printf("[INFO]: [record]: Image saved at the path: %s\n", fullSaveName.c_str());
+		
+			// Clean up resources
+			vkUnmapMemory(m_device.device, dstImage.memory);
+			vkFreeMemory(m_device.device, dstImage.memory, nullptr);
+			vkDestroyImage(m_device.device, dstImage.obj, nullptr);
+			this->saveShot = false;
+		}
 	}
 
 
@@ -1081,7 +1267,7 @@ namespace brdfa {
 		this->drawUI_tester();
 		this->drawUI_editorBRDF();
 		this->drawUI_comparer();
-		this->drawUI_frameSaver();
+		this->drawUI_frameSaver(imageIndex);
 		
 
 		// {
@@ -1141,12 +1327,15 @@ namespace brdfa {
 
 		/*Deleting all the current allocated command buffers*/
 		vkFreeCommandBuffers(m_device.device, m_commander.pool, static_cast<uint32_t>(m_commander.sceneBuffers.size()), m_commander.sceneBuffers.data());
+		m_commander.sceneBuffers.clear();
 
 		/*Clearing the Graphics pipeline*/
 		for (auto& it : m_graphicsPipelines.pipelines) {
 			vkDestroyPipeline(m_device.device, it.second , nullptr);
 		}
 		m_graphicsPipelines.pipelines.clear();
+
+		vkDestroyPipeline(m_device.device, m_skymap_pipeline, nullptr);
 		
 		vkDestroyPipelineLayout(m_device.device, m_graphicsPipelines.layout, nullptr);
 		vkDestroyRenderPass(m_device.device, m_graphicsPipelines.sceneRenderPass, nullptr);
@@ -1198,17 +1387,51 @@ namespace brdfa {
 		// auto spirVShaderCode_vert = compileShader(vertShaderCode, true, "vertexShader");
 		// auto spirVShaderCode_frag = compileShader(fragShaderCode, false, "FragmentSHader");
 		// createGraphicsPipeline(m_graphicsPipeline, m_skymap_pipeline, m_device, m_swapChain, m_descriptorData, spirVShaderCode_vert, spirVShaderCode_frag);
-		loadPipelines();
+		// loadPipelines();
+		createPipelineLayout(m_graphicsPipelines, m_device, m_descriptorData);
 		createFramebuffers(m_swapChain, m_commander, m_device, m_graphicsPipelines);
 
+
 		/*Meshes dependent*/
-		loadEnvironmentMap(SKYMAP_PATHS);
+		this->loadEnvironmentMap(SKYMAP_PATHS);
+
 		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
 		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
+
+		/*Loading the main pipeline*/
+		m_vertSpirv = readFile(SHADERS_PATH + "/vert.spv", true);
+		auto frag_main_shader_code = readFile(SHADERS_PATH + "/basic.spv", true);
+		m_graphicsPipelines.pipelines.insert({ "None" , {} });
+		createGraphicsPipeline(
+			m_graphicsPipelines.layout, m_graphicsPipelines.sceneRenderPass,
+			m_graphicsPipelines.pipelines.at("None"), m_skymap_pipeline,
+			m_device, m_swapChain, m_descriptorData, m_vertSpirv, frag_main_shader_code, false);
+
+		/*Reloading the skymap pipeline*/
+		auto vert_sky_shader_code = readFile(SHADERS_PATH + "/skybox.vert.spv", true);
+		auto frag_sky_shader_code = readFile(SHADERS_PATH + "/skybox.frag.spv", true);
+		createGraphicsPipeline(
+			m_graphicsPipelines.layout, m_graphicsPipelines.sceneRenderPass,
+			m_graphicsPipelines.pipelines.begin()->second, m_skymap_pipeline,
+			m_device, m_swapChain, m_descriptorData,
+			vert_sky_shader_code, frag_sky_shader_code, true);
+
+		for (const auto& brdf : m_loadedBrdfs) {
+			recreatePipeline(brdf.first, brdf.second.latest_spir_v, false);
+		}
+		for (const auto& brdf : m_costumBrdfs) {
+			recreatePipeline(brdf.first, brdf.second.latest_spir_v, false);
+		}
+
 		recordCommandBuffers(m_commander, m_device, m_graphicsPipelines, m_descriptorData, m_swapChain, m_meshes, m_skymap_mesh, m_skymap_pipeline);
+
+
 
 		/*Syncronization objects re-initialization.*/
 		m_imagesInFlight.resize(m_swapChain.images.size(), VK_NULL_HANDLE);
+
+		if (this->m_latest_skymap.size() > 0)
+			this->reloadSkymap(this->m_latest_skymap);
 	}
 
 
@@ -1268,18 +1491,18 @@ namespace brdfa {
 			} // Rendering_options rendered
 			ImGui::Separator();
 			{ // Object Translation option
-				float trans[3] = { m_meshes[i].transformation[3][0] , m_meshes[i].transformation[3][1], m_meshes[i].transformation[3][2] };
+				float trans[3] = { m_meshes[i].translation[0] , m_meshes[i].translation[1], m_meshes[i].translation[2] };
 				ImGui::DragFloat3("Translation", trans, 0.01f);
-				m_meshes[i].transformation[3][0] = trans[0];
-				m_meshes[i].transformation[3][1] = trans[1];
-				m_meshes[i].transformation[3][2] = trans[2];
+				m_meshes[i].translation[0] = trans[0];
+				m_meshes[i].translation[1] = trans[1];
+				m_meshes[i].translation[2] = trans[2];
 			} // Object Translation option
 			{ // Object Scale option
-				float trans[3] = { m_meshes[i].transformation[0][0] , m_meshes[i].transformation[1][1], m_meshes[i].transformation[2][2] };
+				float trans[3] = { m_meshes[i].scale[0] , m_meshes[i].scale[1], m_meshes[i].scale[2] };
 				ImGui::DragFloat3("Scaler", trans, 0.01f);
-				m_meshes[i].transformation[0][0] = trans[0];
-				m_meshes[i].transformation[1][1] = trans[1];
-				m_meshes[i].transformation[2][2] = trans[2];
+				m_meshes[i].scale[0] = trans[0];
+				m_meshes[i].scale[1] = trans[1];
+				m_meshes[i].scale[2] = trans[2];
 			} // Object scale option
 			{ // Object Scale option
 				float trans[3] = { m_meshes[i].rotation[0] , m_meshes[i].rotation[1], m_meshes[i].rotation[2] };
@@ -1587,7 +1810,7 @@ namespace brdfa {
 				if (pressedB && strlen(name) > 0) {
 					BRDF_Panel panel;
 					panel.brdfName = name;
-					panel.glslPanel.SetText("vec3 brdf(vec3 L, vec3 N, vec3 V, vec2 extra){\n\n}");
+					panel.glslPanel.SetText("vec3 render(vec3 L, vec3 N, vec3 V, vec2 textureCord, mat3 worldToLocal){\n\n}");
 					panel.tested = false;
 					
 					memset(name, '\0', 20);
@@ -1674,9 +1897,31 @@ namespace brdfa {
 	}
 
 
-	void BRDFA_Engine::drawUI_frameSaver(){
-		if (!m_uistate.frameSaverWindowActive)
+	void BRDFA_Engine::drawUI_frameSaver(uint32_t imageIndex){
+		static char buf[50];
+
+		if (!m_uistate.frameSaverWindowActive) {
+			memset(buf, '\0', 50);
 			return;
+		}
+
+		ImGui::SetNextWindowPos(ImVec2(this->m_configuration.width / 3, 0), ImGuiCond_Appearing);
+		ImGui::SetNextWindowSize(ImVec2(this->m_configuration.width / 4, 0), ImGuiCond_Appearing);
+		ImGui::Begin("Frame Saver Window", &m_uistate.frameSaverWindowActive, ImGuiWindowFlags_NoResize);
+
+		static int totalRegisteredFrames = 0;	// Current brdfs registered to be rendered.
+		ImVec2 ws = ImGui::GetWindowSize();
+		ws.y = 0;
+
+		ImGui::InputText("Save As", buf, 50);
+		ImGui::TextWrapped("- Click 'Record' to take a screen shot of the current display");
+		ImGui::Separator();
+		if (!this->saveShot && ImGui::Button("Record", ws)) {
+			this->savedFramesDir = std::string(buf);
+			this->saveShot = true;
+		}
+		ImGui::End();
+
 	}
 
 
@@ -1823,21 +2068,20 @@ namespace brdfa {
 					}
 					ImGui::EndMenu();
 				}
-				if (ImGui::MenuItem("Close")) { m_uistate.running = false; }
+				// if (ImGui::MenuItem("Close")) { m_uistate.running = false; }
 				ImGui::EndMenu();
 			}
 			if (ImGui::BeginMenu("Tools"))
 			{
-				if (ImGui::MenuItem("Objects Editor", "Ctrl+M")) m_uistate.objWindowActive = true;
-				if (ImGui::MenuItem("Camera Editor", "Ctrl+K")) m_uistate.camWindowActive = true;
-				if (ImGui::MenuItem("BRDF Editor", "Ctrl+B")) m_uistate.brdfEditorWindowActive = true;
-				if (ImGui::MenuItem("Log Window", "Ctrl+L")) m_uistate.logWindowActive = true;
-				if (ImGui::MenuItem("Test Window", "Ctrl+T")) m_uistate.testWindowActive= true;
-				if (ImGui::MenuItem("Comparison Generator", "Ctrl+G")) m_uistate.brdfCompareWindowActive = true;
-				if (ImGui::MenuItem("Frame Saver", "Ctrl+F")) m_uistate.frameSaverWindowActive = true;
+				if (ImGui::MenuItem("Objects Editor")) m_uistate.objWindowActive = true;
+				if (ImGui::MenuItem("Camera Editor")) m_uistate.camWindowActive = true;
+				if (ImGui::MenuItem("BRDF Editor")) m_uistate.brdfEditorWindowActive = true;
+				if (ImGui::MenuItem("Log Window")) m_uistate.logWindowActive = true;
+				if (ImGui::MenuItem("Test Window")) m_uistate.testWindowActive= true;
+				if (ImGui::MenuItem("Frame Saver")) m_uistate.frameSaverWindowActive = true;
 				ImGui::EndMenu();
 			}
-			if ( ImGui::MenuItem("Help", "Ctrl+H"))  m_uistate.helpWindowActive = true;
+			if ( ImGui::MenuItem("Help"))  m_uistate.helpWindowActive = true;
 			ImGui::EndMenuBar();
 		}
 		ImGui::End();
@@ -1880,8 +2124,10 @@ namespace brdfa {
 			try {
 				if (!this->loadObject(std::string(m_uistate.obj_path), texture_paths)) 
 					logger = "Object can't be loaded: Make sure to have iTexture0 filled and object path is correct!";			
-				else 
+				else {
 					m_uistate.objectLoaderWindowActive = false;
+					logger = "";
+				}
 			}
 			catch (const std::exception& exp) {
 				logger = exp.what();
@@ -1915,6 +2161,7 @@ namespace brdfa {
 		if (ImGui::Button("Load File", ImVec2(100, 30))) {
 			try {
 				this->reloadSkymap(std::string(m_uistate.skymap_path));
+				logger = "";
 				m_uistate.skymapLoaderWindowActive = false;
 			}
 			catch (const std::exception& exp){

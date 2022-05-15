@@ -35,6 +35,7 @@ void printHelp() {
 /// <param name="argv"></param>
 /// <returns></returns>
 int main(int argc, char** argv) {
+
     /*Print the help command.*/
     for (int i = 0; i < argc; i++) {
         if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
@@ -49,6 +50,7 @@ int main(int argc, char** argv) {
     conf.width = static_cast<uint16_t>(WINDOW_HEIGHT / (9.0 / 16.0));
     conf.hot_load = false;
     conf.no_cache_load = false;
+    conf.validationLayersEnabled = false;
     for (int i = 0; i < argc; i++) {
         conf.hot_load = (strcmp(argv[i], "--hot-load") == 0) ? true : conf.hot_load;
         conf.no_cache_load = (strcmp(argv[i], "--no-cache-load") == 0) ? true : conf.no_cache_load;
