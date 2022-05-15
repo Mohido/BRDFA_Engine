@@ -10,8 +10,8 @@ Is a 3D rendering engine powered by Vulkan for the purposes of analyzing differe
 
 This engine provides a sandbox testing environment for a veriaty of shading functions. The user can create/test/compare/tweak BRDFs at runtime without the need to restart the engine.
 
-<img width="49%" height=250 src="https://user-images.githubusercontent.com/48254077/154393080-5bd9deb2-7554-4e51-82ba-6b6f038331cb.png" />
-<img width="49%" height=250 src="https://user-images.githubusercontent.com/48254077/154393357-f0741580-6f80-420f-86a3-ba947453059e.png" />
+<img width="100%" src="https://user-images.githubusercontent.com/48254077/168452783-5a63294b-526f-4c8d-adfc-fbd8bf83a110.png" />
+<img width="100%" src="https://user-images.githubusercontent.com/48254077/168452760-c21a7439-6d88-42b3-bbf8-7f956423a638.png" />
 
 ### - Matlab_Analysis
 An implementation of distinct BRDFs and their visualization. Most of the graphs presented in the Thesis Paper work are provided through utilizing Matlab. 
