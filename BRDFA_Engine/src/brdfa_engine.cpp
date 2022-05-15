@@ -411,6 +411,8 @@ namespace brdfa {
 		VkDeviceSize imageSize = faceWidth * faceHeight * 4 * 6;				// Full buffer size (The size of all the images.)
 		VkDeviceSize layerSize = faceWidth * faceHeight * 4;			// Size per layer
 
+		m_latest_skymap = skyboxSides;
+
 		/*Populating the staging buffer in the RAM*/
 		Buffer staging;
 		createBuffer(
@@ -523,6 +525,8 @@ namespace brdfa {
 		if (vkCreateSampler(m_device.device, &samplerInfo, nullptr, &m_skymap.sampler) != VK_SUCCESS) {
 			throw std::runtime_error("ERROR: failed to create texture sampler!");
 		}
+
+		this->m_latest_skymap = skyboxSides;
 	}
 
 
@@ -1389,7 +1393,8 @@ namespace brdfa {
 
 
 		/*Meshes dependent*/
-		loadEnvironmentMap(SKYMAP_PATHS);
+		this->loadEnvironmentMap(SKYMAP_PATHS);
+
 		createUniformBuffers(m_uniformBuffers, m_commander, m_device, m_swapChain, m_meshes.size());
 		initDescriptors(m_descriptorData, m_device, m_swapChain, m_uniformBuffers, m_meshes, m_skymap);
 
@@ -1424,6 +1429,9 @@ namespace brdfa {
 
 		/*Syncronization objects re-initialization.*/
 		m_imagesInFlight.resize(m_swapChain.images.size(), VK_NULL_HANDLE);
+
+		if (this->m_latest_skymap.size() > 0)
+			this->reloadSkymap(this->m_latest_skymap);
 	}
 
 
@@ -1802,7 +1810,7 @@ namespace brdfa {
 				if (pressedB && strlen(name) > 0) {
 					BRDF_Panel panel;
 					panel.brdfName = name;
-					panel.glslPanel.SetText("vec3 render(vec3 L, vec3 N, vec3 V, vec2 tc){\n\n}");
+					panel.glslPanel.SetText("vec3 render(vec3 L, vec3 N, vec3 V, vec2 textureCord, mat3 worldToLocal){\n\n}");
 					panel.tested = false;
 					
 					memset(name, '\0', 20);
@@ -2060,21 +2068,20 @@ namespace brdfa {
 					}
 					ImGui::EndMenu();
 				}
-				if (ImGui::MenuItem("Close")) { m_uistate.running = false; }
+				// if (ImGui::MenuItem("Close")) { m_uistate.running = false; }
 				ImGui::EndMenu();
 			}
 			if (ImGui::BeginMenu("Tools"))
 			{
-				if (ImGui::MenuItem("Objects Editor", "Ctrl+M")) m_uistate.objWindowActive = true;
-				if (ImGui::MenuItem("Camera Editor", "Ctrl+K")) m_uistate.camWindowActive = true;
-				if (ImGui::MenuItem("BRDF Editor", "Ctrl+B")) m_uistate.brdfEditorWindowActive = true;
-				if (ImGui::MenuItem("Log Window", "Ctrl+L")) m_uistate.logWindowActive = true;
-				if (ImGui::MenuItem("Test Window", "Ctrl+T")) m_uistate.testWindowActive= true;
-				if (ImGui::MenuItem("Comparison Generator", "Ctrl+G")) m_uistate.brdfCompareWindowActive = true;
-				if (ImGui::MenuItem("Frame Saver", "Ctrl+F")) m_uistate.frameSaverWindowActive = true;
+				if (ImGui::MenuItem("Objects Editor")) m_uistate.objWindowActive = true;
+				if (ImGui::MenuItem("Camera Editor")) m_uistate.camWindowActive = true;
+				if (ImGui::MenuItem("BRDF Editor")) m_uistate.brdfEditorWindowActive = true;
+				if (ImGui::MenuItem("Log Window")) m_uistate.logWindowActive = true;
+				if (ImGui::MenuItem("Test Window")) m_uistate.testWindowActive= true;
+				if (ImGui::MenuItem("Frame Saver")) m_uistate.frameSaverWindowActive = true;
 				ImGui::EndMenu();
 			}
-			if ( ImGui::MenuItem("Help", "Ctrl+H"))  m_uistate.helpWindowActive = true;
+			if ( ImGui::MenuItem("Help"))  m_uistate.helpWindowActive = true;
 			ImGui::EndMenuBar();
 		}
 		ImGui::End();
@@ -2117,8 +2124,10 @@ namespace brdfa {
 			try {
 				if (!this->loadObject(std::string(m_uistate.obj_path), texture_paths)) 
 					logger = "Object can't be loaded: Make sure to have iTexture0 filled and object path is correct!";			
-				else 
+				else {
 					m_uistate.objectLoaderWindowActive = false;
+					logger = "";
+				}
 			}
 			catch (const std::exception& exp) {
 				logger = exp.what();
@@ -2152,6 +2161,7 @@ namespace brdfa {
 		if (ImGui::Button("Load File", ImVec2(100, 30))) {
 			try {
 				this->reloadSkymap(std::string(m_uistate.skymap_path));
+				logger = "";
 				m_uistate.skymapLoaderWindowActive = false;
 			}
 			catch (const std::exception& exp){
